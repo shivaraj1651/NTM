@@ -334,3 +334,69 @@ class TestROIAnalyzer:
         assert result["totals"]["roi"] == pytest.approx(0.633, abs=0.01)
         assert result["totals"]["total_reach_weighted_conversions"] == 9500
         assert result["totals"]["total_budget"] == pytest.approx(15000.0, abs=1.0)
+
+
+class TestOptimizationReporter:
+    """Tests for OptimizationReporter class."""
+
+    def test_report_identifies_budget_shifts(self):
+        """Should detect activations with budget changes."""
+        from backend.app.agents.budget_optimizer import OptimizationReporter
+
+        reporter = OptimizationReporter()
+
+        original = [
+            {"id": "a1", "sub_channel": "TikTok", "phase": "Awareness", "optimized_cost_estimated": 5000.0},
+            {"id": "a2", "sub_channel": "Instagram", "phase": "Awareness", "optimized_cost_estimated": 5000.0},
+        ]
+
+        optimized = [
+            {"id": "a1", "sub_channel": "TikTok", "phase": "Awareness", "optimized_cost_estimated": 6000.0},
+            {"id": "a2", "sub_channel": "Instagram", "phase": "Awareness", "optimized_cost_estimated": 4000.0},
+        ]
+
+        conversion_rates = {"a1": 0.008, "a2": 0.006}
+
+        report = reporter.generate_report(original, optimized, conversion_rates)
+
+        assert len(report["budget_shifts"]) > 0
+
+    def test_report_categorizes_prioritized(self):
+        """Should identify prioritized activations (budget increase)."""
+        from backend.app.agents.budget_optimizer import OptimizationReporter
+
+        reporter = OptimizationReporter()
+
+        original = [
+            {"id": "a1", "sub_channel": "TikTok", "phase": "Awareness", "optimized_cost_estimated": 3000.0},
+        ]
+
+        optimized = [
+            {"id": "a1", "sub_channel": "TikTok", "phase": "Awareness", "optimized_cost_estimated": 5000.0},
+        ]
+
+        conversion_rates = {"a1": 0.008}
+
+        report = reporter.generate_report(original, optimized, conversion_rates)
+
+        assert len(report["prioritized_activations"]) > 0
+
+    def test_report_categorizes_deprioritized(self):
+        """Should identify deprioritized activations (budget decrease)."""
+        from backend.app.agents.budget_optimizer import OptimizationReporter
+
+        reporter = OptimizationReporter()
+
+        original = [
+            {"id": "a1", "sub_channel": "Display", "phase": "Awareness", "optimized_cost_estimated": 5000.0},
+        ]
+
+        optimized = [
+            {"id": "a1", "sub_channel": "Display", "phase": "Awareness", "optimized_cost_estimated": 2000.0},
+        ]
+
+        conversion_rates = {"a1": 0.002}
+
+        report = reporter.generate_report(original, optimized, conversion_rates)
+
+        assert len(report["deprioritized_activations"]) > 0
