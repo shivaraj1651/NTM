@@ -60,11 +60,16 @@ class MandateValidator:
                     missing_fields.append(f"{section}.{field}")
             else:
                 section_data = mandate[section]
-                for field in fields:
-                    if field in section_data and section_data[field] is not None:
-                        field_count += 1
-                    else:
+                if not isinstance(section_data, dict):
+                    # Non-dict section treated as missing
+                    for field in fields:
                         missing_fields.append(f"{section}.{field}")
+                else:
+                    for field in fields:
+                        if field in section_data and section_data[field] is not None:
+                            field_count += 1
+                        else:
+                            missing_fields.append(f"{section}.{field}")
 
         return {
             "is_complete": len(missing_fields) == 0,
