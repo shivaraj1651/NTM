@@ -219,3 +219,49 @@ async def test_mandate_analyst_agent_incomplete_mandate(incomplete_mandate):
     assert "geography.markets" in result["missing_fields"]
     assert len(result["missing_fields"]) == 1
     assert result["completeness_score"] < 100
+
+
+@pytest.mark.asyncio
+async def test_analyze_mandate_with_llm_empty_response(complete_mandate):
+    """LLM analysis should gracefully handle empty API response."""
+    from backend.app.agents.mandate_analyst import analyze_mandate_with_llm, MandateValidator
+
+    validator = MandateValidator()
+    validation_result = validator.validate(complete_mandate)
+
+    # Mock empty response
+    with patch("backend.app.agents.mandate_analyst.AsyncAnthropic") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value = mock_client
+        mock_client.messages.create.return_value = AsyncMock(content=[])
+
+        result = await analyze_mandate_with_llm(complete_mandate, validation_result)
+
+        # Should return graceful fallback
+        assert result["completeness_score"] == 0
+        assert "error" in result
+        assert result["mandate_summary"]["objective"] == "API response empty or malformed"
+
+
+@pytest.mark.asyncio
+async def test_analyze_mandate_with_llm_invalid_json(complete_mandate):
+    """LLM analysis should handle invalid JSON response."""
+    from backend.app.agents.mandate_analyst import analyze_mandate_with_llm, MandateValidator
+
+    validator = MandateValidator()
+    validation_result = validator.validate(complete_mandate)
+
+    # Mock invalid JSON response
+    with patch("backend.app.agents.mandate_analyst.AsyncAnthropic") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value = mock_client
+        mock_response = AsyncMock()
+        mock_response.content = [AsyncMock(text="not valid json {]")]
+        mock_client.messages.create.return_value = mock_response
+
+        result = await analyze_mandate_with_llm(complete_mandate, validation_result)
+
+        # Should return graceful fallback
+        assert result["completeness_score"] == 0
+        assert "error" in result
+        assert result["mandate_summary"]["key_risks"] == ["LLM parsing failed"]
