@@ -197,3 +197,112 @@ class BudgetOptimizer:
                 optimized.append(optimized_act)
 
         return optimized
+
+
+class ROIAnalyzer:
+    """Analyzes ROI metrics across phases, channels, and total campaign."""
+
+    def analyze(
+        self,
+        optimized_activations: List[Dict[str, Any]],
+        conversion_rates: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """
+        Analyze ROI across phases, channels, and total campaign.
+
+        Args:
+            optimized_activations: List of optimized activations with reach and cost
+            conversion_rates: Dict mapping activation ID to conversion rate
+
+        Returns:
+            Dict with phase_summary, channel_summary, and totals
+        """
+        phase_summary = {}
+        channel_summary = {}
+        total_reach_weighted = 0
+        total_budget = 0.0
+
+        # First pass: collect data by phase and channel
+        phase_data = {}  # phase -> {channel -> [(reach_weighted, budget)]}
+        channel_data = {}  # channel -> [(reach_weighted, budget)]
+
+        for activation in optimized_activations:
+            act_id = activation.get("id")
+            phase = activation.get("phase", "Engagement")
+            sub_channel = activation.get("sub_channel", "Unknown")
+            reach = activation.get("estimated_reach", 0)
+            budget = activation.get("optimized_cost_estimated", 0.0)
+            conv_rate = conversion_rates.get(act_id, 0.005)
+
+            # Calculate reach-weighted-conversions
+            reach_weighted = int(reach * conv_rate)
+
+            # Track totals
+            total_reach_weighted += reach_weighted
+            total_budget += budget
+
+            # Track by phase
+            if phase not in phase_data:
+                phase_data[phase] = {}
+            if sub_channel not in phase_data[phase]:
+                phase_data[phase][sub_channel] = []
+            phase_data[phase][sub_channel].append((reach_weighted, budget))
+
+            # Track by channel
+            if sub_channel not in channel_data:
+                channel_data[sub_channel] = []
+            channel_data[sub_channel].append((reach_weighted, budget))
+
+        # Build phase summary
+        for phase, channels in phase_data.items():
+            phase_reach_weighted = 0
+            phase_budget = 0.0
+            channel_breakdown = {}
+
+            for channel, data_list in channels.items():
+                channel_reach_weighted = sum(rw for rw, _ in data_list)
+                channel_budget = sum(b for _, b in data_list)
+                channel_roi = channel_reach_weighted / channel_budget if channel_budget > 0 else 0.0
+
+                phase_reach_weighted += channel_reach_weighted
+                phase_budget += channel_budget
+
+                channel_breakdown[channel] = {
+                    "reach_weighted_conversions": channel_reach_weighted,
+                    "allocated_budget": channel_budget,
+                    "roi": channel_roi,
+                }
+
+            phase_roi = phase_reach_weighted / phase_budget if phase_budget > 0 else 0.0
+
+            phase_summary[phase] = {
+                "reach_weighted_conversions": phase_reach_weighted,
+                "allocated_budget": phase_budget,
+                "roi": phase_roi,
+                "channel_breakdown": channel_breakdown,
+            }
+
+        # Build channel summary
+        for channel, data_list in channel_data.items():
+            channel_reach_weighted = sum(rw for rw, _ in data_list)
+            channel_budget = sum(b for _, b in data_list)
+            channel_roi = channel_reach_weighted / channel_budget if channel_budget > 0 else 0.0
+
+            channel_summary[channel] = {
+                "reach_weighted_conversions": channel_reach_weighted,
+                "total_allocated": channel_budget,
+                "roi": channel_roi,
+            }
+
+        # Calculate campaign total ROI
+        campaign_roi = total_reach_weighted / total_budget if total_budget > 0 else 0.0
+
+        return {
+            "phase_summary": phase_summary,
+            "channel_summary": channel_summary,
+            "totals": {
+                "total_reach_weighted_conversions": total_reach_weighted,
+                "total_budget": total_budget,
+                "roi": campaign_roi,
+            },
+        }

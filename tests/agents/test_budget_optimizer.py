@@ -199,3 +199,138 @@ class TestBudgetOptimizer:
         optimized = optimizer.optimize(activations, conversion_rates, phase_budgets)
 
         assert all(a["optimized_cost_estimated"] >= 100.0 for a in optimized)
+
+
+class TestROIAnalyzer:
+    """Tests for ROIAnalyzer class."""
+
+    def test_analyze_roi_phase_summary(self):
+        """Should generate phase ROI breakdown with channel breakdown."""
+        from backend.app.agents.budget_optimizer import ROIAnalyzer
+
+        analyzer = ROIAnalyzer()
+
+        optimized_activations = [
+            {
+                "id": "a1",
+                "phase": "Awareness",
+                "sub_channel": "TikTok",
+                "estimated_reach": 500000,
+                "optimized_cost_estimated": 5000.0,
+            },
+            {
+                "id": "a2",
+                "phase": "Awareness",
+                "sub_channel": "Instagram",
+                "estimated_reach": 300000,
+                "optimized_cost_estimated": 3000.0,
+            },
+            {
+                "id": "a3",
+                "phase": "Conversion",
+                "sub_channel": "Email",
+                "estimated_reach": 100000,
+                "optimized_cost_estimated": 1000.0,
+            },
+        ]
+
+        conversion_rates = {
+            "a1": 0.008,
+            "a2": 0.006,
+            "a3": 0.030,
+        }
+
+        result = analyzer.analyze(optimized_activations, conversion_rates)
+
+        # Check structure
+        assert "phase_summary" in result
+        assert "Awareness" in result["phase_summary"]
+        assert "Conversion" in result["phase_summary"]
+
+        # Awareness phase: (500000*0.008 + 300000*0.006) / (5000+3000) = 5800/8000 = 0.725
+        assert result["phase_summary"]["Awareness"]["roi"] == pytest.approx(0.725, abs=0.01)
+
+        # Conversion phase: (100000*0.030) / 1000 = 3000/1000 = 3.0
+        assert result["phase_summary"]["Conversion"]["roi"] == pytest.approx(3.0, abs=0.01)
+
+        # Check channel breakdown in Awareness phase
+        assert "channel_breakdown" in result["phase_summary"]["Awareness"]
+        awareness_channels = result["phase_summary"]["Awareness"]["channel_breakdown"]
+        assert "TikTok" in awareness_channels
+        assert "Instagram" in awareness_channels
+
+    def test_analyze_roi_channel_summary(self):
+        """Should generate channel ROI breakdown across all phases."""
+        from backend.app.agents.budget_optimizer import ROIAnalyzer
+
+        analyzer = ROIAnalyzer()
+
+        optimized_activations = [
+            {
+                "id": "a1",
+                "phase": "Awareness",
+                "sub_channel": "Email",
+                "estimated_reach": 50000,
+                "optimized_cost_estimated": 1000.0,
+            },
+            {
+                "id": "a2",
+                "phase": "Conversion",
+                "sub_channel": "Email",
+                "estimated_reach": 20000,
+                "optimized_cost_estimated": 500.0,
+            },
+        ]
+
+        conversion_rates = {
+            "a1": 0.030,
+            "a2": 0.030,
+        }
+
+        result = analyzer.analyze(optimized_activations, conversion_rates)
+
+        # Check structure
+        assert "channel_summary" in result
+        assert "Email" in result["channel_summary"]
+
+        # Email total: (50000*0.030 + 20000*0.030) / (1000+500) = 2100/1500 = 1.4
+        assert result["channel_summary"]["Email"]["roi"] == pytest.approx(1.4, abs=0.01)
+
+    def test_analyze_roi_total_campaign(self):
+        """Should calculate total campaign ROI across all activations."""
+        from backend.app.agents.budget_optimizer import ROIAnalyzer
+
+        analyzer = ROIAnalyzer()
+
+        optimized_activations = [
+            {
+                "id": "a1",
+                "phase": "Awareness",
+                "sub_channel": "TikTok",
+                "estimated_reach": 1000000,
+                "optimized_cost_estimated": 10000.0,
+            },
+            {
+                "id": "a2",
+                "phase": "Conversion",
+                "sub_channel": "Email",
+                "estimated_reach": 50000,
+                "optimized_cost_estimated": 5000.0,
+            },
+        ]
+
+        conversion_rates = {
+            "a1": 0.008,
+            "a2": 0.030,
+        }
+
+        result = analyzer.analyze(optimized_activations, conversion_rates)
+
+        # Check structure
+        assert "totals" in result
+
+        # Campaign total: (1000000*0.008 + 50000*0.030) / (10000+5000)
+        # = (8000 + 1500) / 15000 = 9500 / 15000 = 0.633...
+        assert result["totals"]["roi"] == pytest.approx(0.633, abs=0.01)
+        assert result["totals"]["total_reach_weighted_conversions"] == 9500
+        assert result["totals"]["total_budget"] == pytest.approx(15000.0, abs=1.0)
