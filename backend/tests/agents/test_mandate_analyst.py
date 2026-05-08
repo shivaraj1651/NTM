@@ -62,3 +62,29 @@ def incomplete_mandate():
         }
     }
     return mandate
+
+
+def test_mandate_validator_complete_mandate(complete_mandate):
+    """MandateValidator should pass complete mandate with score 100."""
+    from backend.app.agents.mandate_analyst import MandateValidator
+
+    validator = MandateValidator()
+    result = validator.validate(complete_mandate)
+
+    assert result["is_complete"] is True
+    assert result["missing_fields"] == []
+    assert result["field_count"] == 17
+    assert result["field_total"] == 17
+
+
+def test_mandate_validator_missing_fields(incomplete_mandate):
+    """MandateValidator should detect missing fields."""
+    from backend.app.agents.mandate_analyst import MandateValidator
+
+    validator = MandateValidator()
+    result = validator.validate(incomplete_mandate)
+
+    assert result["is_complete"] is False
+    assert "geography.markets" in result["missing_fields"]
+    assert result["field_count"] == 16
+    assert result["field_total"] == 17
