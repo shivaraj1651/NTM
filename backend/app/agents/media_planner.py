@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import date, timedelta
 from pydantic import ValidationError
-from backend.app.schemas.media_plan import Activation
+from backend.app.schemas.media_plan import Activation, PhaseEnum, ChannelEnum, AudienceSegmentEnum
 
 logger = logging.getLogger(__name__)
 
@@ -284,3 +284,222 @@ class ActivationValidator:
                 message = error["msg"]
                 errors.append(f"Field '{field_path}': {message}")
             return errors
+
+
+async def media_planner_agent(
+    campaign_concept: Dict[str, Any],
+    budget_envelope: Dict[str, Any],
+    mandate_geography: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Main orchestrator: coordinates allocation, generation, constraints, validation.
+
+    Transforms a campaign concept and budget into a detailed Activation Master Plan
+    using top-down budget allocation: phases → channels → geographies.
+
+    Args:
+        campaign_concept: Campaign concept dict with channel_mix, campaign_phasing, tone_board, message_architecture
+        budget_envelope: Budget dict with total_budget, currency, contingency_pct
+        mandate_geography: Geography dict with regions, markets, countries
+
+    Returns:
+        Dict with:
+          - activations: List of Activation objects (validated)
+          - budget_summary: BudgetSummary with phase/channel/contingency breakdown
+          - validation_errors: List of validation error strings
+          - allocation_log: List of allocation decision log entries
+          - status: "success" (all valid), "partial" (some valid), or "failed" (none valid)
+    """
+    # Initialize component instances
+    allocator = BudgetAllocator()
+    generator = ActivationGenerator()
+    constraint_handler = OfflineConstraintHandler()
+    validator = ActivationValidator()
+
+    # Extract inputs
+    total_budget = budget_envelope.get("total_budget", 100000.0)
+    currency = budget_envelope.get("currency", "USD")
+    contingency_pct = budget_envelope.get("contingency_pct", 0.10)
+    markets = mandate_geography.get("markets", [])
+    channels = campaign_concept.get("channel_mix", [])
+    campaign_phasing = campaign_concept.get("campaign_phasing", {})
+    tone_board = campaign_concept.get("tone_board", {})
+    message_architecture = campaign_concept.get("message_architecture", {})
+
+    # Initialize tracking
+    activations = []
+    validation_errors = []
+    allocation_log = []
+    total_spent = 0.0
+    channel_activation_counts = {}
+    phase_breakdown_tracking = {}
+    channel_breakdown_tracking = {}
+
+    # Phase allocation (40% Awareness, 40% Engagement, 20% Conversion)
+    phase_budgets = allocator.allocate_by_phase(total_budget)
+    allocation_log.append(f"Phase budget allocation: Awareness={phase_budgets['Awareness']:.2f}, "
+                         f"Engagement={phase_budgets['Engagement']:.2f}, "
+                         f"Conversion={phase_budgets['Conversion']:.2f}")
+
+    # For each phase, allocate to channels and geographies
+    for phase_name, phase_budget in phase_budgets.items():
+        phase_breakdown_tracking[phase_name] = {
+            "allocated": phase_budget,
+            "spent": 0.0,
+            "remaining": phase_budget
+        }
+
+        # Allocate phase budget to channels
+        channel_budgets = allocator.allocate_by_channel(phase_budget, channels)
+        allocation_log.append(f"{phase_name} channel allocation: {channel_budgets}")
+
+        # For each channel in this phase
+        for channel_dict in channels:
+            channel_name = channel_dict.get("channel", "Unknown")
+            channel_budget = channel_budgets.get(channel_name, 0.0)
+
+            if channel_name not in channel_activation_counts:
+                channel_activation_counts[channel_name] = 0
+            if channel_name not in channel_breakdown_tracking:
+                channel_breakdown_tracking[channel_name] = {
+                    "allocated": 0.0,
+                    "spent": 0.0,
+                    "activations_count": 0
+                }
+
+            channel_breakdown_tracking[channel_name]["allocated"] += channel_budget
+
+            # Get phase start date for offline constraint calculation
+            phase_dates = campaign_phasing.get(phase_name, {})
+            phase_start = phase_dates.get("start", date.today())
+
+            # For each market in this channel/phase
+            for market in markets:
+                # Allocate channel budget equally across markets
+                market_budget = channel_budget / len(markets) if markets else 0.0
+
+                # Calculate activation details
+                audience_size = 2000000  # Assumed market audience
+                penetration = generator.get_penetration_for_phase(phase_name)
+                estimated_reach = generator.calculate_reach(audience_size, penetration)
+
+                cpm = generator.get_cpm_for_channel(channel_name)
+                estimated_cost = generator.calculate_cost(estimated_reach, cpm)
+
+                # Cap cost to market budget to prevent overspending
+                if estimated_cost > market_budget:
+                    estimated_cost = market_budget
+
+                # Map channel name to ChannelEnum
+                channel_enum = ChannelEnum.SOCIAL
+                if "Facebook" in channel_name or "Instagram" in channel_name or "TikTok" in channel_name:
+                    channel_enum = ChannelEnum.SOCIAL
+                elif "Email" in channel_name:
+                    channel_enum = ChannelEnum.EMAIL
+                elif "YouTube" in channel_name:
+                    channel_enum = ChannelEnum.DISPLAY
+                elif "TV" in channel_name:
+                    channel_enum = ChannelEnum.TV
+                elif "Radio" in channel_name:
+                    channel_enum = ChannelEnum.RADIO
+                elif "Print" in channel_name:
+                    channel_enum = ChannelEnum.PRINT
+
+                # Calculate scheduled date (accounting for offline lead time)
+                scheduled_date = constraint_handler.calculate_scheduled_date(channel_name, phase_start)
+
+                # Get offline constraint note
+                offline_constraints = constraint_handler.get_offline_constraints_note(channel_name)
+                lead_time_days = constraint_handler.get_lead_time_days(channel_name)
+
+                # Determine frequency for this phase
+                frequency = generator.get_frequency_for_phase(phase_name)
+
+                # Build message version reference from tone board and message architecture
+                tone_str = tone_board.get("tone", "standard")
+                message_str = message_architecture.get("primary", "standard")
+                message_version_ref = f"{channel_name} ({tone_str}) - {message_str}"
+
+                # Build activation dictionary
+                activation_dict = {
+                    "channel_enum": channel_enum,
+                    "sub_channel": channel_name,
+                    "format": f"Standard format for {channel_name}",
+                    "geography": market,
+                    "placement": f"{channel_name} placement",
+                    "phase": PhaseEnum(phase_name),
+                    "scheduled_date": scheduled_date,
+                    "duration": 14,  # Default 2-week duration
+                    "frequency": frequency,
+                    "audience_segment": AudienceSegmentEnum.PRIMARY,
+                    "estimated_reach": estimated_reach,
+                    "estimated_cpm": cpm,
+                    "cost_estimated": estimated_cost,
+                    "message_version_ref": message_version_ref,
+                    "lead_time_days": lead_time_days if lead_time_days > 0 else None,
+                    "offline_constraints": offline_constraints
+                }
+
+                # Validate activation
+                errors = validator.validate_schema(activation_dict)
+
+                if not errors:
+                    # Valid activation - add to list and update tracking
+                    activations.append(Activation(**activation_dict))
+                    total_spent += estimated_cost
+                    channel_activation_counts[channel_name] += 1
+                    channel_breakdown_tracking[channel_name]["spent"] += estimated_cost
+                    channel_breakdown_tracking[channel_name]["activations_count"] += 1
+                    phase_breakdown_tracking[phase_name]["spent"] += estimated_cost
+                else:
+                    # Invalid activation - log errors
+                    validation_errors.extend(errors)
+                    allocation_log.append(f"Validation failed for {channel_name}/{market}/{phase_name}: {errors}")
+
+    # Update remaining amounts
+    for phase_name in phase_breakdown_tracking:
+        phase_breakdown_tracking[phase_name]["remaining"] = (
+            phase_breakdown_tracking[phase_name]["allocated"] - phase_breakdown_tracking[phase_name]["spent"]
+        )
+
+    # Calculate contingency
+    contingency_allocated = total_budget - sum(p["allocated"] for p in phase_breakdown_tracking.values())
+    contingency_used = allocator.calculate_contingency(total_spent, contingency_pct)
+    contingency_remaining = contingency_allocated - contingency_used
+
+    # Build budget summary
+    budget_summary = {
+        "total_budget": total_budget,
+        "currency": currency,
+        "phase_breakdown": phase_breakdown_tracking,
+        "channel_breakdown": channel_breakdown_tracking,
+        "contingency": {
+            "allocated": contingency_allocated,
+            "used": contingency_used,
+            "remaining": contingency_remaining
+        },
+        "total_spent": total_spent,
+        "total_remaining": total_budget - total_spent,
+        "utilization_pct": (total_spent / total_budget * 100) if total_budget > 0 else 0.0
+    }
+
+    # Determine status
+    if len(validation_errors) == 0:
+        status = "success"
+    elif len(activations) > 0:
+        status = "partial"
+    else:
+        status = "failed"
+
+    # Build and return response
+    response = {
+        "activations": activations,
+        "budget_summary": budget_summary,
+        "validation_errors": validation_errors,
+        "allocation_log": allocation_log,
+        "status": status
+    }
+
+    logger.info(f"Media planner generated {len(activations)} activations with status={status}")
+
+    return response

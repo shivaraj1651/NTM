@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import date, timedelta
+import asyncio
 from backend.app.schemas.media_plan import ChannelEnum, PhaseEnum, AudienceSegmentEnum
 
 
@@ -300,3 +301,52 @@ class TestActivationValidator:
 
         assert len(errors) > 0
         assert any("estimated_reach" in error for error in errors)
+
+
+@pytest.mark.asyncio
+async def test_media_planner_agent_generates_activations():
+    """Integration test: media_planner_agent orchestrator generates full media plan."""
+    from backend.app.agents.media_planner import media_planner_agent
+
+    # Create mock campaign_concept with required channel_mix
+    campaign_concept = {
+        "campaign_name": "Test Campaign",
+        "campaign_phasing": {
+            "Awareness": {"start": date(2026, 6, 1), "end": date(2026, 6, 15)},
+            "Engagement": {"start": date(2026, 6, 16), "end": date(2026, 6, 30)},
+            "Conversion": {"start": date(2026, 7, 1), "end": date(2026, 7, 15)}
+        },
+        "channel_mix": [
+            {"channel": "TikTok", "weight": 0.4},
+            {"channel": "Instagram", "weight": 0.3},
+            {"channel": "Email", "weight": 0.3}
+        ],
+        "tone_board": {"tone": "authentic, bold"},
+        "message_architecture": {"primary": "storytelling format"}
+    }
+
+    # Create budget dict
+    budget = {
+        "total_budget": 100000.0,
+        "currency": "USD",
+        "contingency_pct": 0.10
+    }
+
+    # Create mandate_geography dict
+    mandate_geography = {
+        "regions": ["North America"],
+        "markets": ["US", "Canada"],
+        "countries": ["USA", "CAN"]
+    }
+
+    # Call the orchestrator
+    result = await media_planner_agent(campaign_concept, budget, mandate_geography)
+
+    # Assertions
+    assert "activations" in result
+    assert "budget_summary" in result
+    assert isinstance(result["activations"], list)
+    assert len(result["activations"]) > 0
+    assert result["status"] in ["success", "partial", "failed"]
+    assert "allocation_log" in result
+    assert "validation_errors" in result
