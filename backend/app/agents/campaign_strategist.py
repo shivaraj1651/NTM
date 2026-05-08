@@ -211,3 +211,84 @@ Generate a comprehensive campaign concept that:
             return None
 
     return None
+
+
+async def campaign_strategist_agent(
+    mandate: Dict[str, Any],
+    ci_report: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Orchestrate generation of 3 campaign concepts with risk filtering and validation.
+
+    Args:
+        mandate: Mandate summary card from AGT-01
+        ci_report: Competitive intelligence report from AGT-02
+
+    Returns:
+        Dict with:
+            - campaigns: List[CampaignConcept] (up to 3)
+            - validation_errors: List[str]
+            - regeneration_log: List[str]
+    """
+    campaigns: List[Dict[str, Any]] = []
+    validation_errors: List[str] = []
+    regeneration_log: List[str] = []
+
+    validator = CampaignConceptValidator()
+    risk_filter = RiskFilter()
+
+    # Generate 3 campaigns
+    for campaign_num in range(1, 4):
+        logger.info(f"Generating campaign #{campaign_num}...")
+
+        # Generate campaign
+        concept = await generate_campaign(mandate, ci_report, campaign_num)
+
+        if concept is None:
+            regeneration_log.append(f"Campaign #{campaign_num} skipped: LLM generation failed")
+            continue
+
+        # Check for risks
+        risk_flags = concept.get("risk_flags", {})
+
+        if risk_filter.should_regenerate(risk_flags):
+            # Determine which risk to address
+            for risk_type in ["legal", "regulatory", "sensitivity"]:
+                if risk_flags.get(risk_type) is not None:
+                    regeneration_log.append(
+                        f"Campaign #{campaign_num} regenerated: {risk_type} risk flagged - {risk_flags[risk_type]}"
+                    )
+
+                    # Regenerate with risk mitigation prompt
+                    concept = await generate_campaign(mandate, ci_report, campaign_num)
+
+                    if concept is None:
+                        regeneration_log.append(f"Campaign #{campaign_num} skipped: regeneration failed")
+                        concept = None
+                        break
+
+                    # Re-check risks
+                    risk_flags = concept.get("risk_flags", {})
+                    if risk_filter.should_regenerate(risk_flags):
+                        regeneration_log.append(
+                            f"Campaign #{campaign_num} skipped: {risk_type} risk persisted after retry"
+                        )
+                        concept = None
+                    break
+
+        # Validate schema
+        if concept is not None:
+            errors = validator.validate_schema(concept)
+
+            if errors:
+                validation_errors.extend([f"Campaign #{campaign_num}: {e}" for e in errors])
+                regeneration_log.append(f"Campaign #{campaign_num} skipped: schema validation failed")
+            else:
+                campaigns.append(concept)
+                logger.info(f"Campaign #{campaign_num} added to results")
+
+    return {
+        "campaigns": campaigns,
+        "validation_errors": validation_errors,
+        "regeneration_log": regeneration_log,
+    }
