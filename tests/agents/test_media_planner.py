@@ -157,3 +157,54 @@ class TestActivationGenerator:
         assert awareness_pen == 0.60  # 60%
         assert engagement_pen == 0.30  # 30%
         assert conversion_pen == 0.10  # 10%
+
+
+class TestOfflineConstraintHandler:
+    """Tests for OfflineConstraintHandler class."""
+
+    def test_tv_lead_time_4_weeks(self):
+        """TV should have 28-day (4-week) lead time."""
+        from backend.app.agents.media_planner import OfflineConstraintHandler
+
+        handler = OfflineConstraintHandler()
+        lead_time = handler.get_lead_time_days("TV")
+
+        assert lead_time == 28
+
+    def test_print_lead_time_2_weeks(self):
+        """Print should have 14-day (2-week) lead time."""
+        from backend.app.agents.media_planner import OfflineConstraintHandler
+
+        handler = OfflineConstraintHandler()
+        lead_time = handler.get_lead_time_days("Print")
+
+        assert lead_time == 14
+
+    def test_is_offline_channel_tv(self):
+        """TV should be identified as offline channel."""
+        from backend.app.agents.media_planner import OfflineConstraintHandler
+
+        handler = OfflineConstraintHandler()
+        is_offline = handler.is_offline("TV")
+
+        assert is_offline is True
+
+    def test_is_offline_channel_tiktok(self):
+        """TikTok should not be identified as offline channel."""
+        from backend.app.agents.media_planner import OfflineConstraintHandler
+
+        handler = OfflineConstraintHandler()
+        is_offline = handler.is_offline("TikTok")
+
+        assert is_offline is False
+
+    def test_scheduled_date_with_lead_time(self):
+        """Scheduled date should be phase_start minus lead_time days."""
+        from backend.app.agents.media_planner import OfflineConstraintHandler
+
+        handler = OfflineConstraintHandler()
+        phase_start = date(2026, 6, 1)
+        scheduled_date = handler.calculate_scheduled_date("TV", phase_start)
+
+        # TV has 28 days lead time, so 2026-06-01 - 28 days = 2026-05-04
+        assert scheduled_date == date(2026, 5, 4)

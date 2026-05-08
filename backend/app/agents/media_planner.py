@@ -175,3 +175,83 @@ class ActivationGenerator:
             Penetration rate as decimal (default 0.0)
         """
         return self.PHASE_PENETRATION.get(phase, 0.0)
+
+
+class OfflineConstraintHandler:
+    """Manages lead time constraints for offline channels."""
+
+    # Lead time (days) for each offline channel
+    OFFLINE_LEAD_TIMES = {
+        "TV": 28,           # 4 weeks
+        "Print": 14,        # 2 weeks
+        "Cinema": 21,       # 3 weeks
+        "Radio": 10,        # ~1.5 weeks
+        "Events": 14,       # 2 weeks
+        "DirectMail": 14,   # 2 weeks
+        "OOH": 7,           # 1 week
+    }
+
+    # Set of offline channel names
+    OFFLINE_CHANNELS = set(OFFLINE_LEAD_TIMES.keys())
+
+    def is_offline(self, channel_name: str) -> bool:
+        """
+        Check if a channel is offline.
+
+        Args:
+            channel_name: Channel name
+
+        Returns:
+            True if channel is offline, False if online
+        """
+        return channel_name in self.OFFLINE_CHANNELS
+
+    def get_lead_time_days(self, channel_name: str) -> int:
+        """
+        Get lead time for a channel.
+
+        Args:
+            channel_name: Channel name
+
+        Returns:
+            Lead time in days (0 for online channels)
+        """
+        return self.OFFLINE_LEAD_TIMES.get(channel_name, 0)
+
+    def calculate_scheduled_date(self, channel_name: str, phase_start: date) -> date:
+        """
+        Calculate scheduled date for a channel considering lead time.
+
+        Args:
+            channel_name: Channel name
+            phase_start: Phase start date
+
+        Returns:
+            Scheduled date (phase_start minus lead_time)
+        """
+        lead_time_days = self.get_lead_time_days(channel_name)
+        return phase_start - timedelta(days=lead_time_days)
+
+    def get_offline_constraints_note(self, channel_name: str) -> Optional[str]:
+        """
+        Get human-readable constraint note for a channel.
+
+        Args:
+            channel_name: Channel name
+
+        Returns:
+            Constraint note string or None if online
+        """
+        if not self.is_offline(channel_name):
+            return None
+
+        lead_time = self.get_lead_time_days(channel_name)
+        if lead_time == 0:
+            return None
+
+        weeks = lead_time // 7
+        if lead_time % 7 == 0 and weeks > 0:
+            week_str = f"{weeks} week" if weeks == 1 else f"{weeks} weeks"
+            return f"Requires {week_str} lead time"
+        else:
+            return f"Requires {lead_time} days lead time"
