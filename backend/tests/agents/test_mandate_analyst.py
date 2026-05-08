@@ -1,8 +1,6 @@
 """Tests for Mandate Analyst Agent (AGT-01)."""
 
 import pytest
-import json
-from datetime import datetime, timezone
 
 
 @pytest.fixture
@@ -60,7 +58,7 @@ def incomplete_mandate():
         "geography": {
             "regions": ["North America"],
             "country_list": ["US", "CA"]
-            # Missing: markets
+            # Note: markets intentionally omitted for validation testing
         }
     }
     return mandate
