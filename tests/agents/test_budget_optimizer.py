@@ -96,3 +96,106 @@ class TestConversionRateEstimator:
         )
 
         assert 0.001 <= rate <= 0.10
+
+
+class TestBudgetOptimizer:
+    """Tests for BudgetOptimizer class."""
+
+    def test_calculate_roi_per_dollar(self):
+        """ROI should be reach-weighted-conversions / cost."""
+        from backend.app.agents.budget_optimizer import BudgetOptimizer
+
+        optimizer = BudgetOptimizer()
+
+        activation = {
+            "estimated_reach": 500000,
+            "optimized_cost_estimated": 2500.0,
+        }
+        conversion_rate = 0.008
+
+        roi = optimizer.calculate_roi_per_dollar(activation, conversion_rate)
+
+        # (500000 × 0.008) / 2500 = 4000 / 2500 = 1.6
+        assert roi == pytest.approx(1.6, abs=0.01)
+
+    def test_optimize_respects_phase_budget_total(self):
+        """Total phase budget must equal original allocation."""
+        from backend.app.agents.budget_optimizer import BudgetOptimizer
+
+        optimizer = BudgetOptimizer()
+
+        activations = [
+            {
+                "id": "a1",
+                "phase": "Awareness",
+                "optimized_cost_estimated": 10000.0,
+                "estimated_reach": 500000,
+            },
+            {
+                "id": "a2",
+                "phase": "Awareness",
+                "optimized_cost_estimated": 10000.0,
+                "estimated_reach": 400000,
+            },
+        ]
+
+        conversion_rates = {"a1": 0.008, "a2": 0.006}
+        phase_budgets = {"Awareness": 40000.0, "Engagement": 40000.0, "Conversion": 20000.0}
+
+        optimized = optimizer.optimize(activations, conversion_rates, phase_budgets)
+
+        awareness_total = sum(a["optimized_cost_estimated"] for a in optimized if a["phase"] == "Awareness")
+        assert awareness_total == pytest.approx(40000.0, abs=1.0)
+
+    def test_optimize_prioritizes_high_roi(self):
+        """High-ROI activations should get more budget."""
+        from backend.app.agents.budget_optimizer import BudgetOptimizer
+
+        optimizer = BudgetOptimizer()
+
+        activations = [
+            {
+                "id": "high_roi",
+                "phase": "Conversion",
+                "optimized_cost_estimated": 5000.0,
+                "estimated_reach": 100000,
+            },
+            {
+                "id": "low_roi",
+                "phase": "Conversion",
+                "optimized_cost_estimated": 5000.0,
+                "estimated_reach": 50000,
+            },
+        ]
+
+        conversion_rates = {"high_roi": 0.030, "low_roi": 0.010}
+        phase_budgets = {"Awareness": 40000.0, "Engagement": 40000.0, "Conversion": 20000.0}
+
+        optimized = optimizer.optimize(activations, conversion_rates, phase_budgets)
+
+        high_roi_activation = next(a for a in optimized if a["id"] == "high_roi")
+        low_roi_activation = next(a for a in optimized if a["id"] == "low_roi")
+
+        assert high_roi_activation["optimized_cost_estimated"] > low_roi_activation["optimized_cost_estimated"]
+
+    def test_optimize_minimum_activation_budget(self):
+        """Activations should not drop below $100."""
+        from backend.app.agents.budget_optimizer import BudgetOptimizer
+
+        optimizer = BudgetOptimizer()
+
+        activations = [
+            {
+                "id": "low_roi",
+                "phase": "Awareness",
+                "optimized_cost_estimated": 20000.0,
+                "estimated_reach": 10000,
+            },
+        ]
+
+        conversion_rates = {"low_roi": 0.001}
+        phase_budgets = {"Awareness": 40000.0, "Engagement": 40000.0, "Conversion": 20000.0}
+
+        optimized = optimizer.optimize(activations, conversion_rates, phase_budgets)
+
+        assert all(a["optimized_cost_estimated"] >= 100.0 for a in optimized)
