@@ -5,6 +5,7 @@ Validates mandates for completeness and contradictions, produces structured summ
 """
 
 import json
+from datetime import datetime, timezone
 from typing import Dict, List, Any
 
 from anthropic import AsyncAnthropic
@@ -163,3 +164,36 @@ Mandate data:
         }
 
     return result
+
+
+async def mandate_analyst_agent(mandate: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    AGT-01 Mandate Analyst Agent entry point.
+
+    Orchestrates two-phase validation:
+    1. Python validator: checks required fields
+    2. LLM validator: detects contradictions and synthesizes summary
+
+    Args:
+        mandate: Raw mandate dict from API
+
+    Returns:
+        Pure JSON output with validation results and summary card
+    """
+    # Phase 1: Python validation
+    validator = MandateValidator()
+    validation_result = validator.validate(mandate)
+
+    # Phase 2: LLM analysis
+    llm_result = await analyze_mandate_with_llm(mandate, validation_result)
+
+    # Merge results
+    final_output = {
+        "completeness_score": llm_result["completeness_score"],
+        "missing_fields": validation_result["missing_fields"],
+        "contradictions": llm_result.get("contradictions", []),
+        "mandate_summary": llm_result.get("mandate_summary", {}),
+        "validated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    return final_output
