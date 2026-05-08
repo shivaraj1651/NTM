@@ -41,7 +41,6 @@ def _extract_messaging_themes(snippets: List[str]) -> List[str]:
 
 async def search_competitor_ads(
     competitor_name: str,
-    geography: List[str],
     year: int = 2026
 ) -> Dict[str, Any]:
     """Search SerpAPI for competitor ad campaigns."""
