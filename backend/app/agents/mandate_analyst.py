@@ -130,6 +130,20 @@ Mandate data:
     )
 
     # Parse LLM response
+    if not response.content or not response.content[0].text:
+        return {
+            "contradictions": [],
+            "mandate_summary": {
+                "objective": "API response empty or malformed",
+                "budget_total": "N/A",
+                "timeline": "N/A",
+                "key_risks": ["Response parsing failed"],
+                "readiness": "Needs clarification"
+            },
+            "completeness_score": 0,
+            "error": "API returned empty response"
+        }
+
     response_text = response.content[0].text
     try:
         result = json.loads(response_text)
