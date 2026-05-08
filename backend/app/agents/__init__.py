@@ -15,6 +15,7 @@ from backend.app.agents.mandate_analyst import (
     analyze_mandate_with_llm,
     mandate_analyst_agent,
 )
+from backend.app.agents.campaign_strategist import campaign_strategist_agent
 
 __all__ = [
     "MandateValidator",
@@ -22,4 +23,5 @@ __all__ = [
     "mandate_analyst_agent",
     "identify_competitors_sync",
     "competitive_intel_agent",
+    "campaign_strategist_agent",
 ]
