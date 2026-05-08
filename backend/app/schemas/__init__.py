@@ -9,6 +9,17 @@ from backend.app.schemas.campaign_concept import (
     ToneBoard,
     RiskFlags,
 )
+from backend.app.schemas.media_plan import (
+    Activation,
+    BudgetSummary,
+    PhaseBreakdown,
+    ChannelSpend,
+    ContingencyBreakdown,
+    MediaPlanResponse,
+    ChannelEnum,
+    PhaseEnum,
+    AudienceSegmentEnum,
+)
 
 __all__ = [
     "CampaignConcept",
@@ -18,4 +29,13 @@ __all__ = [
     "CampaignPhasing",
     "ToneBoard",
     "RiskFlags",
+    "Activation",
+    "BudgetSummary",
+    "PhaseBreakdown",
+    "ChannelSpend",
+    "ContingencyBreakdown",
+    "MediaPlanResponse",
+    "ChannelEnum",
+    "PhaseEnum",
+    "AudienceSegmentEnum",
 ]
