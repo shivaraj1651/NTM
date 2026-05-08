@@ -17,6 +17,7 @@ from backend.app.agents.mandate_analyst import (
 )
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
 from backend.app.agents.media_planner import media_planner_agent
+from backend.app.agents.budget_optimizer import budget_optimizer_agent
 
 __all__ = [
     "MandateValidator",
@@ -26,4 +27,5 @@ __all__ = [
     "competitive_intel_agent",
     "campaign_strategist_agent",
     "media_planner_agent",
+    "budget_optimizer_agent",
 ]
