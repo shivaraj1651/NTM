@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from celery import shared_task
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from anthropic import AsyncAnthropic
+from pydantic import BaseModel, ValidationError
 
 from backend.app.schemas.competitive_intel import (
     CIReport,
@@ -33,6 +34,16 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ntm")
 MONGO_COLLECTION_CI_REPORTS = os.getenv("MONGO_COLLECTION_CI_REPORTS", "ci_reports")
 MONGO_COLLECTION_COMPETITOR_CACHE = os.getenv("MONGO_COLLECTION_COMPETITOR_CACHE", "competitor_cache")
 CACHE_TTL_METRICS_DAYS = int(os.getenv("CACHE_TTL_METRICS_DAYS", "7"))
+LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+
+
+# Pydantic model for LLM synthesis response validation
+class SynthesisResponse(BaseModel):
+    """Validated response structure from LLM synthesis."""
+    untapped_channels: List[str]
+    messaging_gaps: List[str]
+    geographic_gaps: List[str]
+    market_concentration: str
 
 
 async def get_mongo_db() -> AsyncIOMotorDatabase:
@@ -48,7 +59,7 @@ async def get_mongo_db() -> AsyncIOMotorDatabase:
 
 
 async def get_competitor_cache(
-    db: AsyncIOMotorDatabase, competitor_name: str
+    db: AsyncIOMotorDatabase, competitor_name: str, tenant_id: str
 ) -> Optional[Dict[str, Any]]:
     """
     Look up cached competitor metrics, check freshness.
@@ -56,13 +67,17 @@ async def get_competitor_cache(
     Args:
         db: MongoDB database connection
         competitor_name: Name of competitor to look up
+        tenant_id: Tenant ID for multi-tenancy filtering
 
     Returns:
         Cached metrics dict if fresh (TTL not expired), None otherwise
     """
     try:
         cache_collection = db[MONGO_COLLECTION_COMPETITOR_CACHE]
-        cached = await cache_collection.find_one({"competitor_name": competitor_name})
+        cached = await cache_collection.find_one({
+            "competitor_name": competitor_name,
+            "tenant_id": tenant_id,
+        })
 
         if not cached:
             logger.info(f"Cache miss for competitor: {competitor_name}")
@@ -74,10 +89,13 @@ async def get_competitor_cache(
             logger.warning(f"Cached entry for {competitor_name} missing created_at")
             return None
 
-        # Calculate age
+        # Calculate age with timezone awareness
         now = datetime.now(timezone.utc)
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
+            # Ensure timezone-aware
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
 
         age_days = (now - created_at).days
         if age_days > CACHE_TTL_METRICS_DAYS:
@@ -99,6 +117,7 @@ async def save_competitor_cache(
     messaging_themes: List[str],
     geographic_focus: List[str],
     estimated_spend: Optional[float],
+    tenant_id: str,
 ) -> None:
     """
     Save competitor metrics to cache.
@@ -110,13 +129,15 @@ async def save_competitor_cache(
         messaging_themes: List of messaging themes
         geographic_focus: List of geographic regions
         estimated_spend: Estimated annual spend
+        tenant_id: Tenant ID for multi-tenancy filtering
     """
     try:
         cache_collection = db[MONGO_COLLECTION_COMPETITOR_CACHE]
 
         cache_doc = {
             "competitor_name": competitor_name,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "tenant_id": tenant_id,
+            "created_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
             "metrics": {
                 "channels": channels,
                 "messaging_themes": messaging_themes,
@@ -127,7 +148,7 @@ async def save_competitor_cache(
 
         # Upsert to avoid duplicates
         await cache_collection.update_one(
-            {"competitor_name": competitor_name},
+            {"competitor_name": competitor_name, "tenant_id": tenant_id},
             {"$set": cache_doc},
             upsert=True,
         )
@@ -141,6 +162,7 @@ async def fetch_competitor_metrics_single(
     competitor_name: str,
     geography: List[str],
     db: AsyncIOMotorDatabase,
+    tenant_id: str,
 ) -> Dict[str, Any]:
     """
     Fetch metrics for ONE competitor from APIs or cache.
@@ -152,13 +174,14 @@ async def fetch_competitor_metrics_single(
         competitor_name: Competitor name to search
         geography: List of geographic regions
         db: MongoDB database connection
+        tenant_id: Tenant ID for multi-tenancy filtering
 
     Returns:
         Dict with channels, messaging_themes, geographic_focus, estimated_spend
         If errors occur, returns partial results with best-effort nulls
     """
     # Try cache first
-    cached = await get_competitor_cache(db, competitor_name)
+    cached = await get_competitor_cache(db, competitor_name, tenant_id)
     if cached:
         return cached
 
@@ -246,6 +269,7 @@ async def fetch_competitor_metrics_single(
             messaging_themes,
             geographic_focus,
             estimated_spend,
+            tenant_id,
         )
 
         return result
@@ -324,7 +348,7 @@ Identify untapped channels, messaging gaps, and geographic gaps. Also assess mar
 
     try:
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=LLM_MODEL,
             max_tokens=2000,
             temperature=0.2,
             system=system_prompt,
@@ -355,7 +379,9 @@ Identify untapped channels, messaging gaps, and geographic gaps. Also assess mar
     response_text = response.content[0].text
     try:
         result = json.loads(response_text)
-        return result
+        # Validate against Pydantic model
+        validated = SynthesisResponse(**result)
+        return validated.model_dump()
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM synthesis JSON: {response_text}")
         return {
@@ -365,10 +391,125 @@ Identify untapped channels, messaging gaps, and geographic gaps. Also assess mar
             "market_concentration": "unknown",
             "error": f"LLM response was not valid JSON: {str(e)}",
         }
+    except ValidationError as e:
+        logger.error(f"LLM response validation failed: {e}")
+        return {
+            "untapped_channels": [],
+            "messaging_gaps": [],
+            "geographic_gaps": [],
+            "market_concentration": "unknown",
+            "error": f"LLM response validation failed: {str(e)}",
+        }
+
+
+async def _async_fetch_competitor_metrics(
+    mandate_id: str,
+    competitor_names: List[str],
+    mandate_dict: Dict[str, Any],
+    tenant_id: str,
+    job_id: str,
+) -> None:
+    """
+    Internal async orchestration for Phase 2 competitive intelligence.
+
+    Orchestrates Phase 2 of competitive intelligence:
+    1. Connect to MongoDB
+    2. Fetch metrics for all competitors in parallel
+    3. Synthesize with LLM to identify whitespace
+    4. Build full CIReport dict
+    5. Store in MongoDB ci_reports collection
+
+    Args:
+        mandate_id: Mandate ID
+        competitor_names: List of competitor names to fetch
+        mandate_dict: Full mandate dict
+        tenant_id: Tenant ID for multi-tenancy
+        job_id: Job ID for tracking
+    """
+    logger.info(f"[Job {job_id}] Starting metrics fetch for {len(competitor_names)} competitors")
+
+    # Connect to MongoDB
+    db = await get_mongo_db()
+
+    # Extract geography from mandate
+    geography = mandate_dict.get("geography", {}).get("country_list", [])
+
+    # Fetch metrics for all competitors in parallel
+    tasks = [
+        fetch_competitor_metrics_single(comp_name, geography, db, tenant_id)
+        for comp_name in competitor_names
+    ]
+    competitors_metrics = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Filter out exceptions from results
+    exceptions = [m for m in competitors_metrics if isinstance(m, Exception)]
+    if exceptions:
+        logger.warning(f"[Job {job_id}] {len(exceptions)} competitor fetch(es) had errors")
+
+    competitors_metrics = [m for m in competitors_metrics if not isinstance(m, Exception)]
+
+    logger.info(f"[Job {job_id}] Retrieved metrics for {len(competitors_metrics)} competitors")
+
+    # Synthesize competitive report with LLM
+    synthesis_result = await synthesize_competitive_report(
+        competitors_metrics, mandate_dict
+    )
+
+    # Build CompetitorMetrics list (with confidence scores)
+    competitor_objects = []
+    for idx, (comp_name, metrics) in enumerate(
+        zip(competitor_names, competitors_metrics)
+    ):
+        # Assign confidence based on data completeness
+        channel_count = len(metrics.get("channels", {}))
+        has_spend = metrics.get("estimated_spend") is not None
+        confidence = min(
+            100,
+            30 + (channel_count * 20) + (40 if has_spend else 0),
+        )
+
+        competitor_obj = CompetitorMetrics(
+            name=comp_name,
+            confidence_score=confidence,
+            channels=metrics.get("channels", {}),
+            messaging_themes=metrics.get("messaging_themes", []),
+            geographic_focus=metrics.get("geographic_focus", []),
+            estimated_annual_spend=metrics.get("estimated_spend"),
+            data_sources=["serpapi", "meta_ads"],
+            data_confidence="medium" if channel_count > 0 else "low",
+        )
+        competitor_objects.append(competitor_obj)
+
+    # Build final CIReport
+    ci_report = CIReport(
+        mandate_id=mandate_id,
+        job_id=job_id,
+        generated_at=datetime.now(timezone.utc),
+        tenant_id=tenant_id,
+        competitors=competitor_objects,
+        whitespace_opportunities=WhitespaceOpportunities(
+            untapped_channels=synthesis_result.get("untapped_channels", []),
+            messaging_gaps=synthesis_result.get("messaging_gaps", []),
+            geographic_gaps=synthesis_result.get("geographic_gaps", []),
+        ),
+        market_concentration=synthesis_result.get("market_concentration", "unknown"),
+        status="complete",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    # Store in MongoDB
+    ci_reports_collection = db[MONGO_COLLECTION_CI_REPORTS]
+    report_dict = ci_report.model_dump(mode="json")
+
+    result = await ci_reports_collection.insert_one(report_dict)
+    logger.info(
+        f"[Job {job_id}] Stored CI report in MongoDB with ID: {result.inserted_id}"
+    )
 
 
 @shared_task(bind=True, max_retries=3)
-async def fetch_competitor_metrics(
+def fetch_competitor_metrics(
     self,
     mandate_id: str,
     competitor_names: List[str],
@@ -379,13 +520,8 @@ async def fetch_competitor_metrics(
     """
     Celery task: Fetch competitor metrics and synthesize CI report.
 
-    Orchestrates Phase 2 of competitive intelligence:
-    1. Connect to MongoDB
-    2. Fetch metrics for all competitors in parallel
-    3. Synthesize with LLM to identify whitespace
-    4. Build full CIReport dict
-    5. Store in MongoDB ci_reports collection
-    6. On error: store partial report with status='failed', retry 3x
+    Synchronous wrapper that uses asyncio.run() to execute async orchestration.
+    On error: store partial report with status='failed', retry 3x.
 
     Args:
         mandate_id: Mandate ID
@@ -398,86 +534,18 @@ async def fetch_competitor_metrics(
         None (writes to MongoDB on completion)
     """
     try:
-        logger.info(f"[Job {job_id}] Starting metrics fetch for {len(competitor_names)} competitors")
-
-        # Connect to MongoDB
-        db = await get_mongo_db()
-
-        # Extract geography from mandate
-        geography = mandate_dict.get("geography", {}).get("country_list", [])
-
-        # Fetch metrics for all competitors in parallel
-        tasks = [
-            fetch_competitor_metrics_single(comp_name, geography, db)
-            for comp_name in competitor_names
-        ]
-        competitors_metrics = await asyncio.gather(*tasks, return_exceptions=False)
-
-        logger.info(f"[Job {job_id}] Retrieved metrics for {len(competitors_metrics)} competitors")
-
-        # Synthesize competitive report with LLM
-        synthesis_result = await synthesize_competitive_report(
-            competitors_metrics, mandate_dict
-        )
-
-        # Build CompetitorMetrics list (with confidence scores)
-        competitor_objects = []
-        for idx, (comp_name, metrics) in enumerate(
-            zip(competitor_names, competitors_metrics)
-        ):
-            # Assign confidence based on data completeness
-            channel_count = len(metrics.get("channels", {}))
-            has_spend = metrics.get("estimated_spend") is not None
-            confidence = min(
-                100,
-                30 + (channel_count * 20) + (40 if has_spend else 0),
+        # Execute async orchestration in sync context
+        asyncio.run(
+            _async_fetch_competitor_metrics(
+                mandate_id, competitor_names, mandate_dict, tenant_id, job_id
             )
-
-            competitor_obj = CompetitorMetrics(
-                name=comp_name,
-                confidence_score=confidence,
-                channels=metrics.get("channels", {}),
-                messaging_themes=metrics.get("messaging_themes", []),
-                geographic_focus=metrics.get("geographic_focus", []),
-                estimated_annual_spend=metrics.get("estimated_spend"),
-                data_sources=["serpapi", "meta_ads"],
-                data_confidence="medium" if channel_count > 0 else "low",
-            )
-            competitor_objects.append(competitor_obj)
-
-        # Build final CIReport
-        ci_report = CIReport(
-            mandate_id=mandate_id,
-            job_id=job_id,
-            generated_at=datetime.now(timezone.utc),
-            tenant_id=tenant_id,
-            competitors=competitor_objects,
-            whitespace_opportunities=WhitespaceOpportunities(
-                untapped_channels=synthesis_result.get("untapped_channels", []),
-                messaging_gaps=synthesis_result.get("messaging_gaps", []),
-                geographic_gaps=synthesis_result.get("geographic_gaps", []),
-            ),
-            market_concentration=synthesis_result.get("market_concentration", "unknown"),
-            status="complete",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
         )
-
-        # Store in MongoDB
-        ci_reports_collection = db[MONGO_COLLECTION_CI_REPORTS]
-        report_dict = ci_report.model_dump(mode="json")
-
-        result = await ci_reports_collection.insert_one(report_dict)
-        logger.info(
-            f"[Job {job_id}] Stored CI report in MongoDB with ID: {result.inserted_id}"
-        )
-
     except Exception as e:
         logger.error(f"[Job {job_id}] Error in fetch_competitor_metrics: {e}")
 
         # Try to store partial report with failed status
         try:
-            db = await get_mongo_db()
+            db = asyncio.run(get_mongo_db())
             ci_reports_collection = db[MONGO_COLLECTION_CI_REPORTS]
 
             partial_report = {
@@ -498,7 +566,8 @@ async def fetch_competitor_metrics(
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            await ci_reports_collection.insert_one(partial_report)
+            # Insert without awaiting
+            asyncio.run(ci_reports_collection.insert_one(partial_report))
             logger.info(f"[Job {job_id}] Stored partial failed report in MongoDB")
         except Exception as db_error:
             logger.error(f"[Job {job_id}] Failed to store partial report: {db_error}")
