@@ -2,7 +2,31 @@
 
 import pytest
 from datetime import date, timedelta
-from backend.app.schemas.media_plan import ChannelEnum, PhaseEnum
+from backend.app.schemas.media_plan import ChannelEnum, PhaseEnum, AudienceSegmentEnum
+
+
+def get_valid_activation() -> dict:
+    """
+    Return a valid activation dictionary with all required fields.
+
+    Used by TestActivationValidator to test schema validation.
+    """
+    return {
+        "channel_enum": ChannelEnum.SOCIAL,
+        "sub_channel": "TikTok",
+        "format": "Video 15s",
+        "geography": "US",
+        "placement": "Feed",
+        "phase": PhaseEnum.AWARENESS,
+        "scheduled_date": date(2026, 6, 1),
+        "duration": 14,
+        "frequency": "3x daily",
+        "audience_segment": AudienceSegmentEnum.PRIMARY,
+        "estimated_reach": 500000,
+        "estimated_cpm": 5.0,
+        "cost_estimated": 2500.0,
+        "message_version_ref": "TikTok (authentic, bold) - storytelling format"
+    }
 
 
 class TestBudgetAllocator:
@@ -208,3 +232,71 @@ class TestOfflineConstraintHandler:
 
         # TV has 28 days lead time, so 2026-06-01 - 28 days = 2026-05-04
         assert scheduled_date == date(2026, 5, 4)
+
+
+class TestActivationValidator:
+    """Tests for ActivationValidator class."""
+
+    def test_validator_accepts_valid_activation(self):
+        """Valid activation should return empty error list."""
+        from backend.app.agents.media_planner import ActivationValidator
+
+        validator = ActivationValidator()
+        activation_dict = get_valid_activation()
+
+        errors = validator.validate_schema(activation_dict)
+
+        assert errors == []
+        assert isinstance(errors, list)
+
+    def test_validator_detects_missing_required_field(self):
+        """Missing required field (cost_estimated) should be detected."""
+        from backend.app.agents.media_planner import ActivationValidator
+
+        validator = ActivationValidator()
+        activation_dict = get_valid_activation()
+        del activation_dict["cost_estimated"]  # Remove required field
+
+        errors = validator.validate_schema(activation_dict)
+
+        assert len(errors) > 0
+        assert any("cost_estimated" in error for error in errors)
+
+    def test_validator_detects_invalid_enum(self):
+        """Invalid enum value (phase) should be detected."""
+        from backend.app.agents.media_planner import ActivationValidator
+
+        validator = ActivationValidator()
+        activation_dict = get_valid_activation()
+        activation_dict["phase"] = "InvalidPhase"  # Not a valid PhaseEnum value
+
+        errors = validator.validate_schema(activation_dict)
+
+        assert len(errors) > 0
+        assert any("phase" in error for error in errors)
+
+    def test_validator_detects_negative_cost(self):
+        """Negative cost_estimated should be detected (must be >= 0)."""
+        from backend.app.agents.media_planner import ActivationValidator
+
+        validator = ActivationValidator()
+        activation_dict = get_valid_activation()
+        activation_dict["cost_estimated"] = -100.0  # Negative cost
+
+        errors = validator.validate_schema(activation_dict)
+
+        assert len(errors) > 0
+        assert any("cost_estimated" in error for error in errors)
+
+    def test_validator_detects_zero_reach(self):
+        """Zero estimated_reach should be detected (must be >= 1)."""
+        from backend.app.agents.media_planner import ActivationValidator
+
+        validator = ActivationValidator()
+        activation_dict = get_valid_activation()
+        activation_dict["estimated_reach"] = 0  # Zero reach (must be >= 1)
+
+        errors = validator.validate_schema(activation_dict)
+
+        assert len(errors) > 0
+        assert any("estimated_reach" in error for error in errors)

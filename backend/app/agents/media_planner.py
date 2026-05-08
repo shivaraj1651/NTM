@@ -7,6 +7,8 @@ Uses top-down budget allocation: phases → channels → geographies.
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import date, timedelta
+from pydantic import ValidationError
+from backend.app.schemas.media_plan import Activation
 
 logger = logging.getLogger(__name__)
 
@@ -255,3 +257,30 @@ class OfflineConstraintHandler:
             return f"Requires {week_str} lead time"
         else:
             return f"Requires {lead_time} days lead time"
+
+
+class ActivationValidator:
+    """Validates Activation objects against the Pydantic schema."""
+
+    def validate_schema(self, activation_dict: dict) -> List[str]:
+        """
+        Validate an activation dictionary against the Activation Pydantic schema.
+
+        Args:
+            activation_dict: Dictionary containing activation data
+
+        Returns:
+            List of error strings. Empty list if valid. Each error formatted as
+            "Field 'field_path': error_message"
+        """
+        try:
+            Activation(**activation_dict)
+            return []
+        except ValidationError as e:
+            errors = []
+            for error in e.errors():
+                # error is a dict with 'loc' (field path tuple) and 'msg'
+                field_path = ".".join(str(loc) for loc in error["loc"])
+                message = error["msg"]
+                errors.append(f"Field '{field_path}': {message}")
+            return errors
