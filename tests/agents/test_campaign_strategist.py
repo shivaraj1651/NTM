@@ -1,5 +1,6 @@
 """Tests for campaign strategist agent (AGT-03)."""
 
+import json
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from backend.app.agents.campaign_strategist import (
@@ -7,6 +8,47 @@ from backend.app.agents.campaign_strategist import (
     CampaignConceptValidator,
     RiskFilter,
 )
+
+
+@pytest.fixture
+def mock_anthropic_response():
+    """Fixture: mock Claude API response with valid campaign concept."""
+    def _response(campaign_num: int = 1) -> str:
+        return json.dumps({
+            "name": f"Campaign #{campaign_num}",
+            "tagline": f"Campaign tagline #{campaign_num}",
+            "strategic_narrative": f"Campaign narrative exploits gap #{campaign_num}.",
+            "campaign_theme": f"Theme #{campaign_num}",
+            "audience_segmentation": {
+                "primary": f"Primary audience #{campaign_num}",
+                "secondary": f"Secondary audience #{campaign_num}",
+                "tertiary": f"Tertiary audience #{campaign_num}"
+            },
+            "channel_mix": [
+                {
+                    "channel": "TikTok",
+                    "rationale": f"Rationale #{campaign_num}",
+                    "competitor_gap": f"Gap #{campaign_num}"
+                }
+            ],
+            "message_architecture": {
+                "master_message": f"Master message #{campaign_num}",
+                "channel_adaptations": {"TikTok": f"TikTok adaptation #{campaign_num}"}
+            },
+            "campaign_phasing": {
+                "awareness": f"Awareness phase #{campaign_num}",
+                "engagement": f"Engagement phase #{campaign_num}",
+                "conversion": f"Conversion phase #{campaign_num}"
+            },
+            "tone_board": {
+                "adjectives": ["authentic", "bold", "witty", "inclusive", "innovative"],
+                "visual_direction": f"Visual direction #{campaign_num}"
+            },
+            "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+            "mandate_fit_score": 9,
+            "gap_exploitation_score": 8
+        })
+    return _response
 
 
 class TestRiskFilter:
@@ -287,3 +329,74 @@ async def test_campaign_strategist_tracks_regenerations():
 
     assert "regeneration_log" in result
     assert isinstance(result["regeneration_log"], list)
+
+
+@pytest.mark.asyncio
+async def test_campaign_strategist_agent_end_to_end(mock_anthropic_response):
+    """End-to-end test: generate 3 campaigns with mocked API."""
+    mandate = {
+        "campaign_name": "Q2 Awareness",
+        "objective": "Increase brand awareness in Gen-Z",
+        "target_audience": "Gen-Z (16-24)",
+        "budget": {"total_amount": 100000, "currency": "USD"},
+        "geography": {"regions": ["North America"], "markets": ["US"], "country_list": ["US"]},
+        "timeline": "Q2 2026 (12 weeks)",
+        "brand_guidelines": {"tone": "authentic", "voice": "conversational"}
+    }
+
+    ci_report = {
+        "competitors": [
+            {
+                "name": "Competitor A",
+                "confidence_score": 95,
+                "channels": {"Instagram": {"presence": True}},
+                "messaging_themes": ["Corporate"]
+            }
+        ],
+        "whitespace_opportunities": {
+            "untapped_channels": ["TikTok", "Discord", "Twitch"],
+            "messaging_gaps": ["Authenticity", "Gen-Z voice", "Creator focus"],
+            "geographic_gaps": ["Tech hubs", "College towns"]
+        }
+    }
+
+    with patch("backend.app.agents.campaign_strategist.AsyncAnthropic") as mock_anthropic:
+        mock_client = AsyncMock()
+        mock_anthropic.return_value = mock_client
+
+        # Mock messages.create to return valid JSON responses for all 3 campaigns
+        async def mock_create(**kwargs):
+            mock_message = AsyncMock()
+            # Determine which campaign this is by checking the prompt
+            campaign_num = 1
+            prompt_content = kwargs.get("messages", [{}])[0].get("content", "")
+            if "campaign #2" in prompt_content.lower():
+                campaign_num = 2
+            elif "campaign #3" in prompt_content.lower():
+                campaign_num = 3
+
+            mock_message.content = [AsyncMock(text=mock_anthropic_response(campaign_num))]
+            return mock_message
+
+        mock_client.messages.create = mock_create
+
+        # Execute the agent
+        result = await campaign_strategist_agent(mandate, ci_report)
+
+        # Verify structure
+        assert "campaigns" in result
+        assert "validation_errors" in result
+        assert "regeneration_log" in result
+
+        # Verify we got campaigns
+        assert len(result["campaigns"]) > 0
+        assert len(result["campaigns"]) <= 3
+
+        # Verify first campaign structure
+        first = result["campaigns"][0]
+        assert first["name"] == "Campaign #1"
+        assert first["tagline"] == "Campaign tagline #1"
+        assert first["mandate_fit_score"] in range(1, 11)
+        assert first["gap_exploitation_score"] in range(1, 11)
+        assert len(first["tone_board"]["adjectives"]) == 5
+        assert first["risk_flags"]["legal"] is None
