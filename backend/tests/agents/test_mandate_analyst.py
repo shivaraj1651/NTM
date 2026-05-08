@@ -88,3 +88,30 @@ def test_mandate_validator_missing_fields(incomplete_mandate):
     assert "geography.markets" in result["missing_fields"]
     assert result["field_count"] == 16
     assert result["field_total"] == 17
+
+
+@pytest.mark.asyncio
+async def test_analyze_mandate_with_llm_happy_path(complete_mandate):
+    """LLM analysis should return valid JSON with contradictions and summary."""
+    from backend.app.agents.mandate_analyst import analyze_mandate_with_llm, MandateValidator
+
+    validator = MandateValidator()
+    validation_result = validator.validate(complete_mandate)
+
+    result = await analyze_mandate_with_llm(complete_mandate, validation_result)
+
+    # Verify output structure
+    assert "contradictions" in result
+    assert isinstance(result["contradictions"], list)
+    assert "mandate_summary" in result
+    assert "completeness_score" in result
+    assert isinstance(result["completeness_score"], int)
+    assert 0 <= result["completeness_score"] <= 100
+
+    # Verify mandate_summary structure
+    summary = result["mandate_summary"]
+    assert "objective" in summary
+    assert "budget_total" in summary
+    assert "timeline" in summary
+    assert "key_risks" in summary
+    assert "readiness" in summary
