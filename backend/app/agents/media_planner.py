@@ -83,3 +83,95 @@ class BudgetAllocator:
             Contingency reserve amount
         """
         return total_spend * pct
+
+
+class ActivationGenerator:
+    """Generates activation details with reach, cost, frequency, and CPM calculations."""
+
+    # CPM rates per channel (cost per thousand impressions)
+    CHANNEL_CPM_RATES = {
+        "TikTok": 5.0,
+        "Instagram": 8.0,
+        "Facebook": 7.0,
+        "YouTube": 10.0,
+        "TV": 20.0,
+        "Email": 0.50,
+        "Radio": 12.0,
+        "Print": 15.0,
+    }
+
+    # Penetration rates per phase
+    PHASE_PENETRATION = {
+        "Awareness": 0.60,
+        "Engagement": 0.30,
+        "Conversion": 0.10,
+    }
+
+    # Frequency per phase (ad exposures)
+    PHASE_FREQUENCY = {
+        "Awareness": "3x daily",
+        "Engagement": "2x daily",
+        "Conversion": "1x daily",
+    }
+
+    def calculate_reach(self, audience_size: int, penetration_pct: float) -> int:
+        """
+        Calculate reach as audience_size × penetration_pct.
+
+        Args:
+            audience_size: Total audience size
+            penetration_pct: Penetration percentage as decimal (e.g., 0.25 = 25%)
+
+        Returns:
+            Reach count (rounded to int)
+        """
+        return int(audience_size * penetration_pct)
+
+    def calculate_cost(self, reach: int, cpm: float) -> float:
+        """
+        Calculate cost as (reach / 1000) × CPM.
+
+        Args:
+            reach: Number of people reached
+            cpm: Cost per thousand impressions
+
+        Returns:
+            Cost in currency units
+        """
+        return (reach / 1000.0) * cpm
+
+    def get_frequency_for_phase(self, phase: str) -> str:
+        """
+        Get frequency string for a phase.
+
+        Args:
+            phase: Phase name (Awareness, Engagement, or Conversion)
+
+        Returns:
+            Frequency string (e.g., "3x daily")
+        """
+        return self.PHASE_FREQUENCY.get(phase, "1x daily")
+
+    def get_cpm_for_channel(self, channel_name: str) -> float:
+        """
+        Get CPM rate for a channel.
+
+        Args:
+            channel_name: Channel name
+
+        Returns:
+            CPM rate (default 10.0 if channel not found)
+        """
+        return self.CHANNEL_CPM_RATES.get(channel_name, 10.0)
+
+    def get_penetration_for_phase(self, phase: str) -> float:
+        """
+        Get penetration rate for a phase.
+
+        Args:
+            phase: Phase name (Awareness, Engagement, or Conversion)
+
+        Returns:
+            Penetration rate as decimal (default 0.0)
+        """
+        return self.PHASE_PENETRATION.get(phase, 0.0)
