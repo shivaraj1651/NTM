@@ -400,3 +400,70 @@ class TestOptimizationReporter:
         report = reporter.generate_report(original, optimized, conversion_rates)
 
         assert len(report["deprioritized_activations"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_budget_optimizer_agent_generates_optimized_plan():
+    """Orchestrator should generate optimized activation plan."""
+    from backend.app.agents.budget_optimizer import budget_optimizer_agent
+
+    # Mock Media Planner output
+    activations = [
+        {
+            "id": "a1",
+            "channel_enum": "Social",
+            "sub_channel": "TikTok",
+            "format": "Video 15s",
+            "geography": "US",
+            "placement": "Feed",
+            "phase": "Awareness",
+            "scheduled_date": date(2026, 6, 1),
+            "duration": 14,
+            "frequency": "3x daily",
+            "audience_segment": "Primary",
+            "estimated_reach": 500000,
+            "estimated_cpm": 5.0,
+            "cost_estimated": 2500.0,
+            "message_version_ref": "TikTok message",
+            "lead_time_days": 0,
+            "offline_constraints": None,
+        },
+        {
+            "id": "a2",
+            "channel_enum": "Email",
+            "sub_channel": "Email",
+            "format": "Newsletter",
+            "geography": "US",
+            "placement": "Inbox",
+            "phase": "Conversion",
+            "scheduled_date": date(2026, 7, 15),
+            "duration": 7,
+            "frequency": "1x daily",
+            "audience_segment": "Primary",
+            "estimated_reach": 100000,
+            "estimated_cpm": 0.5,
+            "cost_estimated": 500.0,
+            "message_version_ref": "Email message",
+            "lead_time_days": 0,
+            "offline_constraints": None,
+        },
+    ]
+
+    budget_envelope = {
+        "total_budget": 100000.0,
+        "currency": "USD",
+    }
+
+    campaign_context = {
+        "name": "Q2 Campaign",
+        "tone_board": {"adjectives": ["authentic", "bold"]},
+        "target_audience": "18-35",
+    }
+
+    result = await budget_optimizer_agent(activations, budget_envelope, campaign_context)
+
+    assert "optimized_activations" in result
+    assert "roi_analysis" in result
+    assert "optimization_report" in result
+    assert len(result["optimized_activations"]) > 0
+    assert result["status"] in ["success", "partial", "failed"]

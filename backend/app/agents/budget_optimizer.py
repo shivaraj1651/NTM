@@ -7,6 +7,7 @@ while maintaining phase structure and strategic constraints.
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import date
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -401,4 +402,151 @@ class OptimizationReporter:
                 "channels": "All channels preserved from Media Planner ✓",
                 "geographies": "All geographies preserved from Media Planner ✓",
             }
+        }
+
+
+async def budget_optimizer_agent(
+    activations: List[Dict[str, Any]],
+    budget_envelope: Dict[str, Any],
+    campaign_context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Orchestrator function that coordinates all Budget Optimizer components.
+
+    Coordinates:
+    1. ConversionRateEstimator: Estimates conversion likelihood per activation
+    2. BudgetOptimizer: Optimizes budget allocation across activations
+    3. ROIAnalyzer: Analyzes ROI metrics across phases and channels
+    4. OptimizationReporter: Generates detailed optimization report
+
+    Args:
+        activations: List of activations from Media Planner with cost_estimated
+        budget_envelope: Dict with total_budget and currency
+        campaign_context: Dict with campaign name, tone_board, target_audience
+
+    Returns:
+        Dict with optimized_activations, roi_analysis, optimization_report,
+        validation_errors, and status
+    """
+    validation_errors = []
+
+    try:
+        # Initialize component instances
+        estimator = ConversionRateEstimator()
+        optimizer = BudgetOptimizer()
+        analyzer = ROIAnalyzer()
+        reporter = OptimizationReporter()
+
+        # Parse budget envelope
+        total_budget = budget_envelope.get("total_budget", 0.0)
+
+        # Calculate phase budgets: 40% Awareness / 40% Engagement / 20% Conversion
+        phase_budgets = {
+            "Awareness": total_budget * 0.40,
+            "Engagement": total_budget * 0.40,
+            "Conversion": total_budget * 0.20,
+        }
+
+        # Store original costs
+        for activation in activations:
+            activation["original_cost_estimated"] = activation.get("cost_estimated", 0.0)
+            # Initialize optimized_cost_estimated with original cost for optimizer
+            activation["optimized_cost_estimated"] = activation.get("cost_estimated", 0.0)
+
+        # Step 1: Estimate conversion rates for each activation
+        conversion_rates = {}
+        for activation in activations:
+            act_id = activation.get("id")
+            conv_rate = estimator.estimate_conversion_rate(activation, campaign_context)
+            conversion_rates[act_id] = conv_rate
+
+        # Step 2: Optimize budget allocation
+        optimized_activations = optimizer.optimize(activations, conversion_rates, phase_budgets)
+
+        # Step 3: Analyze ROI
+        roi_analysis = analyzer.analyze(optimized_activations, conversion_rates)
+
+        # Step 4: Generate optimization report
+        optimization_report = reporter.generate_report(activations, optimized_activations, conversion_rates)
+
+        # Step 5: Build output activations with all fields
+        output_activations = []
+        for opt_act in optimized_activations:
+            act_id = opt_act.get("id")
+            conv_rate = conversion_rates.get(act_id, 0.005)
+            reach = opt_act.get("estimated_reach", 0)
+
+            # Calculate reach_weighted_conversions
+            reach_weighted_conversions = int(reach * conv_rate)
+
+            # Calculate roi_per_dollar
+            cost = opt_act.get("optimized_cost_estimated", 1.0)
+            if cost > 0:
+                roi_per_dollar = reach_weighted_conversions / cost
+            else:
+                roi_per_dollar = 0.0
+
+            # Determine optimization_action
+            original_cost = opt_act.get("original_cost_estimated", cost)
+            if original_cost > 0:
+                cost_change_pct = (cost - original_cost) / original_cost
+            else:
+                cost_change_pct = 0.0
+
+            if abs(cost_change_pct) <= 0.05:
+                optimization_action = "unchanged"
+                reason = "Cost change within 5% threshold"
+            elif cost_change_pct > 0.05:
+                optimization_action = "prioritized"
+                reason = f"Budget increased by {cost_change_pct*100:.1f}% due to high ROI"
+            else:
+                optimization_action = "deprioritized"
+                reason = f"Budget decreased by {abs(cost_change_pct)*100:.1f}% to reallocate to higher performers"
+
+            output_activation = {
+                "id": act_id,
+                "channel_enum": opt_act.get("channel_enum"),
+                "sub_channel": opt_act.get("sub_channel"),
+                "format": opt_act.get("format"),
+                "geography": opt_act.get("geography"),
+                "placement": opt_act.get("placement"),
+                "phase": opt_act.get("phase"),
+                "scheduled_date": opt_act.get("scheduled_date"),
+                "duration": opt_act.get("duration"),
+                "frequency": opt_act.get("frequency"),
+                "audience_segment": opt_act.get("audience_segment"),
+                "estimated_reach": reach,
+                "estimated_cpm": opt_act.get("estimated_cpm"),
+                "original_cost_estimated": original_cost,
+                "optimized_cost_estimated": cost,
+                "message_version_ref": opt_act.get("message_version_ref"),
+                "lead_time_days": opt_act.get("lead_time_days"),
+                "offline_constraints": opt_act.get("offline_constraints"),
+                "conversion_rate_estimated": conv_rate,
+                "reach_weighted_conversions": reach_weighted_conversions,
+                "roi_per_dollar": roi_per_dollar,
+                "optimization_action": optimization_action,
+                "reason": reason,
+            }
+            output_activations.append(output_activation)
+
+        # Determine status
+        status = "success" if len(validation_errors) == 0 else "partial"
+
+        return {
+            "optimized_activations": output_activations,
+            "roi_analysis": roi_analysis,
+            "optimization_report": optimization_report,
+            "validation_errors": validation_errors,
+            "status": status,
+        }
+
+    except Exception as e:
+        logger.error(f"Budget optimizer orchestrator failed: {str(e)}")
+        return {
+            "optimized_activations": [],
+            "roi_analysis": None,
+            "optimization_report": None,
+            "validation_errors": [str(e)],
+            "status": "failed",
         }
