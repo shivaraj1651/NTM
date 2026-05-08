@@ -9,6 +9,7 @@ import logging
 from typing import Dict, List, Any, Optional
 
 from pydantic import ValidationError
+from anthropic import AsyncAnthropic
 
 from backend.app.schemas.campaign_concept import CampaignConcept
 
@@ -86,3 +87,127 @@ class CampaignConceptValidator:
                 errors.append(f"Field '{field_path}': {msg}")
 
         return errors
+
+
+async def generate_campaign(
+    mandate: Dict[str, Any],
+    ci_report: Dict[str, Any],
+    campaign_number: int,
+) -> Optional[Dict[str, Any]]:
+    """
+    Generate a single campaign concept with risk filtering.
+
+    Args:
+        mandate: Mandate summary card from AGT-01
+        ci_report: Competitive intelligence report from AGT-02
+        campaign_number: Campaign number (1, 2, or 3)
+
+    Returns:
+        CampaignConcept dict or None if all retries failed
+    """
+    client = AsyncAnthropic()
+
+    system_prompt = """You are a campaign strategist. Your role is to generate creative, mandate-aligned campaign concepts that exploit competitor whitespace gaps.
+
+For each campaign concept, you will:
+1. Generate a campaign name and tagline that are memorable and gap-exploiting
+2. Define a strategic narrative (1-2 sentences) explaining why this concept is differentiated
+3. Identify campaign theme, audience segments (primary/secondary/tertiary), and channel mix
+4. Develop message architecture (master message + channel-specific adaptations)
+5. Map campaign phasing (Awareness → Engagement → Conversion)
+6. Create a tone board (5 adjectives + visual direction description)
+7. Self-assess for legal, regulatory, and sensitivity risks
+
+HARD CONSTRAINTS (reject if violated):
+- Budget allocation must not exceed mandate total_amount
+- Timeline must not exceed mandate timeline
+- Target audience must align with mandate objective
+- Geographic focus must be within mandate regions/markets/countries
+
+SOFT CONSTRAINTS (flag only):
+- Tone should align with brand_guidelines; deviations noted but not rejected
+
+RISK ASSESSMENT:
+After generating each campaign, assess these risks:
+- legal_risk: null or "brief description" (unsubstantiated claims, IP issues, false advertising)
+- regulatory_risk: null or "brief description" (geographic compliance, data privacy)
+- sensitivity_risk: null or "brief description" (offensive targeting, controversial positioning, brand tone misalignment)
+
+OUTPUT FORMAT:
+Return valid JSON matching this structure. Include all required fields. Format as pure JSON only, no markdown or extra text.
+
+{
+  "name": "string",
+  "tagline": "string",
+  "strategic_narrative": "string",
+  "campaign_theme": "string",
+  "audience_segmentation": {"primary": "string", "secondary": "string", "tertiary": "string"},
+  "channel_mix": [{"channel": "string", "rationale": "string", "competitor_gap": "string"}],
+  "message_architecture": {"master_message": "string", "channel_adaptations": {"channel": "string"}},
+  "campaign_phasing": {"awareness": "string", "engagement": "string", "conversion": "string"},
+  "tone_board": {"adjectives": ["adj1", "adj2", "adj3", "adj4", "adj5"], "visual_direction": "string"},
+  "risk_flags": {"legal": null, "regulatory": null, "sensitivity": null},
+  "mandate_fit_score": 9,
+  "gap_exploitation_score": 10
+}
+"""
+
+    # Format mandate and CI report for context
+    mandate_summary = f"""
+Mandate Summary:
+- Campaign Name: {mandate.get('campaign_name')}
+- Objective: {mandate.get('objective')}
+- Target Audience: {mandate.get('target_audience')}
+- Timeline: {mandate.get('timeline')}
+- Budget: ${mandate.get('budget', {}).get('total_amount')} {mandate.get('budget', {}).get('currency')}
+- Geography: {', '.join(mandate.get('geography', {}).get('regions', []))}
+- Brand Tone: {mandate.get('brand_guidelines', {}).get('tone')}
+"""
+
+    whitespace = ci_report.get("whitespace_opportunities", {})
+    competitors_summary = f"""
+Competitive Intelligence:
+- Untapped Channels: {', '.join(whitespace.get('untapped_channels', []))}
+- Messaging Gaps: {', '.join(whitespace.get('messaging_gaps', []))}
+- Geographic Gaps: {', '.join(whitespace.get('geographic_gaps', []))}
+"""
+
+    user_prompt = f"""Generate campaign #{campaign_number} that exploits these competitor gaps while respecting mandate constraints.
+
+{mandate_summary}
+
+{competitors_summary}
+
+Generate a comprehensive campaign concept that:
+1. Exploits the identified gaps (untapped channels, messaging gaps, geographic gaps)
+2. Respects all hard constraints (budget, timeline, geography, audience)
+3. Balances mandate fit with gap exploitation
+4. Includes all required fields in the JSON output
+5. Self-assesses for legal, regulatory, and sensitivity risks
+"""
+
+    for attempt in range(2):  # Max 2 attempts (initial + 1 retry)
+        try:
+            message = await client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}]
+            )
+
+            # Extract JSON response
+            response_text = message.content[0].text
+            concept_dict = json.loads(response_text)
+
+            logger.info(f"Campaign #{campaign_number} generated successfully (attempt {attempt + 1})")
+            return concept_dict
+
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Campaign #{campaign_number} parse error on attempt {attempt + 1}: {e}")
+            if attempt == 1:  # Final retry
+                return None
+        except Exception as e:
+            logger.error(f"Campaign #{campaign_number} generation error: {e}")
+            return None
+
+    return None

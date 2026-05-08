@@ -1,7 +1,10 @@
 """Unit tests for Campaign Strategist Agent (AGT-03)."""
 
 import pytest
+import json
 from uuid import uuid4
+from unittest.mock import AsyncMock, patch
+from anthropic import AsyncAnthropic
 from backend.app.schemas.campaign_concept import (
     CampaignConcept,
     AudienceSegmentation,
@@ -191,3 +194,91 @@ class TestRiskFilter:
         prompt = risk_filter.get_regeneration_prompt("sensitivity")
 
         assert "tone" in prompt.lower() or "brand" in prompt.lower()
+
+
+@pytest.mark.asyncio
+class TestCampaignGeneration:
+    """Tests for campaign generation function."""
+
+    async def test_generate_campaign_returns_valid_concept(self):
+        """Generate campaign should return a valid CampaignConcept dict."""
+        from backend.app.agents.campaign_strategist import generate_campaign
+
+        mandate = {
+            "campaign_name": "Test Campaign",
+            "objective": "Increase brand awareness",
+            "target_audience": "Gen-Z",
+            "budget": {"total_amount": 100000, "currency": "USD"},
+            "geography": {"regions": ["North America"], "markets": ["US"], "country_list": ["US"]},
+            "timeline": "Q2 2026 (12 weeks)",
+            "brand_guidelines": {"tone": "authentic", "voice": "conversational"}
+        }
+
+        ci_report = {
+            "competitors": [
+                {
+                    "name": "Competitor A",
+                    "confidence_score": 95,
+                    "channels": {"TikTok": {"presence": False}},
+                    "messaging_themes": ["Corporate messaging"]
+                }
+            ],
+            "whitespace_opportunities": {
+                "untapped_channels": ["TikTok", "Discord"],
+                "messaging_gaps": ["Authenticity", "Gen-Z voice"],
+                "geographic_gaps": ["Tech hubs"]
+            }
+        }
+
+        # Mock the Anthropic API response
+        mock_response = {
+            "name": "TikTok Gen-Z",
+            "tagline": "Where Gen-Z discovers authenticity",
+            "strategic_narrative": "Competitors ignore TikTok; we dominate.",
+            "campaign_theme": "Authenticity",
+            "audience_segmentation": {
+                "primary": "Gen-Z (16-24)",
+                "secondary": "Millennials",
+                "tertiary": "Gen-X"
+            },
+            "channel_mix": [
+                {
+                    "channel": "TikTok",
+                    "rationale": "Primary audience",
+                    "competitor_gap": "Untapped by competitors"
+                }
+            ],
+            "message_architecture": {
+                "master_message": "Real stories, real people",
+                "channel_adaptations": {"TikTok": "30-second format"}
+            },
+            "campaign_phasing": {
+                "awareness": "Week 1-2: Influencer seeding",
+                "engagement": "Week 3-6: UGC contests",
+                "conversion": "Week 7-12: Direct CTA"
+            },
+            "tone_board": {
+                "adjectives": ["authentic", "bold", "witty", "inclusive", "innovative"],
+                "visual_direction": "Bright desaturated colors"
+            },
+            "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+            "mandate_fit_score": 9,
+            "gap_exploitation_score": 10
+        }
+
+        with patch("backend.app.agents.campaign_strategist.AsyncAnthropic") as mock_anthropic:
+            mock_client = AsyncMock()
+            mock_anthropic.return_value = mock_client
+
+            mock_message = AsyncMock()
+            mock_message.content = [AsyncMock(text=json.dumps(mock_response))]
+            mock_client.messages.create = AsyncMock(return_value=mock_message)
+
+            # Call the function
+            concept = await generate_campaign(mandate, ci_report, 1)
+
+            # Verify returned concept is valid
+            assert concept is not None
+            assert concept["name"] == "TikTok Gen-Z"
+            assert concept["mandate_fit_score"] == 9
+            assert concept["risk_flags"]["legal"] is None
