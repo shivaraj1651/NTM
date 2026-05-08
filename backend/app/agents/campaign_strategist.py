@@ -15,6 +15,51 @@ from backend.app.schemas.campaign_concept import CampaignConcept
 logger = logging.getLogger(__name__)
 
 
+class RiskFilter:
+    """Assesses and filters campaigns for legal/regulatory/sensitivity risks."""
+
+    def should_regenerate(self, risk_flags: Dict[str, Optional[str]]) -> bool:
+        """
+        Determine if campaign should be regenerated based on risk flags.
+
+        Args:
+            risk_flags: Dict with legal, regulatory, sensitivity keys
+
+        Returns:
+            True if any risk is detected (non-null), False otherwise
+        """
+        return any(risk_flags.get(key) is not None for key in ["legal", "regulatory", "sensitivity"])
+
+    def get_regeneration_prompt(self, risk_type: str) -> str:
+        """
+        Get regeneration prompt for a specific risk type.
+
+        Args:
+            risk_type: One of "legal", "regulatory", "sensitivity"
+
+        Returns:
+            Regeneration prompt to append to LLM call
+        """
+        prompts = {
+            "legal": (
+                "Previous concept flagged for legal risk (unsubstantiated claims, IP issues). "
+                "Revise to remove unsubstantiated claims. Ensure all benefits can be substantiated. "
+                "Focus on verifiable mandate-aligned messaging while maintaining strategic relevance."
+            ),
+            "regulatory": (
+                "Previous concept flagged for regulatory risk (geographic compliance, data privacy). "
+                "Revise to ensure compliance with regulations in all target geographies. "
+                "Remove any messaging that violates regional constraints while maintaining strategic relevance."
+            ),
+            "sensitivity": (
+                "Previous concept flagged for sensitivity risk (offensive targeting, controversial positioning, tone misalignment). "
+                "Revise to adopt professional, inclusive tone aligned with brand guidelines. "
+                "Avoid sensitive or controversial positioning while maintaining strategic relevance."
+            ),
+        }
+        return prompts.get(risk_type, "")
+
+
 class CampaignConceptValidator:
     """Validates CampaignConcept JSON against Pydantic schema."""
 
