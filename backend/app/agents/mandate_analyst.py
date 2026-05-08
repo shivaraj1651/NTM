@@ -4,7 +4,10 @@ Mandate Analyst Agent (AGT-01).
 Validates mandates for completeness and contradictions, produces structured summary cards.
 """
 
+import json
 from typing import Dict, List, Any
+
+from anthropic import AsyncAnthropic
 
 
 class MandateValidator:
@@ -77,3 +80,72 @@ class MandateValidator:
             "field_count": field_count,
             "field_total": self.total_required
         }
+
+
+async def analyze_mandate_with_llm(mandate: Dict[str, Any], validation_result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Call Claude Sonnet to detect contradictions and produce summary card.
+
+    Args:
+        mandate: Full mandate dict
+        validation_result: Output from MandateValidator
+
+    Returns:
+        Dict with contradictions, mandate_summary, completeness_score
+    """
+    client = AsyncAnthropic()
+
+    system_prompt = """You are a mandate validation expert. Analyze the provided mandate for:
+1. Contradictions between sections (budget vs timeline, geography vs audience)
+2. Risk flags (unrealistic timelines, insufficient budget, scope creep)
+3. Completeness and strategic intent clarity
+
+Respond ONLY with valid JSON, no markdown. Do not wrap in code blocks.
+
+Structure your response exactly as:
+{
+  "contradictions": ["list", "of", "contradiction", "strings"],
+  "mandate_summary": {
+    "objective": "clear statement of mandate objective",
+    "budget_total": "budget amount and currency",
+    "timeline": "timeline description",
+    "key_risks": ["list", "of", "risk", "flags"],
+    "readiness": "Ready to proceed" or "Needs clarification"
+  },
+  "completeness_score": <integer 0-100>
+}"""
+
+    user_prompt = f"""Analyze this mandate for contradictions and quality.
+
+Missing fields: {validation_result['missing_fields']}
+
+Mandate data:
+{json.dumps(mandate, indent=2)}"""
+
+    response = await client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=2000,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}]
+    )
+
+    # Parse LLM response
+    response_text = response.content[0].text
+    try:
+        result = json.loads(response_text)
+    except json.JSONDecodeError:
+        # Fallback if LLM response isn't valid JSON
+        return {
+            "contradictions": [],
+            "mandate_summary": {
+                "objective": "Unable to parse LLM response",
+                "budget_total": "N/A",
+                "timeline": "N/A",
+                "key_risks": ["LLM parsing failed"],
+                "readiness": "Needs clarification"
+            },
+            "completeness_score": 0,
+            "error": "LLM response was not valid JSON"
+        }
+
+    return result
