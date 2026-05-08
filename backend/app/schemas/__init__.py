@@ -20,6 +20,16 @@ from backend.app.schemas.media_plan import (
     PhaseEnum,
     AudienceSegmentEnum,
 )
+from backend.app.schemas.budget_optimizer import (
+    OptimizedActivation,
+    ROIAnalysis,
+    BudgetOptimizerResponse,
+    OptimizationReport,
+    PhaseROISummary,
+    ChannelROISummary,
+    BudgetShift,
+    OptimizationActionEnum,
+)
 
 __all__ = [
     "CampaignConcept",
@@ -38,4 +48,12 @@ __all__ = [
     "ChannelEnum",
     "PhaseEnum",
     "AudienceSegmentEnum",
+    "OptimizedActivation",
+    "ROIAnalysis",
+    "BudgetOptimizerResponse",
+    "OptimizationReport",
+    "PhaseROISummary",
+    "ChannelROISummary",
+    "BudgetShift",
+    "OptimizationActionEnum",
 ]
