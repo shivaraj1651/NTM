@@ -11,7 +11,7 @@ from backend.app.schemas.campaign_concept import (
     ToneBoard,
     RiskFlags,
 )
-from backend.app.agents.campaign_strategist import CampaignConceptValidator
+from backend.app.agents.campaign_strategist import CampaignConceptValidator, RiskFilter
 
 
 # Sample valid campaign concept for reuse
@@ -123,3 +123,71 @@ class TestCampaignConceptValidator:
 
         assert len(errors) > 0
         assert any("channel_mix" in error for error in errors)
+
+
+class TestRiskFilter:
+    """Tests for RiskFilter class."""
+
+    def test_risk_filter_detects_legal_risk(self):
+        """Risk filter should detect legal risk in campaign."""
+        risk_filter = RiskFilter()
+        campaign = get_valid_campaign()
+        campaign["risk_flags"]["legal"] = "Unsubstantiated benefit claim"
+
+        should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
+
+        assert should_regen is True
+
+    def test_risk_filter_detects_regulatory_risk(self):
+        """Risk filter should detect regulatory risk."""
+        risk_filter = RiskFilter()
+        campaign = get_valid_campaign()
+        campaign["risk_flags"]["regulatory"] = "Geographic compliance issue in EMEA"
+
+        should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
+
+        assert should_regen is True
+
+    def test_risk_filter_detects_sensitivity_risk(self):
+        """Risk filter should detect sensitivity risk."""
+        risk_filter = RiskFilter()
+        campaign = get_valid_campaign()
+        campaign["risk_flags"]["sensitivity"] = "Tone misaligned with brand guidelines"
+
+        should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
+
+        assert should_regen is True
+
+    def test_risk_filter_clears_campaign_with_no_risks(self):
+        """Risk filter should not regenerate campaign with all nulls."""
+        risk_filter = RiskFilter()
+        campaign = get_valid_campaign()
+        # risk_flags already have all None
+
+        should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
+
+        assert should_regen is False
+
+    def test_risk_filter_returns_legal_regeneration_prompt(self):
+        """Risk filter should provide correct regeneration prompt for legal risk."""
+        risk_filter = RiskFilter()
+
+        prompt = risk_filter.get_regeneration_prompt("legal")
+
+        assert "unsubstantiated" in prompt.lower() or "claims" in prompt.lower()
+
+    def test_risk_filter_returns_regulatory_regeneration_prompt(self):
+        """Risk filter should provide correct regeneration prompt for regulatory risk."""
+        risk_filter = RiskFilter()
+
+        prompt = risk_filter.get_regeneration_prompt("regulatory")
+
+        assert "compliance" in prompt.lower() or "regulation" in prompt.lower()
+
+    def test_risk_filter_returns_sensitivity_regeneration_prompt(self):
+        """Risk filter should provide correct regeneration prompt for sensitivity risk."""
+        risk_filter = RiskFilter()
+
+        prompt = risk_filter.get_regeneration_prompt("sensitivity")
+
+        assert "tone" in prompt.lower() or "brand" in prompt.lower()
