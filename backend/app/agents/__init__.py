@@ -1,4 +1,4 @@
-﻿"""
+"""
 Agents module for NTM.
 
 Agents are long-running AI-powered processes that analyze, validate, and
@@ -11,9 +11,17 @@ from backend.app.agents.mandate_analyst import (
     analyze_mandate_with_llm,
     mandate_analyst_agent
 )
+from backend.app.agents import creative_director
+from backend.app.agents.creative_director_orchestrator import (
+    CreativeDirectorAgent,
+    creative_director_agent,
+)
 
 __all__ = [
     "MandateValidator",
     "analyze_mandate_with_llm",
-    "mandate_analyst_agent"
+    "mandate_analyst_agent",
+    "creative_director",
+    "CreativeDirectorAgent",
+    "creative_director_agent",
 ]
