@@ -6,4 +6,14 @@ generate strategic content. Each agent has a single responsibility and
 produces structured JSON output.
 """
 
-__all__ = []
+from backend.app.agents.mandate_analyst import (
+    MandateValidator,
+    analyze_mandate_with_llm,
+    mandate_analyst_agent
+)
+
+__all__ = [
+    "MandateValidator",
+    "analyze_mandate_with_llm",
+    "mandate_analyst_agent"
+]
