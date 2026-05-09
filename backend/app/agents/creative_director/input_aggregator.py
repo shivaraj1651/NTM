@@ -3,7 +3,7 @@
 Consolidates and validates inputs from upstream agents before passing to the generator.
 """
 
-from typing import Dict, Optional
+from typing import Dict
 from backend.app.agents.creative_director.models import CampaignInput
 
 
@@ -58,25 +58,3 @@ class InputAggregator:
         campaign_input.platforms = normalized_platforms
 
         return campaign_input
-
-    def validate_upstream_inputs(self, inputs: Dict) -> Dict:
-        """Validate that all required upstream inputs are present.
-
-        Args:
-            inputs: Dictionary of upstream inputs
-
-        Returns:
-            Validated inputs dictionary
-
-        Raises:
-            ValueError: If required inputs are missing
-        """
-        required_keys = {"campaign_input"}
-
-        missing_keys = required_keys - set(inputs.keys())
-        if missing_keys:
-            raise ValueError(
-                f"Missing required upstream inputs: {missing_keys}"
-            )
-
-        return inputs
