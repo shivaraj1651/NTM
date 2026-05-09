@@ -34,7 +34,7 @@ class TestInputAggregator:
         """Test that empty platforms list raises ValueError."""
         aggregator = InputAggregator()
         campaign_input.platforms = []
-        with pytest.raises(ValueError, match="platforms"):
+        with pytest.raises(ValueError, match="At least one platform is required"):
             aggregator.aggregate(campaign_input)
 
     def test_aggregate_requires_brand_guidelines(self, campaign_input):

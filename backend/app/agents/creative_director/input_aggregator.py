@@ -39,10 +39,10 @@ class InputAggregator:
             raise ValueError("tenant_id is required")
 
         if not campaign_input.platforms:
-            raise ValueError("platforms is required and cannot be empty")
+            raise ValueError("At least one platform is required")
 
         if campaign_input.brand_guidelines is None:
-            raise ValueError("brand_guidelines is required")
+            raise ValueError("brand_guidelines are required")
 
         # Normalize platform names to lowercase
         normalized_platforms = [p.lower() for p in campaign_input.platforms]
