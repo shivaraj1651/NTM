@@ -3,6 +3,7 @@
 import pytest
 import json
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.fixture
@@ -90,3 +91,55 @@ def test_mandate_validator_missing_fields(incomplete_mandate):
     assert "geography.markets" in result["missing_fields"]
     assert result["field_count"] == 16
     assert result["field_total"] == 17
+
+
+@pytest.mark.asyncio
+async def test_analyze_mandate_with_llm_happy_path(complete_mandate):
+    """LLM analysis should return valid JSON with contradictions and summary."""
+    from backend.app.agents.mandate_analyst import analyze_mandate_with_llm, MandateValidator
+
+    validator = MandateValidator()
+    validation_result = validator.validate(complete_mandate)
+
+    mock_llm_response = {
+        "contradictions": [],
+        "mandate_summary": {
+            "objective": "Increase brand awareness among 18-45 urban demographic",
+            "budget_total": "100000 USD",
+            "timeline": "2 months (June-July 2026)",
+            "key_risks": ["Tight 2-month timeline for dual-channel campaign"],
+            "readiness": "Ready to proceed"
+        },
+        "completeness_score": 95
+    }
+
+    mock_content = MagicMock()
+    mock_content.text = json.dumps(mock_llm_response)
+
+    mock_response = MagicMock()
+    mock_response.content = [mock_content]
+
+    mock_messages = MagicMock()
+    mock_messages.create = AsyncMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.messages = mock_messages
+
+    with patch("backend.app.agents.mandate_analyst.AsyncAnthropic", return_value=mock_client):
+        result = await analyze_mandate_with_llm(complete_mandate, validation_result)
+
+    # Verify output structure
+    assert "contradictions" in result
+    assert isinstance(result["contradictions"], list)
+    assert "mandate_summary" in result
+    assert "completeness_score" in result
+    assert isinstance(result["completeness_score"], int)
+    assert 0 <= result["completeness_score"] <= 100
+
+    # Verify mandate_summary structure
+    summary = result["mandate_summary"]
+    assert "objective" in summary
+    assert "budget_total" in summary
+    assert "timeline" in summary
+    assert "key_risks" in summary
+    assert "readiness" in summary

@@ -124,7 +124,7 @@ Mandate data:
 {json.dumps(mandate, indent=2)}"""
 
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=2000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}]
