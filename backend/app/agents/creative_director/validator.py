@@ -83,8 +83,10 @@ class Validator:
 
         if platform not in self.PLATFORM_CONSTRAINTS:
             violations.append({
-                "type": "PLATFORM_ERROR",
+                "rule": "invalid_platform",
+                "severity": "error",
                 "message": f"Unknown platform: {platform}",
+                "suggestion": f"Use one of: {', '.join(self.PLATFORM_CONSTRAINTS.keys())}",
             })
             return CreativeValidation(status="failed", violations=violations, warnings=warnings)
 
@@ -94,8 +96,10 @@ class Validator:
         max_chars = constraints.get("max_chars")
         if max_chars and copy.character_count > max_chars:
             violations.append({
-                "type": "CHARACTER_LIMIT_EXCEEDED",
+                "rule": "character_limit",
+                "severity": "error",
                 "message": f"Copy exceeds {max_chars} character limit for {platform} (got {copy.character_count})",
+                "suggestion": "Shorten copy to meet platform character limits",
             })
 
         # Check for mandatory CTAs
@@ -111,8 +115,10 @@ class Validator:
 
             if not found_cta and mandatory_ctas:
                 violations.append({
-                    "type": "MISSING_MANDATORY_CTA",
+                    "rule": "missing_cta",
+                    "severity": "error",
                     "message": f"Copy must include at least one of: {', '.join(mandatory_ctas)}",
+                    "suggestion": f"Add one of the mandatory CTAs: {', '.join(mandatory_ctas)}",
                 })
 
         status = "failed" if violations else "passed"
@@ -154,8 +160,10 @@ class Validator:
 
         if not is_compatible:
             violations.append({
-                "type": "TONE_MISMATCH",
+                "rule": "tone_mismatch",
+                "severity": "warning",
                 "message": f"Copy tone '{copy.tone}' does not match brand tone '{brand_tone}'",
+                "suggestion": f"Adjust tone to match brand guidelines (expected: {brand_tone})",
             })
 
         status = "failed" if violations else "passed"
@@ -181,14 +189,18 @@ class Validator:
         # Check if prompt is empty
         if not prompt.prompt or not prompt.prompt.strip():
             violations.append({
-                "type": "EMPTY_PROMPT",
+                "rule": "empty_prompt",
+                "severity": "error",
                 "message": "Image prompt cannot be empty",
+                "suggestion": "Provide a detailed image description for generation",
             })
         # Check minimum length
         elif len(prompt.prompt.strip()) < 20:
             violations.append({
-                "type": "PROMPT_TOO_SHORT",
+                "rule": "prompt_too_short",
+                "severity": "error",
                 "message": "Image prompt must be at least 20 characters long",
+                "suggestion": "Add more details to the image prompt (at least 20 characters)",
             })
 
         status = "failed" if violations else "passed"
@@ -213,8 +225,10 @@ class Validator:
 
         if platform not in self.PLATFORM_CONSTRAINTS:
             violations.append({
-                "type": "PLATFORM_ERROR",
+                "rule": "invalid_platform",
+                "severity": "error",
                 "message": f"Unknown platform: {platform}",
+                "suggestion": f"Use one of: {', '.join(self.PLATFORM_CONSTRAINTS.keys())}",
             })
             return CreativeValidation(status="failed", violations=violations, warnings=warnings)
 
@@ -223,16 +237,20 @@ class Validator:
         # Check if video has at least one shot
         if not video.shots or len(video.shots) == 0:
             violations.append({
-                "type": "NO_SHOTS",
+                "rule": "no_shots",
+                "severity": "error",
                 "message": "Video concept must have at least one shot",
+                "suggestion": "Add at least one shot/scene to the video concept",
             })
 
         # Check duration
         max_duration = constraints.get("max_video_duration", 120)
         if video.duration_seconds > max_duration:
             violations.append({
-                "type": "DURATION_EXCEEDS_LIMIT",
+                "rule": "duration_exceeds_limit",
+                "severity": "error",
                 "message": f"Video duration ({video.duration_seconds}s) exceeds platform limit ({max_duration}s)",
+                "suggestion": f"Reduce video duration to {max_duration} seconds or less",
             })
 
         # Warn if duration is very short

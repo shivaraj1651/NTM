@@ -38,7 +38,7 @@ class TestValidator:
         result = validator.validate_copy(copy, "instagram", brand_guidelines.model_dump())
         assert result.status == "failed"
         assert len(result.violations) > 0
-        assert any("character" in v.get("type", "").lower() for v in result.violations)
+        assert any(v.get("rule") == "character_limit" for v in result.violations)
 
     def test_validate_copy_missing_mandatory_cta(self, brand_guidelines):
         """Test that copy missing mandatory CTA fails."""
@@ -50,7 +50,7 @@ class TestValidator:
         )
         result = validator.validate_copy(copy, "instagram", brand_guidelines.model_dump())
         assert result.status == "failed"
-        assert any("CTA" in v.get("type", "") for v in result.violations)
+        assert any(v.get("rule") == "missing_cta" for v in result.violations)
 
     def test_validate_tone_compliance(self, brand_guidelines):
         """Test that mismatched tone fails validation."""
@@ -62,7 +62,7 @@ class TestValidator:
         )
         result = validator.validate_tone(copy, brand_guidelines.tone)
         assert result.status == "failed"
-        assert any("tone" in v.get("type", "").lower() for v in result.violations)
+        assert any(v.get("rule") == "tone_mismatch" for v in result.violations)
 
     def test_platform_constraints_instagram(self):
         """Test that Instagram constraints are returned correctly."""
@@ -98,7 +98,7 @@ class TestValidator:
         prompt_short = ImagePrompt(prompt="Short")
         result = validator.validate_image_prompt(prompt_short, "instagram")
         assert result.status == "failed"
-        assert any("20 characters" in str(v) for v in result.violations)
+        assert any(v.get("rule") == "prompt_too_short" for v in result.violations)
 
         # Empty prompt
         prompt_empty = ImagePrompt(prompt="")
@@ -136,7 +136,7 @@ class TestValidator:
         )
         result = validator.validate_video_concept(video_no_shots, "youtube")
         assert result.status == "failed"
-        assert any("shot" in v.get("type", "").lower() for v in result.violations)
+        assert any(v.get("rule") == "no_shots" for v in result.violations)
 
         # Video with unreasonable duration
         video_long = VideoConcept(
@@ -152,4 +152,4 @@ class TestValidator:
         )
         result = validator.validate_video_concept(video_long, "youtube")
         assert result.status == "failed"
-        assert any("duration" in v.get("type", "").lower() for v in result.violations)
+        assert any(v.get("rule") == "duration_exceeds_limit" for v in result.violations)
