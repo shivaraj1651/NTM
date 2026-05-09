@@ -11,9 +11,11 @@ from backend.app.agents.mandate_analyst import (
     analyze_mandate_with_llm,
     mandate_analyst_agent
 )
+from backend.app.agents import creative_director
 
 __all__ = [
     "MandateValidator",
     "analyze_mandate_with_llm",
-    "mandate_analyst_agent"
+    "mandate_analyst_agent",
+    "creative_director",
 ]
