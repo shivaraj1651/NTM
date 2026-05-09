@@ -6,10 +6,12 @@ from backend.app.agents.creative_director.models import (
     BrandGuidelines,
     TargetAudience,
 )
+from backend.app.agents.creative_director.generator import CreativeGenerator
 
 __all__ = [
     "CampaignInput",
     "CreativeDirectorOutput",
     "BrandGuidelines",
     "TargetAudience",
+    "CreativeGenerator",
 ]
