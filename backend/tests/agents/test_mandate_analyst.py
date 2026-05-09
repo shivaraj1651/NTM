@@ -143,3 +143,93 @@ async def test_analyze_mandate_with_llm_happy_path(complete_mandate):
     assert "timeline" in summary
     assert "key_risks" in summary
     assert "readiness" in summary
+
+
+@pytest.mark.asyncio
+async def test_mandate_analyst_agent_complete_mandate(complete_mandate):
+    """Main agent should orchestrate validation and LLM analysis."""
+    from backend.app.agents.mandate_analyst import mandate_analyst_agent
+
+    mock_llm_response = {
+        "contradictions": [],
+        "mandate_summary": {
+            "objective": "Increase brand awareness among 18-45 urban demographic",
+            "budget_total": "100000 USD",
+            "timeline": "2 months (June-July 2026)",
+            "key_risks": ["Tight 2-month timeline for dual-channel campaign"],
+            "readiness": "Ready to proceed"
+        },
+        "completeness_score": 95
+    }
+
+    import json
+    mock_content = MagicMock()
+    mock_content.text = json.dumps(mock_llm_response)
+
+    mock_response = MagicMock()
+    mock_response.content = [mock_content]
+
+    mock_messages = MagicMock()
+    mock_messages.create = AsyncMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.messages = mock_messages
+
+    with patch("backend.app.agents.mandate_analyst.AsyncAnthropic", return_value=mock_client):
+        result = await mandate_analyst_agent(complete_mandate)
+
+    # Verify output structure
+    assert "completeness_score" in result
+    assert "missing_fields" in result
+    assert "contradictions" in result
+    assert "mandate_summary" in result
+    assert "validated_at" in result
+
+    # Verify types
+    assert isinstance(result["completeness_score"], int)
+    assert isinstance(result["missing_fields"], list)
+    assert isinstance(result["contradictions"], list)
+    assert isinstance(result["mandate_summary"], dict)
+    assert isinstance(result["validated_at"], str)
+
+    # For complete mandate, should have no missing fields
+    assert result["missing_fields"] == []
+
+
+@pytest.mark.asyncio
+async def test_mandate_analyst_agent_incomplete_mandate(incomplete_mandate):
+    """Agent should detect missing fields and report in output."""
+    from backend.app.agents.mandate_analyst import mandate_analyst_agent
+
+    mock_llm_response = {
+        "contradictions": [],
+        "mandate_summary": {
+            "objective": "Increase brand awareness",
+            "budget_total": "100000 USD",
+            "timeline": "2 months",
+            "key_risks": ["Missing geography markets"],
+            "readiness": "Needs clarification"
+        },
+        "completeness_score": 85
+    }
+
+    import json
+    mock_content = MagicMock()
+    mock_content.text = json.dumps(mock_llm_response)
+
+    mock_response = MagicMock()
+    mock_response.content = [mock_content]
+
+    mock_messages = MagicMock()
+    mock_messages.create = AsyncMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.messages = mock_messages
+
+    with patch("backend.app.agents.mandate_analyst.AsyncAnthropic", return_value=mock_client):
+        result = await mandate_analyst_agent(incomplete_mandate)
+
+    # Should detect missing field
+    assert "geography.markets" in result["missing_fields"]
+    assert len(result["missing_fields"]) == 1
+    assert result["completeness_score"] < 100
