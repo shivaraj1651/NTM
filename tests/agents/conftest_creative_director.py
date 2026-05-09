@@ -15,6 +15,7 @@ from backend.app.agents.creative_director.models import (
     VideoConcept,
     VideoConceptScene,
     VoiceoverScript,
+    utc_now,
 )
 from datetime import datetime
 import uuid
@@ -132,7 +133,7 @@ def valid_output(campaign_input):
         campaign_id=campaign_input.campaign_id,
         generation_id=str(uuid.uuid4()),
         tenant_id=campaign_input.tenant_id,
-        generated_at=datetime.utcnow(),
+        generated_at=utc_now(),
         platforms={
             "instagram": PlatformCreatives(
                 platform="instagram",

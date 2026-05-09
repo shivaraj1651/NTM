@@ -2,8 +2,13 @@
 
 from typing import Optional, Dict, List, Literal
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
+
+
+def utc_now() -> datetime:
+    """Return current UTC time with timezone info."""
+    return datetime.now(timezone.utc)
 
 
 # Input Models
@@ -141,7 +146,7 @@ class CreativeDirectorOutput(BaseModel):
     campaign_id: str
     generation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     tenant_id: str
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=utc_now)
     platforms: Dict[str, PlatformCreatives]
     metadata: GenerationMetadata
     error: Optional[Dict[str, str]] = None
