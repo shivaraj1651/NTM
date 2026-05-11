@@ -7,7 +7,6 @@ Sets up user management, JWT strategy, and auth dependencies.
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, BearerTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.models import User
 from backend.app.core.config import settings
 
