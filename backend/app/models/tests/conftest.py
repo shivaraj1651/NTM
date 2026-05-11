@@ -6,7 +6,9 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.models.activation_platform_mapping import Base
+from sqlalchemy import MetaData
+from backend.app.models.activation_platform_mapping import Base as Base1
+from backend.app.models.platform_config_template import Base as Base2
 
 
 @pytest.fixture(autouse=True)
@@ -42,9 +44,10 @@ async def db_session():
         future=True
     )
 
-    # Create tables
+    # Create tables from all model bases
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base1.metadata.create_all)
+        await conn.run_sync(Base2.metadata.create_all)
 
     # Create session factory
     async_session = sessionmaker(
