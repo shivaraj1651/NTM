@@ -256,3 +256,30 @@ class TestPollBehavior:
             output = await agent.generate(brief, storage_client=storage)
 
         assert output.status == STATUS_MANUAL
+
+
+# ---------------------------------------------------------------------------
+# Failure fallback
+# ---------------------------------------------------------------------------
+
+class TestFailureFallback:
+
+    async def test_runway_unavailable_returns_manual_status(self, agent, brief, storage):
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(side_effect=RuntimeError("Runway down")),
+        ):
+            output = await agent.generate(brief, storage_client=storage)
+
+        assert output.status == STATUS_MANUAL
+        assert output.asset_url == ""
+        assert output.job_id == ""
+
+    async def test_runway_unavailable_does_not_raise(self, agent, brief, storage):
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(side_effect=RuntimeError("Runway down")),
+        ):
+            output = await agent.generate(brief, storage_client=storage)
+
+        assert output is not None
