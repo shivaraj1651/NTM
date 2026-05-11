@@ -1,7 +1,7 @@
 # ==============================================================================
 # ntm-sessions.ps1
-# NTM — Nexus Tensor Meridian session launcher.
-# Based on sessions-template.ps1 — pre-filled for all NTM phases and modules.
+# NTM -Nexus Tensor Meridian session launcher.
+# Based on sessions-template.ps1 -pre-filled for all NTM phases and modules.
 # Owner: Srinivas / SherpaVector
 # Usage: .\scripts\ntm-sessions.ps1 -Session <name>
 #        .\scripts\ntm-sessions.ps1 -Session list
@@ -46,13 +46,13 @@ $COAUTHOR       = "Co-authored-by: katharguppe <katharguppe@users.noreply.github
 $sessions = @{
 
     # ════════════════════════════════════════════════════════════════════════
-    # PHASE 0 — Scaffold + Auth + DB
+    # PHASE 0 -Scaffold + Auth + DB
     # ════════════════════════════════════════════════════════════════════════
 
     core = @{
         model = $HAIKU
         task  = "TASK-001"
-        label = "Phase 0 · Core — Config, Auth, Middleware"
+        label = "Phase 0 -Core -Config, Auth, Middleware"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-001-core.md
@@ -74,7 +74,7 @@ Co-author every commit: $COAUTHOR
     models = @{
         model = $HAIKU
         task  = "TASK-002"
-        label = "Phase 0 · Models — SQLAlchemy DB Models"
+        label = "Phase 0 -Models -SQLAlchemy DB Models"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-002-models.md
@@ -100,7 +100,7 @@ Co-author every commit: $COAUTHOR
     schemas = @{
         model = $HAIKU
         task  = "TASK-003"
-        label = "Phase 0 · Schemas — Pydantic Request/Response"
+        label = "Phase 0 -Schemas -Pydantic Request/Response"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-003-schemas.md
@@ -119,13 +119,13 @@ Co-author every commit: $COAUTHOR
     }
 
     # ════════════════════════════════════════════════════════════════════════
-    # PHASE 1 — Mandate to Concept (Agents 01-03)
+    # PHASE 1 -Mandate to Concept (Agents 01-03)
     # ════════════════════════════════════════════════════════════════════════
 
     "agt-01-mandate" = @{
         model = $SONNET
         task  = "TASK-004"
-        label = "Phase 1 · AGT-01 — Mandate Analyst Agent"
+        label = "Phase 1 -AGT-01 -Mandate Analyst Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-004-agt01-mandate-analyst.md
@@ -139,7 +139,7 @@ Agent responsibility:
 - Flag contradictions (e.g. budget too low for stated objective)
 
 LLM: claude-sonnet-4-20250514, max_tokens=2000
-Output must be pure JSON — system prompt must say 'respond only with JSON, no markdown'
+Output must be pure JSON -system prompt must say 'respond only with JSON, no markdown'
 Write one happy-path test in backend/tests/agents/test_mandate_analyst.py
 
 Context7: use for Anthropic SDK async docs.
@@ -151,7 +151,7 @@ Co-author every commit: $COAUTHOR
     "agt-02-ci" = @{
         model = $SONNET
         task  = "TASK-005"
-        label = "Phase 1 · AGT-02 — Competitive Intelligence Agent"
+        label = "Phase 1 -AGT-02 -Competitive Intelligence Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-005-agt02-competitive-intel.md
@@ -166,7 +166,7 @@ Agent responsibility:
 - Output: structured CIReport JSON
 
 LLM: claude-sonnet-4-20250514 for analysis synthesis
-Tool: SerpAPI (backend/app/tools/serpapi.py) — build this tool file first
+Tool: SerpAPI (backend/app/tools/serpapi.py) -build this tool file first
 Store results in MongoDB (ntm.ci_reports collection)
 
 Context7: use for Anthropic SDK, motor (MongoDB async) docs.
@@ -178,7 +178,7 @@ Co-author every commit: $COAUTHOR
     "agt-03-strategist" = @{
         model = $SONNET
         task  = "TASK-006"
-        label = "Phase 1 · AGT-03 — Campaign Strategist Agent"
+        label = "Phase 1 -AGT-03 -Campaign Strategist Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-006-agt03-campaign-strategist.md
@@ -205,13 +205,13 @@ Co-author every commit: $COAUTHOR
     }
 
     # ════════════════════════════════════════════════════════════════════════
-    # PHASE 2 — Activation Planning + Budget
+    # PHASE 2 -Activation Planning + Budget
     # ════════════════════════════════════════════════════════════════════════
 
     "routers-mandate" = @{
         model = $HAIKU
         task  = "TASK-007"
-        label = "Phase 2 · Routers — Mandate API endpoints"
+        label = "Phase 2 -Routers -Mandate API endpoints"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-007-routers-mandate.md
@@ -225,7 +225,33 @@ POST   /api/v1/mandates/{id}/confirm        AG-1: client confirms summary card
 GET    /api/v1/mandates/{id}/summary-card   Get AGT-01 output
 
 Auth: JWT required on all routes. tenant_id from token claims.
-Every DB query must include tenant_id filter — MANDATORY.
+Every DB query must include tenant_id filter -MANDATORY.
+
+Context7: use for FastAPI, SQLAlchemy async docs.
+PDCA: present plan before touching any file.
+Co-author every commit: $COAUTHOR
+"@
+    }
+
+    "routers-campaign" = @{
+        model = $HAIKU
+        task  = "TASK-012"
+        label = "Phase 2 -Routers -Campaign API endpoints"
+        prompt = @"
+Stack: $STACK_BACKEND
+Task file: tasks/TASK-012-routers-campaign.md
+Module scope: backend/app/routers/campaign.py + backend/app/services/campaign_service.py ONLY.
+
+Endpoints to build:
+POST   /api/v1/campaigns                      Create campaign concept (triggers AGT-03)
+GET    /api/v1/campaigns/{id}                 Get campaign (tenant-scoped)
+PUT    /api/v1/campaigns/{id}                 Update campaign
+POST   /api/v1/campaigns/{id}/confirm         Client confirms campaign concept
+GET    /api/v1/campaigns/{id}/activation-plan Get AGT-04 output
+POST   /api/v1/campaigns/{id}/approve-budget  Approve budget (AGT-05 output)
+
+Auth: JWT required on all routes. tenant_id from token claims.
+Every DB query must include tenant_id filter.
 
 Context7: use for FastAPI, SQLAlchemy async docs.
 PDCA: present plan before touching any file.
@@ -236,7 +262,7 @@ Co-author every commit: $COAUTHOR
     "agt-04-planner" = @{
         model = $SONNET
         task  = "TASK-008"
-        label = "Phase 2 · AGT-04 — Media Planner Agent"
+        label = "Phase 2 -AGT-04 -Media Planner Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-008-agt04-media-planner.md
@@ -244,11 +270,11 @@ Module scope: backend/app/agents/media_planner.py ONLY.
 
 Agent responsibility:
 - Input: approved CampaignConcept + budget envelope + mandate geography
-- Generate full Activation Master Plan — one record per activation
+- Generate full Activation Master Plan -one record per activation
 - Each activation must have: channel_enum, sub_channel, format, geography, placement,
   scheduled_date, duration, frequency, estimated_reach, cost_estimated, message_version_ref
 - Channel taxonomy: full Online (Social/Search/Display/Email/WhatsApp/Influencer) +
-  Offline (Print/OOH/Radio/TV/Events/Cinema/Direct Mail) — see PRD Section 6.4.2
+  Offline (Print/OOH/Radio/TV/Events/Cinema/Direct Mail) -see PRD Section 6.4.2
 - Apply budget allocation logic: objective-driven, phase-weighted, competitor-gap-aware
 - Reserve 10% contingency always
 - Output: list of Activation JSON objects + BudgetSummary JSON
@@ -263,7 +289,7 @@ Co-author every commit: $COAUTHOR
     "agt-05-budget" = @{
         model = $SONNET
         task  = "TASK-009"
-        label = "Phase 2 · AGT-05 — Budget Optimiser Agent"
+        label = "Phase 2 -AGT-05 -Budget Optimiser Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-009-agt05-budget-optimiser.md
@@ -286,13 +312,13 @@ Co-author every commit: $COAUTHOR
     }
 
     # ════════════════════════════════════════════════════════════════════════
-    # PHASE 3 — Creative Studio (Agents 06-11)
+    # PHASE 3 -Creative Studio (Agents 06-11)
     # ════════════════════════════════════════════════════════════════════════
 
     "agt-06-creative-dir" = @{
         model = $SONNET
         task  = "TASK-010"
-        label = "Phase 3 · AGT-06 — Creative Director Agent"
+        label = "Phase 3 -AGT-06 -Creative Director Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-010-agt06-creative-director.md
@@ -317,7 +343,7 @@ Co-author every commit: $COAUTHOR
     "agt-07-copywriter" = @{
         model = $SONNET
         task  = "TASK-011"
-        label = "Phase 3 · AGT-07 — Copywriter Agent"
+        label = "Phase 3 -AGT-07 -Copywriter Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-011-agt07-copywriter.md
@@ -342,7 +368,7 @@ Co-author every commit: $COAUTHOR
     "agt-08-scriptwriter" = @{
         model = $SONNET
         task  = "TASK-012"
-        label = "Phase 3 · AGT-08 — Scriptwriter Agent (TVC/Radio/Video)"
+        label = "Phase 3 -AGT-08 -Scriptwriter Agent (TVC/Radio/Video)"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-012-agt08-scriptwriter.md
@@ -367,7 +393,7 @@ Co-author every commit: $COAUTHOR
     "agt-09-image" = @{
         model = $HAIKU
         task  = "TASK-013"
-        label = "Phase 3 · AGT-09 — Image Generator Agent"
+        label = "Phase 3 -AGT-09 -Image Generator Agent"
         prompt = @"
 Stack: $STACK_BACKEND + Stability AI API / DALL-E 3 API
 Task file: tasks/TASK-013-agt09-image-generator.md
@@ -393,7 +419,7 @@ Co-author every commit: $COAUTHOR
     "agt-10-audio" = @{
         model = $HAIKU
         task  = "TASK-014"
-        label = "Phase 3 · AGT-10 — Audio Generator Agent (ElevenLabs)"
+        label = "Phase 3 -AGT-10 -Audio Generator Agent (ElevenLabs)"
         prompt = @"
 Stack: $STACK_BACKEND + ElevenLabs API
 Task file: tasks/TASK-014-agt10-audio-generator.md
@@ -418,7 +444,7 @@ Co-author every commit: $COAUTHOR
     "agt-11-video" = @{
         model = $HAIKU
         task  = "TASK-015"
-        label = "Phase 3 · AGT-11 — Video Generator Agent (Runway)"
+        label = "Phase 3 -AGT-11 -Video Generator Agent (Runway)"
         prompt = @"
 Stack: $STACK_BACKEND + Runway ML API
 Task file: tasks/TASK-015-agt11-video-generator.md
@@ -443,13 +469,13 @@ Co-author every commit: $COAUTHOR
     }
 
     # ════════════════════════════════════════════════════════════════════════
-    # PHASE 4 — Digital Activation + Analytics
+    # PHASE 4 -Digital Activation + Analytics
     # ════════════════════════════════════════════════════════════════════════
 
     "tools-google" = @{
         model = $SONNET
         task  = "TASK-016"
-        label = "Phase 4 · Tools — Google Ads API integration"
+        label = "Phase 4 -Tools -Google Ads API integration"
         prompt = @"
 Stack: $STACK_BACKEND + google-ads Python SDK
 Task file: tasks/TASK-016-tools-google-ads.md
@@ -476,7 +502,7 @@ Co-author every commit: $COAUTHOR
     "tools-meta" = @{
         model = $SONNET
         task  = "TASK-017"
-        label = "Phase 4 · Tools — Meta Marketing API integration"
+        label = "Phase 4 -Tools -Meta Marketing API integration"
         prompt = @"
 Stack: $STACK_BACKEND + Meta Marketing API (via httpx)
 Task file: tasks/TASK-017-tools-meta-ads.md
@@ -502,7 +528,7 @@ Co-author every commit: $COAUTHOR
     "tools-linkedin" = @{
         model = $SONNET
         task  = "TASK-018"
-        label = "Phase 4 · Tools — LinkedIn Campaign Manager API"
+        label = "Phase 4 -Tools -LinkedIn Campaign Manager API"
         prompt = @"
 Stack: $STACK_BACKEND + LinkedIn Marketing API (via httpx)
 Task file: tasks/TASK-018-tools-linkedin.md
@@ -527,7 +553,7 @@ Co-author every commit: $COAUTHOR
     "agt-12-digital" = @{
         model = $HAIKU
         task  = "TASK-019"
-        label = "Phase 4 · AGT-12 — Digital Activator Agent"
+        label = "Phase 4 -AGT-12 -Digital Activator Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-019-agt12-digital-activator.md
@@ -554,7 +580,7 @@ Co-author every commit: $COAUTHOR
     "agt-13-analytics" = @{
         model = $SONNET
         task  = "TASK-020"
-        label = "Phase 4 · AGT-13 — Analytics Agent"
+        label = "Phase 4 -AGT-13 -Analytics Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-020-agt13-analytics.md
@@ -578,7 +604,7 @@ Co-author every commit: $COAUTHOR
     "agt-14-replan" = @{
         model = $SONNET
         task  = "TASK-021"
-        label = "Phase 4 · AGT-14 — Replanning Agent"
+        label = "Phase 4 -AGT-14 -Replanning Agent"
         prompt = @"
 Stack: $STACK_BACKEND
 Task file: tasks/TASK-021-agt14-replanning.md
@@ -591,8 +617,8 @@ Agent responsibility (runs weekly, triggered by Celery Beat):
 - Generate specific, actionable ReplanRecommendation records:
   Types: pause | increase_budget | swap_creative | add_activation | adjust_targeting | extend_duration
 - Each recommendation must include: rationale, expected_impact, estimated_cost_change
-- Output: list of ReplanRecommendation JSON objects — pending AG-6 approval
-- Do NOT implement changes — only generate recommendations for human approval
+- Output: list of ReplanRecommendation JSON objects -pending AG-6 approval
+- Do NOT implement changes -only generate recommendations for human approval
 
 LLM: claude-sonnet-4-20250514
 PDCA: present plan before touching any file.
@@ -603,7 +629,7 @@ Co-author every commit: $COAUTHOR
     "agt-15-report" = @{
         model = $SONNET
         task  = "TASK-022"
-        label = "Phase 4 · AGT-15 — Report Generator Agent"
+        label = "Phase 4 -AGT-15 -Report Generator Agent"
         prompt = @"
 Stack: $STACK_BACKEND + WeasyPrint
 Task file: tasks/TASK-022-agt15-report-generator.md
@@ -632,7 +658,7 @@ Co-author every commit: $COAUTHOR
     "fe-mandate" = @{
         model = $SONNET
         task  = "TASK-023"
-        label = "Frontend · Mandate — Client onboarding + mandate capture UI"
+        label = "Frontend -Mandate -Client onboarding + mandate capture UI"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-023-fe-mandate.md
@@ -654,7 +680,7 @@ Co-author every commit: $COAUTHOR
     "fe-campaign" = @{
         model = $SONNET
         task  = "TASK-024"
-        label = "Frontend · Campaign — Concept deck + activation plan views"
+        label = "Frontend -Campaign -Concept deck + activation plan views"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-024-fe-campaign.md
@@ -676,7 +702,7 @@ Co-author every commit: $COAUTHOR
     "fe-creative" = @{
         model = $SONNET
         task  = "TASK-025"
-        label = "Frontend · Creative Studio — Asset review + approval gallery"
+        label = "Frontend -Creative Studio -Asset review + approval gallery"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-025-fe-creative.md
@@ -700,7 +726,7 @@ Co-author every commit: $COAUTHOR
     "fe-analytics" = @{
         model = $SONNET
         task  = "TASK-026"
-        label = "Frontend · Analytics — Campaign performance dashboard"
+        label = "Frontend -Analytics -Campaign performance dashboard"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-026-fe-analytics.md
@@ -725,7 +751,7 @@ Co-author every commit: $COAUTHOR
     "fe-kpi" = @{
         model = $HAIKU
         task  = "TASK-027"
-        label = "Frontend · KPI Dashboard — KPI/KRA tracking view"
+        label = "Frontend -KPI Dashboard -KPI/KRA tracking view"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-027-fe-kpi.md
@@ -749,7 +775,7 @@ Co-author every commit: $COAUTHOR
     "fe-admin" = @{
         model = $HAIKU
         task  = "TASK-028"
-        label = "Frontend · Admin — Tenant + user management"
+        label = "Frontend -Admin -Tenant + user management"
         prompt = @"
 Stack: $STACK_FRONTEND
 Task file: tasks/TASK-028-fe-admin.md
@@ -775,7 +801,7 @@ Co-author every commit: $COAUTHOR
     evals = @{
         model = $SONNET
         task  = "TASK-029"
-        label = "Evals · Agent output quality benchmarking"
+        label = "Evals -Agent output quality benchmarking"
         prompt = @"
 Stack: $STACK_BACKEND + pytest
 Task file: tasks/TASK-029-evals.md
@@ -806,7 +832,7 @@ Co-author every commit: $COAUTHOR
     debug = @{
         model = $SONNET
         task  = "TASK-???"
-        label = "Debug Session — one error, one file"
+        label = "Debug Session -one error, one file"
         prompt = @"
 Stack: $STACK_BACKEND / $STACK_FRONTEND
 Task: one error, one file, one session.
@@ -817,12 +843,12 @@ Paste in order:
   3. The exact input that triggered it
 
 Known NTM gotchas:
-- All DB queries MUST include tenant_id — missing it is the #1 source of 404s
+- All DB queries MUST include tenant_id -missing it is the #1 source of 404s
 - Celery tasks must be imported in tasks/__init__.py or Beat won't find them
-- pgvector column requires CREATE EXTENSION vector; in migration — not auto by alembic
-- MinIO bucket must exist before S3 upload — seed script creates it
+- pgvector column requires CREATE EXTENSION vector; in migration -not auto by alembic
+- MinIO bucket must exist before S3 upload -seed script creates it
 - Approval Gate status checks must use Enum values not raw strings
-- agent outputs must be pure JSON — any markdown fences break JSON.loads()
+- agent outputs must be pure JSON -any markdown fences break JSON.loads()
 
 Co-author every commit: $COAUTHOR
 "@
@@ -833,13 +859,13 @@ Co-author every commit: $COAUTHOR
 # ── List mode ─────────────────────────────────────────────────────────────────
 if ($Session -eq "list") {
     Write-Host ""
-    Write-Host "  NTM — Available Sessions" -ForegroundColor Cyan
+    Write-Host "  NTM -Available Sessions" -ForegroundColor Cyan
     Write-Host ""
     Write-Host ("  {0,-28} {1,-48} {2}" -f "SESSION", "LABEL", "MODEL") -ForegroundColor DarkGray
     Write-Host ("  {0,-28} {1,-48} {2}" -f "-------", "-----", "-----") -ForegroundColor DarkGray
     foreach ($key in $sessions.Keys | Sort-Object) {
         $s = $sessions[$key]
-        $tag = if ($s.model -like "*haiku*") { "Haiku  🟢" } else { "Sonnet 🔵" }
+        $tag = if ($s.model -like "*haiku*") { "Haiku " } else { "Sonnet" }
         Write-Host ("  {0,-28} {1,-48} [{2}]" -f $key, $s.label, $tag)
     }
     Write-Host ""
@@ -851,18 +877,18 @@ if ($Session -eq "list") {
 # ── Launch session ────────────────────────────────────────────────────────────
 $s = $sessions[$Session]
 Write-Host ""
-Write-Host "  ┌──────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-Write-Host ("  │  {0,-52}│" -f $s.label) -ForegroundColor Cyan
-Write-Host ("  │  Task:  {0,-48}│" -f $s.task) -ForegroundColor Cyan
-Write-Host ("  │  Model: {0,-48}│" -f $s.model) -ForegroundColor Cyan
-Write-Host "  └──────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+Write-Host "  +------------------------------------------------------+" -ForegroundColor Cyan
+Write-Host ("  |  {0,-52}|" -f $s.label) -ForegroundColor Cyan
+Write-Host ("  |  Task:  {0,-48}|" -f $s.task) -ForegroundColor Cyan
+Write-Host ("  |  Model: {0,-48}|" -f $s.model) -ForegroundColor Cyan
+Write-Host "  +------------------------------------------------------+" -ForegroundColor Cyan
 Write-Host ""
 Write-Host $s.prompt -ForegroundColor White
 Write-Host ""
 $s.prompt | Set-Clipboard
-Write-Host "  ✓ Context copied to clipboard." -ForegroundColor Green
+Write-Host "  [OK] Context copied to clipboard." -ForegroundColor Green
 Write-Host "  Paste into Claude Code, then type: superpowers brainstorm" -ForegroundColor Yellow
-Write-Host "  Remember: context limit is 50% — watch cc-status-line" -ForegroundColor DarkGray
+Write-Host "  Remember: context limit is 50% -watch cc-status-line" -ForegroundColor DarkGray
 Write-Host ""
 Set-Location $PROJECT_ROOT
 $env:ANTHROPIC_MODEL = $s.model
