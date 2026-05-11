@@ -443,11 +443,11 @@ Co-author every commit: $COAUTHOR
 
     "agt-11-video" = @{
         model = $HAIKU
-        task  = "TASK-015"
+        task  = "TASK-016"
         label = "Phase 3 -AGT-11 -Video Generator Agent (Runway)"
         prompt = @"
 Stack: $STACK_BACKEND + Runway ML API
-Task file: tasks/TASK-015-agt11-video-generator.md
+Task file: tasks/TASK-016-agt11-video-generator.md
 Module scope: backend/app/agents/video_generator.py + backend/app/tools/runway.py ONLY.
 
 Agent responsibility:
