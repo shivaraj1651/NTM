@@ -283,3 +283,45 @@ class TestFailureFallback:
             output = await agent.generate(brief, storage_client=storage)
 
         assert output is not None
+
+
+# ---------------------------------------------------------------------------
+# DB persistence
+# ---------------------------------------------------------------------------
+
+class TestPersistence:
+
+    async def test_persist_creates_db_record_with_tenant_id(self, agent, brief, storage):
+        session = FakeSession()
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(return_value=FAKE_JOB_ID),
+        ), patch(
+            "backend.app.agents.video_generator.runway.get_video_status",
+            new=AsyncMock(return_value=SUCCEEDED_STATUS),
+        ), patch(
+            "backend.app.agents.video_generator.httpx.AsyncClient",
+            FakeHTTPClient,
+        ):
+            await agent.generate(brief, storage_client=storage, db_session=session)
+
+        assert len(session.rows) == 1
+        row = session.rows[0]
+        assert row.tenant_id == "tenant-001"
+        assert row.campaign_id == "camp-001"
+
+    async def test_persist_stores_job_id(self, agent, brief, storage):
+        session = FakeSession()
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(return_value=FAKE_JOB_ID),
+        ), patch(
+            "backend.app.agents.video_generator.runway.get_video_status",
+            new=AsyncMock(return_value=SUCCEEDED_STATUS),
+        ), patch(
+            "backend.app.agents.video_generator.httpx.AsyncClient",
+            FakeHTTPClient,
+        ):
+            await agent.generate(brief, storage_client=storage, db_session=session)
+
+        assert session.rows[0].job_id == FAKE_JOB_ID
