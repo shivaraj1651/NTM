@@ -116,3 +116,19 @@ def test_invalid_token_exception_has_correct_status():
     exc = InvalidTokenException()
     assert exc.status_code == 401
     assert exc.error_code == "INVALID_TOKEN"
+
+
+def test_health_endpoint_skips_tenant_validation():
+    """Middleware must not block /health — no tenant header required."""
+    from starlette.testclient import TestClient
+
+    app = FastAPI()
+    app.add_middleware(TenantValidationMiddleware)
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get("/health")
+    assert response.status_code == 200

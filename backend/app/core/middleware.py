@@ -17,7 +17,7 @@ class TenantValidationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Process request and validate tenant before passing to route handler."""
         # Skip auth for public endpoints
-        public_endpoints = ["/docs", "/openapi.json", "/redoc", "/auth/login", "/auth/register"]
+        public_endpoints = ["/docs", "/openapi.json", "/redoc", "/auth/login", "/auth/register", "/health"]
         if request.url.path in public_endpoints:
             return await call_next(request)
 
