@@ -223,3 +223,36 @@ class TestImageToVideo:
 
         call_args = mock_generate.call_args
         assert call_args[0][1] is None
+
+
+# ---------------------------------------------------------------------------
+# Poll behavior
+# ---------------------------------------------------------------------------
+
+class TestPollBehavior:
+
+    async def test_poll_timeout_returns_manual_status(self, agent, brief, storage):
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(return_value=FAKE_JOB_ID),
+        ), patch.object(
+            agent, "_poll_for_completion",
+            new=AsyncMock(return_value=None),
+        ):
+            output = await agent.generate(brief, storage_client=storage)
+
+        assert output.status == STATUS_MANUAL
+        assert output.asset_url == ""
+        assert output.job_id == FAKE_JOB_ID
+
+    async def test_poll_failed_returns_manual_status(self, agent, brief, storage):
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=AsyncMock(return_value=FAKE_JOB_ID),
+        ), patch.object(
+            agent, "_poll_for_completion",
+            new=AsyncMock(return_value=None),
+        ):
+            output = await agent.generate(brief, storage_client=storage)
+
+        assert output.status == STATUS_MANUAL
