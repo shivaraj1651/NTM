@@ -1,0 +1,48 @@
+FIX: routers-campaign missing from $sessions hashtable in ntm-sessions.ps1
+
+PROBLEM
+-------
+"routers-campaign" is in the ValidateSet on line ~21 but has no matching
+entry in the $sessions hashtable. Running:
+
+    .\ntm-sessions.ps1 -Session routers-campaign
+
+...will pass param validation then crash with a null reference when the
+script tries to access $s.label, $s.task, $s.model.
+
+FIX
+---
+Add a session block to the $sessions hashtable in ntm-sessions.ps1,
+alongside "routers-mandate". Pattern to follow:
+
+    "routers-campaign" = @{
+        model = $HAIKU
+        task  = "TASK-0XX"
+        label = "Phase 2 -Routers -Campaign API endpoints"
+        prompt = @"
+Stack: $STACK_BACKEND
+Task file: tasks/TASK-0XX-routers-campaign.md
+Module scope: backend/app/routers/campaign.py + backend/app/services/campaign_service.py ONLY.
+
+Endpoints to build:
+POST   /api/v1/campaigns                      Create campaign concept (triggers AGT-03)
+GET    /api/v1/campaigns/{id}                 Get campaign (tenant-scoped)
+PUT    /api/v1/campaigns/{id}                 Update campaign
+POST   /api/v1/campaigns/{id}/confirm         Client confirms campaign concept
+GET    /api/v1/campaigns/{id}/activation-plan Get AGT-04 output
+POST   /api/v1/campaigns/{id}/approve-budget  Approve budget (AGT-05 output)
+
+Auth: JWT required on all routes. tenant_id from token claims.
+Every DB query must include tenant_id filter.
+
+Context7: use for FastAPI, SQLAlchemy async docs.
+PDCA: present plan before touching any file.
+Co-author every commit: $COAUTHOR
+"@
+    }
+
+NOTES
+-----
+- Assign a real TASK number when the task file is created
+- Place the block directly after the "routers-mandate" block (~line 234)
+- The prompt above is a starting template; align with the actual PRD endpoints
