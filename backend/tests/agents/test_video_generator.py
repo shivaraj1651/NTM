@@ -168,3 +168,58 @@ class TestHappyPath:
             output = await agent.generate(brief, storage_client=storage)
 
         assert output.asset_url == FAKE_URL  # no error, no DB write
+
+
+# ---------------------------------------------------------------------------
+# Image-to-video routing
+# ---------------------------------------------------------------------------
+
+class TestImageToVideo:
+
+    async def test_image_url_passed_to_runway_tool(self, agent, storage):
+        brief = VideoGenerationBrief(
+            campaign_id="c", tenant_id="t",
+            prompt="product in space",
+            script_text="Introducing.",
+            reference_image_url="https://s3.example.com/image.png",
+            duration_seconds=5,
+        )
+        mock_generate = AsyncMock(return_value=FAKE_JOB_ID)
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=mock_generate,
+        ), patch(
+            "backend.app.agents.video_generator.runway.get_video_status",
+            new=AsyncMock(return_value=SUCCEEDED_STATUS),
+        ), patch(
+            "backend.app.agents.video_generator.httpx.AsyncClient",
+            FakeHTTPClient,
+        ):
+            await agent.generate(brief, storage_client=storage)
+
+        call_args = mock_generate.call_args
+        assert call_args[0][1] == "https://s3.example.com/image.png"
+
+    async def test_no_image_url_uses_text_to_video(self, agent, storage):
+        brief = VideoGenerationBrief(
+            campaign_id="c", tenant_id="t",
+            prompt="product in space",
+            script_text="Introducing.",
+            reference_image_url=None,
+            duration_seconds=5,
+        )
+        mock_generate = AsyncMock(return_value=FAKE_JOB_ID)
+        with patch(
+            "backend.app.agents.video_generator.runway.generate_video",
+            new=mock_generate,
+        ), patch(
+            "backend.app.agents.video_generator.runway.get_video_status",
+            new=AsyncMock(return_value=SUCCEEDED_STATUS),
+        ), patch(
+            "backend.app.agents.video_generator.httpx.AsyncClient",
+            FakeHTTPClient,
+        ):
+            await agent.generate(brief, storage_client=storage)
+
+        call_args = mock_generate.call_args
+        assert call_args[0][1] is None
