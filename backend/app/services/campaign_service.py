@@ -1,0 +1,257 @@
+"""Campaign Service — business logic for the campaign lifecycle (TASK-012)."""
+
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import HTTPException
+from backend.app.agents.campaign_strategist import campaign_strategist_agent
+from backend.app.agents.media_planner import media_planner_agent
+from backend.app.agents.budget_optimizer import budget_optimizer_agent
+
+logger = logging.getLogger(__name__)
+
+# Status ordering for guard comparisons
+_STATUS_ORDER = [
+    "pending",
+    "concepts_ready",
+    "confirmed",
+    "planned",
+    "budget_proposed",
+    "approved",
+]
+
+
+def _status_gte(current: str, minimum: str) -> bool:
+    try:
+        return _STATUS_ORDER.index(current) >= _STATUS_ORDER.index(minimum)
+    except ValueError:
+        return False
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class CampaignService:
+    """Orchestrates campaign lifecycle against MongoDB."""
+
+    def __init__(self, db: Any):
+        self._db = db
+
+    @property
+    def _campaigns(self):
+        return self._db["campaigns"]
+
+    @property
+    def _mandates(self):
+        return self._db["mandates"]
+
+    @property
+    def _ci_reports(self):
+        return self._db["ci_reports"]
+
+    # ------------------------------------------------------------------
+    # create
+    # ------------------------------------------------------------------
+
+    async def create(self, mandate_id: str, tenant_id: str) -> dict:
+        mandate = await self._mandates.find_one({"_id": mandate_id, "tenant_id": tenant_id})
+        if not mandate:
+            raise HTTPException(status_code=404, detail="Mandate not found")
+
+        ci_report = await self._ci_reports.find_one(
+            {"mandate_id": mandate_id, "tenant_id": tenant_id},
+            sort=[("created_at", -1)],
+        )
+        if not ci_report:
+            raise HTTPException(status_code=404, detail="CI report not found for mandate")
+
+        mandate_dict = {k: v for k, v in mandate.items() if k != "_id"}
+        ci_dict = {k: v for k, v in ci_report.items() if k != "_id"}
+
+        try:
+            result = await campaign_strategist_agent(mandate_dict, ci_dict)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("AGT-03 failed: %s", exc)
+            raise HTTPException(status_code=500, detail=f"Campaign generation failed: {exc}")
+
+        concepts = result.get("campaigns", [])
+        now = _utc_now()
+        doc = {
+            "_id": str(uuid.uuid4()),
+            "tenant_id": tenant_id,
+            "mandate_id": mandate_id,
+            "status": "concepts_ready",
+            "concepts": [c if isinstance(c, dict) else c.model_dump(mode="json") for c in concepts],
+            "selected_concept_id": None,
+            "activation_plan": None,
+            "budget_proposal": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+        await self._campaigns.insert_one(doc)
+        return doc
+
+    # ------------------------------------------------------------------
+    # get
+    # ------------------------------------------------------------------
+
+    async def get(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self._campaigns.find_one({"_id": campaign_id, "tenant_id": tenant_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        return doc
+
+    # ------------------------------------------------------------------
+    # update
+    # ------------------------------------------------------------------
+
+    async def update(self, campaign_id: str, tenant_id: str, payload: dict) -> dict:
+        await self.get(campaign_id, tenant_id)  # 404 guard
+        allowed = {k: v for k, v in payload.items() if k in ("mandate_id", "selected_concept_id") and v is not None}
+        allowed["updated_at"] = _utc_now()
+        doc = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": allowed},
+            return_document=True,
+        )
+        return doc
+
+    # ------------------------------------------------------------------
+    # confirm
+    # ------------------------------------------------------------------
+
+    async def confirm(self, campaign_id: str, selected_concept_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if doc["status"] != "concepts_ready":
+            raise HTTPException(status_code=409, detail=f"Cannot confirm from status '{doc['status']}'")
+
+        concept_ids = {str(c.get("id", "")) for c in doc.get("concepts", [])}
+        if selected_concept_id not in concept_ids:
+            raise HTTPException(status_code=422, detail="selected_concept_id not found in concepts array")
+
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "confirmed",
+                "selected_concept_id": selected_concept_id,
+                "updated_at": _utc_now(),
+            }},
+            return_document=True,
+        )
+        return updated
+
+    # ------------------------------------------------------------------
+    # get_activation_plan
+    # ------------------------------------------------------------------
+
+    async def get_activation_plan(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if not _status_gte(doc["status"], "confirmed"):
+            raise HTTPException(status_code=409, detail=f"Cannot generate activation plan from status '{doc['status']}'")
+
+        if doc.get("activation_plan"):
+            return doc
+
+        # Find selected concept
+        concept = next(
+            (c for c in doc.get("concepts", []) if str(c.get("id", "")) == doc.get("selected_concept_id")),
+            None,
+        )
+        if not concept:
+            raise HTTPException(status_code=422, detail="Selected concept not found")
+
+        # Fetch mandate for budget_envelope and geography
+        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
+        if not mandate:
+            raise HTTPException(status_code=404, detail="Mandate not found")
+
+        budget_envelope = mandate.get("budget", {"total_budget": 0, "currency": "USD"})
+        if "total_amount" in budget_envelope and "total_budget" not in budget_envelope:
+            budget_envelope = {**budget_envelope, "total_budget": budget_envelope["total_amount"]}
+        mandate_geography = mandate.get("geography", {"regions": [], "markets": [], "country_list": []})
+
+        try:
+            plan_result = await media_planner_agent(concept, budget_envelope, mandate_geography)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("AGT-04 failed: %s", exc)
+            raise HTTPException(status_code=500, detail=f"Activation plan generation failed: {exc}")
+
+        activations = plan_result.get("activations", [])
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "planned",
+                "activation_plan": [a if isinstance(a, dict) else a.model_dump(mode="json") for a in activations],
+                "updated_at": _utc_now(),
+            }},
+            return_document=True,
+        )
+        return updated
+
+    # ------------------------------------------------------------------
+    # propose_budget
+    # ------------------------------------------------------------------
+
+    async def propose_budget(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if doc["status"] != "planned":
+            raise HTTPException(status_code=409, detail=f"Cannot propose budget from status '{doc['status']}'")
+
+        activations = doc.get("activation_plan", []) or []
+        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
+        budget_env = {}
+        if mandate:
+            b = mandate.get("budget", {})
+            budget_env = {"total_budget": b.get("total_amount", 0), "currency": b.get("currency", "USD")}
+
+        campaign_context = {
+            "campaign_id": campaign_id,
+            "campaign_name": doc.get("concepts", [{}])[0].get("name", ""),
+            "tone_board": doc.get("concepts", [{}])[0].get("tone_board", ""),
+        }
+
+        try:
+            proposal = await budget_optimizer_agent(activations, budget_env, campaign_context)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("AGT-05 failed: %s", exc)
+            raise HTTPException(status_code=500, detail=f"Budget optimisation failed: {exc}")
+
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "budget_proposed",
+                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
+                "updated_at": _utc_now(),
+            }},
+            return_document=True,
+        )
+        return updated
+
+    # ------------------------------------------------------------------
+    # confirm_budget
+    # ------------------------------------------------------------------
+
+    async def confirm_budget(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if doc["status"] != "budget_proposed":
+            raise HTTPException(status_code=409, detail=f"Cannot confirm budget from status '{doc['status']}'")
+
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {"status": "approved", "updated_at": _utc_now()}},
+            return_document=True,
+        )
+        return updated
