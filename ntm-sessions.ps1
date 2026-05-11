@@ -367,11 +367,11 @@ Co-author every commit: $COAUTHOR
 
     "agt-08-scriptwriter" = @{
         model = $SONNET
-        task  = "TASK-012"
+        task  = "TASK-013"
         label = "Phase 3 -AGT-08 -Scriptwriter Agent (TVC/Radio/Video)"
         prompt = @"
 Stack: $STACK_BACKEND
-Task file: tasks/TASK-012-agt08-scriptwriter.md
+Task file: tasks/TASK-013-agt08-scriptwriter.md
 Module scope: backend/app/agents/scriptwriter.py ONLY.
 
 Agent responsibility:
@@ -392,11 +392,11 @@ Co-author every commit: $COAUTHOR
 
     "agt-09-image" = @{
         model = $HAIKU
-        task  = "TASK-013"
+        task  = "TASK-014"
         label = "Phase 3 -AGT-09 -Image Generator Agent"
         prompt = @"
 Stack: $STACK_BACKEND + Stability AI API / DALL-E 3 API
-Task file: tasks/TASK-013-agt09-image-generator.md
+Task file: tasks/TASK-014-agt09-image-generator.md
 Module scope: backend/app/agents/image_generator.py + backend/app/tools/stability_ai.py ONLY.
 
 Agent responsibility:
