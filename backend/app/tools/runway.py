@@ -1,11 +1,8 @@
 """Runway ML video generation tool."""
 
-import logging
 import os
 
 import httpx
-
-logger = logging.getLogger(__name__)
 
 RUNWAY_IMAGE_TO_VIDEO_URL = "https://api.dev.runwayml.com/v1/image_to_video"
 RUNWAY_TEXT_TO_VIDEO_URL  = "https://api.dev.runwayml.com/v1/text_to_video"
@@ -46,7 +43,10 @@ async def generate_video(
             f"Runway returned {response.status_code}: {response.text}"
         )
 
-    return response.json()["id"]
+    data = response.json()
+    if "id" not in data:
+        raise RuntimeError(f"Runway response missing 'id' field: {data}")
+    return data["id"]
 
 
 async def get_video_status(job_id: str) -> dict:
