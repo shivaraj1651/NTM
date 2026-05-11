@@ -1,0 +1,13 @@
+"""Router aggregator — mounts all domain routers onto the FastAPI app."""
+
+from fastapi import FastAPI
+
+from backend.app.routers.mandate import router as mandate_router
+from backend.app.routers.campaign import router as campaign_router
+from backend.app.routers.creative_director import router as creative_director_router
+
+
+def register_routers(app: FastAPI) -> None:
+    app.include_router(mandate_router)
+    app.include_router(campaign_router)
+    app.include_router(creative_director_router)

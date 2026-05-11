@@ -13,8 +13,12 @@ from backend.app.core.config import settings
 
 
 # Database adapter for FastAPI-Users
-async def get_user_db(session: AsyncSession):
-    """Provide SQLAlchemy user database adapter."""
+async def get_user_db(session):
+    """Provide SQLAlchemy user database adapter.
+
+    Args:
+        session: SQLAlchemy AsyncSession (type not annotated to avoid FastAPI validation)
+    """
     yield SQLAlchemyUserDatabase(session, User)
 
 
