@@ -418,11 +418,11 @@ Co-author every commit: $COAUTHOR
 
     "agt-10-audio" = @{
         model = $HAIKU
-        task  = "TASK-014"
+        task  = "TASK-015"
         label = "Phase 3 -AGT-10 -Audio Generator Agent (ElevenLabs)"
         prompt = @"
 Stack: $STACK_BACKEND + ElevenLabs API
-Task file: tasks/TASK-014-agt10-audio-generator.md
+Task file: tasks/TASK-015-agt10-audio-generator.md
 Module scope: backend/app/agents/audio_generator.py + backend/app/tools/elevenlabs.py ONLY.
 
 Agent responsibility:
