@@ -8,10 +8,10 @@ from starlette.testclient import TestClient
 def client(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test")
     monkeypatch.setenv("SECRET_KEY", "testsecretkey_at_least_32_chars_long!!")
-    # Re-import after env vars are set
-    import importlib
+    monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+    import sys
+    sys.modules.pop("backend.app.main", None)
     import backend.app.main as main_module
-    importlib.reload(main_module)
     return TestClient(main_module.app, raise_server_exceptions=False)
 
 
@@ -25,8 +25,7 @@ def test_health_returns_status_ok(client):
     assert response.json() == {"status": "ok"}
 
 
-def test_cors_header_present_for_allowed_origin(client, monkeypatch):
-    monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+def test_cors_header_present_for_allowed_origin(client):
     response = client.get(
         "/health",
         headers={"Origin": "http://localhost:3000"},
