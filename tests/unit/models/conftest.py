@@ -1,4 +1,4 @@
-"""Fixtures for models tests."""
+"""Fixtures for unit tests on models."""
 
 import pytest
 import pytest_asyncio
@@ -6,7 +6,6 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy import MetaData
 from backend.app.models.activation_platform_mapping import Base as Base1
 from backend.app.models.platform_config_template import Base as Base2
 from backend.app.models.kpi import Base as Base3
