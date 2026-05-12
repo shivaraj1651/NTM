@@ -6,6 +6,7 @@ serialization, and result backend handling.
 
 import os
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Exchange, Queue
 
 # Initialize Celery app
@@ -43,6 +44,14 @@ celery_app.conf.update(
     ),
     task_routes={
         "activation_tasks.*": {"queue": "activation", "routing_key": "activation.tasks"},
+    },
+    # Beat schedule for periodic tasks
+    beat_schedule={
+        "analytics-daily-analysis": {
+            "task": "analytics.run_daily_analysis",
+            "schedule": crontab(hour=0, minute=0),  # Run daily at midnight UTC
+            "args": ("00000000-0000-0000-0000-000000000000",),  # Placeholder mandate ID
+        },
     },
 )
 
