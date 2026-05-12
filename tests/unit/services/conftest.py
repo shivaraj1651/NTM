@@ -1,4 +1,4 @@
-"""Fixtures for models tests."""
+"""Fixtures for unit tests on services."""
 
 import pytest
 import pytest_asyncio
@@ -6,10 +6,10 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy import MetaData
 from backend.app.models.activation_platform_mapping import Base as Base1
 from backend.app.models.platform_config_template import Base as Base2
 from backend.app.models.kpi import Base as Base3
+from backend.app.models.performance_metric import Base as Base4
 
 
 @pytest.fixture(autouse=True)
@@ -50,6 +50,7 @@ async def db_session():
         await conn.run_sync(Base1.metadata.create_all)
         await conn.run_sync(Base2.metadata.create_all)
         await conn.run_sync(Base3.metadata.create_all)
+        await conn.run_sync(Base4.metadata.create_all)
 
     # Create session factory
     async_session = sessionmaker(
