@@ -4,7 +4,7 @@ from uuid import uuid4
 from datetime import datetime, date
 from sqlalchemy import Column, Date, DateTime, String, Index
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.dialects.postgresql import UUID, JSON
+from sqlalchemy.dialects.postgresql import JSON
 
 Base = declarative_base()
 
@@ -28,8 +28,8 @@ class Report(Base):
 
     # Primary key and identifiers
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    mandate_id = Column(String, nullable=False, index=True)
-    tenant_id = Column(String, nullable=False, index=True)
+    mandate_id = Column(String, nullable=False)
+    tenant_id = Column(String, nullable=False)
 
     # Report metadata
     report_type = Column(String(10), nullable=False)   # "daily" | "weekly"
@@ -59,7 +59,7 @@ class Report(Base):
             Dictionary with all model fields
         """
         return {
-            "id": self.id,
+            "id": str(self.id),
             "mandate_id": self.mandate_id,
             "tenant_id": self.tenant_id,
             "report_type": self.report_type,

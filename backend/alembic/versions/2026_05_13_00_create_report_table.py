@@ -58,4 +58,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop report table."""
+    op.drop_index('ix_report_tenant_type', table_name='report')
+    op.drop_index('ix_report_mandate_type_start', table_name='report')
+    op.drop_index('ix_report_tenant_id', table_name='report')
+    op.drop_index('ix_report_mandate_id', table_name='report')
     op.drop_table('report')
