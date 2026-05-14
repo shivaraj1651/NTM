@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     and reasonable bounds on token expiration times.
     """
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True)
+    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
     # Database
     DATABASE_URL: str = Field(..., description="PostgreSQL connection URL with asyncpg driver")
