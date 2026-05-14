@@ -34,7 +34,10 @@ def _build_campaign_concept(golden: dict) -> dict:
 @pytest.mark.parametrize("mandate_id", MANDATE_IDS)
 @pytest.mark.asyncio
 async def test_agt04_eval(mandate_id, eval_results):
-    """AGT-04 scores completeness + format >= 80 on each golden mandate."""
+    """AGT-04 scores completeness + format >= 80 on each golden mandate.
+
+    No LLM mock needed — media_planner_agent is a pure algorithmic agent.
+    """
     golden = load_golden(mandate_id)
     mandate = golden["input_mandate"]
     campaign_concept = _build_campaign_concept(golden)

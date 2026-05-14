@@ -66,7 +66,7 @@ def score_completeness(output: Any, required_fields: List[str]) -> float:
     return round(present / len(required_fields) * 100, 1) if required_fields else 100.0
 
 
-def score_format(output: Any, required_types: Dict[str, type]) -> float:
+def score_format(output: Any, required_types: Dict[str, Any]) -> float:
     """Binary: 100 if all required keys exist at correct type, 0 otherwise."""
     if not isinstance(output, dict):
         return 0.0
@@ -118,8 +118,18 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def mock_agent_llm(request):
     """
-    Patch anthropic.AsyncAnthropic for all eval tests unless -m live is active.
-    Returns a mock client whose messages.create returns a configurable response.
+    Sentinel fixture for --live mode detection.
+
+    In mock mode (default): yields a pre-configured MagicMock client. Individual
+    eval tests that call LLM agents must apply their own targeted patch on the
+    agent module (e.g. patch("backend.app.agents.mandate_analyst.AsyncAnthropic"))
+    because agents use `from anthropic import AsyncAnthropic` which binds the name
+    at import time — patching "anthropic.AsyncAnthropic" here does not intercept it.
+
+    In live mode (-m live): yields None so tests skip mock setup and call real APIs.
+
+    AGT-04 and AGT-05 are pure algorithmic agents with no LLM calls; their tests
+    ignore this fixture entirely.
     """
     if request.node.get_closest_marker("live"):
         yield None
@@ -130,8 +140,7 @@ def mock_agent_llm(request):
     mock_response.content = [MagicMock(text='{"score": 85}')]
     mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-    with patch("anthropic.AsyncAnthropic", return_value=mock_client):
-        yield mock_client
+    yield mock_client
 
 
 @pytest.fixture(scope="session")
