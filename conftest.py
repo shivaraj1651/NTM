@@ -2,6 +2,8 @@
 Root conftest.py for pytest configuration and shared fixtures.
 """
 
+pytest_plugins = ["backend.tests.agents.conftest_evals"]
+
 import pytest
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker

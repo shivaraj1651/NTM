@@ -1,0 +1,78 @@
+{
+  "mandate_id": "mandate_1",
+  "campaign_name": "Summer Refresh 2026",
+  "input_mandate": {
+    "approval_date": "2026-05-01",
+    "mandated_by": "cmo",
+    "version": "1.0",
+    "status": "approved",
+    "campaign_concept": {
+      "id": "cc-001",
+      "name": "Summer Refresh 2026",
+      "objective": "Increase brand awareness among 18-45 urban demographic by 25%",
+      "description": "Q2 multichannel campaign targeting urban professionals across Southeast Asia",
+      "target_audience": "18-45 urban professionals, mobile-first, health-conscious",
+      "timeline": "June-July 2026 (8 weeks)"
+    },
+    "budget": {
+      "total_amount": 500000,
+      "currency": "USD",
+      "allocation_strategy": "60% digital, 40% offline",
+      "contingency_reserve": "10%"
+    },
+    "geography": {
+      "regions": ["Southeast Asia"],
+      "markets": ["SG", "MY", "TH"],
+      "country_list": ["SG", "MY", "TH"]
+    }
+  },
+  "golden_outputs": {
+    "agt01_validation": {
+      "is_valid": true,
+      "completeness_score": 100,
+      "missing_fields": []
+    },
+    "agt02_competitors": [
+      {"name": "Unilever", "confidence": 90},
+      {"name": "P&G", "confidence": 88},
+      {"name": "Nestle", "confidence": 75},
+      {"name": "Colgate-Palmolive", "confidence": 70},
+      {"name": "Reckitt", "confidence": 65}
+    ],
+    "agt03_concept": {
+      "name": "Refresh Your City",
+      "tagline": "Where urban life meets natural energy",
+      "strategic_narrative": "Competitors focus on price; we own the health-and-vitality space in SEA urban markets.",
+      "campaign_theme": "Urban Vitality",
+      "audience_segmentation": {
+        "primary": "Urban professionals 25-35, Singapore and KL",
+        "secondary": "Health-conscious millennials 18-24",
+        "tertiary": "Aspirational Gen-X 36-45"
+      },
+      "channel_mix": [
+        {"channel": "Instagram", "rationale": "Primary audience native platform", "competitor_gap": "Competitors use generic creative"},
+        {"channel": "TikTok", "rationale": "High engagement with 18-30 segment", "competitor_gap": "Category largely absent"},
+        {"channel": "OOH", "rationale": "Urban commuter touchpoints", "competitor_gap": "Digital competitors ignore offline"}
+      ],
+      "message_architecture": {
+        "master_message": "Refresh your city, refresh yourself",
+        "channel_adaptations": {
+          "Instagram": "Lifestyle imagery with urban backdrops",
+          "TikTok": "15-second refresh challenge format",
+          "OOH": "Bold visual, single CTA"
+        }
+      },
+      "campaign_phasing": {
+        "awareness": "Weeks 1-2: Influencer seeding + OOH launch",
+        "engagement": "Weeks 3-6: UGC challenge + Instagram carousel series",
+        "conversion": "Weeks 7-8: Promo codes + limited edition pack push"
+      },
+      "tone_board": {
+        "adjectives": ["fresh", "vibrant", "urban", "confident", "authentic"],
+        "visual_direction": "Bright greens and whites, clean typography, candid urban photography"
+      },
+      "mandate_fit_score": 9,
+      "gap_exploitation_score": 8
+    }
+  }
+}

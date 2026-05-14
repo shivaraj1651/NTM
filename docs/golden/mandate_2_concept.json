@@ -1,0 +1,78 @@
+{
+  "mandate_id": "mandate_2",
+  "campaign_name": "Enterprise AI Launch 2026",
+  "input_mandate": {
+    "approval_date": "2026-05-01",
+    "mandated_by": "vp_marketing",
+    "version": "1.0",
+    "status": "approved",
+    "campaign_concept": {
+      "id": "cc-002",
+      "name": "Enterprise AI Launch 2026",
+      "objective": "Generate 500 qualified enterprise leads for AI platform in Q3 2026",
+      "description": "B2B demand generation campaign targeting enterprise IT decision-makers",
+      "target_audience": "CTO, CIO, VP Engineering at companies 500+ employees",
+      "timeline": "July-September 2026 (12 weeks)"
+    },
+    "budget": {
+      "total_amount": 200000,
+      "currency": "USD",
+      "allocation_strategy": "80% digital, 20% events",
+      "contingency_reserve": "15%"
+    },
+    "geography": {
+      "regions": ["North America"],
+      "markets": ["US", "CA"],
+      "country_list": ["US", "CA"]
+    }
+  },
+  "golden_outputs": {
+    "agt01_validation": {
+      "is_valid": true,
+      "completeness_score": 100,
+      "missing_fields": []
+    },
+    "agt02_competitors": [
+      {"name": "Salesforce", "confidence": 85},
+      {"name": "Microsoft Azure AI", "confidence": 82},
+      {"name": "Google Cloud AI", "confidence": 80},
+      {"name": "IBM Watson", "confidence": 72},
+      {"name": "ServiceNow", "confidence": 68}
+    ],
+    "agt03_concept": {
+      "name": "The AI Advantage",
+      "tagline": "Enterprise intelligence, delivered",
+      "strategic_narrative": "Hyperscalers win on scale; we win on enterprise-grade reliability and white-glove onboarding.",
+      "campaign_theme": "Trusted Enterprise AI",
+      "audience_segmentation": {
+        "primary": "CTOs and CIOs at 500-5000 employee companies",
+        "secondary": "VP Engineering and IT Directors",
+        "tertiary": "Enterprise architects and AI leads"
+      },
+      "channel_mix": [
+        {"channel": "LinkedIn", "rationale": "Primary B2B decision-maker platform", "competitor_gap": "Competitors use generic awareness ads"},
+        {"channel": "Google Search", "rationale": "High-intent enterprise search traffic", "competitor_gap": "Competitors underbid on long-tail enterprise terms"},
+        {"channel": "Webinars", "rationale": "Thought leadership and demo pipeline", "competitor_gap": "Competitors lack hands-on demo content"}
+      ],
+      "message_architecture": {
+        "master_message": "Your enterprise deserves AI that works",
+        "channel_adaptations": {
+          "LinkedIn": "ROI-focused case study format",
+          "Google Search": "Problem-solution copy with CTA",
+          "Webinars": "Deep-dive technical showcase"
+        }
+      },
+      "campaign_phasing": {
+        "awareness": "Weeks 1-4: Thought leadership content + LinkedIn ABM",
+        "engagement": "Weeks 5-8: Webinar series + search retargeting",
+        "conversion": "Weeks 9-12: Free trial offers + sales handoff"
+      },
+      "tone_board": {
+        "adjectives": ["authoritative", "precise", "trustworthy", "innovative", "results-driven"],
+        "visual_direction": "Deep navy and white, data visualization aesthetics, executive photography"
+      },
+      "mandate_fit_score": 9,
+      "gap_exploitation_score": 7
+    }
+  }
+}
