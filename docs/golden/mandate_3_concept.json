@@ -1,0 +1,78 @@
+{
+  "mandate_id": "mandate_3",
+  "campaign_name": "Maison Autumn 2026",
+  "input_mandate": {
+    "approval_date": "2026-05-01",
+    "mandated_by": "brand_director",
+    "version": "1.0",
+    "status": "approved",
+    "campaign_concept": {
+      "id": "cc-003",
+      "name": "Maison Autumn 2026",
+      "objective": "Drive consideration and purchase intent for autumn collection among HNW consumers",
+      "description": "Premium brand campaign for autumn collection launch across European luxury markets",
+      "target_audience": "HNW individuals 30-55, luxury fashion buyers, Paris/Milan/London",
+      "timeline": "September-October 2026 (8 weeks)"
+    },
+    "budget": {
+      "total_amount": 1000000,
+      "currency": "EUR",
+      "allocation_strategy": "50% digital, 30% print, 20% events",
+      "contingency_reserve": "10%"
+    },
+    "geography": {
+      "regions": ["Western Europe"],
+      "markets": ["FR", "IT", "GB"],
+      "country_list": ["FR", "IT", "GB"]
+    }
+  },
+  "golden_outputs": {
+    "agt01_validation": {
+      "is_valid": true,
+      "completeness_score": 100,
+      "missing_fields": []
+    },
+    "agt02_competitors": [
+      {"name": "LVMH", "confidence": 92},
+      {"name": "Kering", "confidence": 88},
+      {"name": "Richemont", "confidence": 82},
+      {"name": "Burberry", "confidence": 78},
+      {"name": "Prada Group", "confidence": 75}
+    ],
+    "agt03_concept": {
+      "name": "L'Automne Éternel",
+      "tagline": "Crafted for those who define the season",
+      "strategic_narrative": "Mass luxury brands chase virality; we reclaim exclusivity through scarcity and editorial gravitas.",
+      "campaign_theme": "Timeless Exclusivity",
+      "audience_segmentation": {
+        "primary": "HNW women 35-50, Paris and London fashion insiders",
+        "secondary": "Affluent professional women 30-40",
+        "tertiary": "Luxury fashion enthusiasts 25-30 aspirational tier"
+      },
+      "channel_mix": [
+        {"channel": "Instagram", "rationale": "Visual storytelling for fashion audience", "competitor_gap": "Competitors over-post; we curate fewer, higher-quality moments"},
+        {"channel": "Print", "rationale": "Vogue Paris/IT/UK for HNW print readers", "competitor_gap": "Competitors shifting to digital; we dominate premium print"},
+        {"channel": "Events", "rationale": "Exclusive preview events for top-tier clientele", "competitor_gap": "Competitors scale events; we restrict access"}
+      ],
+      "message_architecture": {
+        "master_message": "Autumn, as it was always meant to be worn",
+        "channel_adaptations": {
+          "Instagram": "Editorial campaign imagery, no product tags",
+          "Print": "Full-page spread, minimal copy",
+          "Events": "Private viewing, invitation only"
+        }
+      },
+      "campaign_phasing": {
+        "awareness": "Weeks 1-2: Press and editor preview + print placement",
+        "engagement": "Weeks 3-6: Instagram editorial series + event invitations",
+        "conversion": "Weeks 7-8: Private sale access + personal stylist CTA"
+      },
+      "tone_board": {
+        "adjectives": ["refined", "exclusive", "timeless", "confident", "effortless"],
+        "visual_direction": "Rich amber and charcoal palette, film photography aesthetic, serif typography"
+      },
+      "mandate_fit_score": 10,
+      "gap_exploitation_score": 9
+    }
+  }
+}
