@@ -4,7 +4,6 @@ Shared eval infrastructure: ScoreCard, scoring helpers, Haiku mock, --live marke
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -16,6 +15,7 @@ import pytest
 GOLDEN_DIR = Path(__file__).parents[3] / "docs" / "golden"
 EVALS_DIR = Path(__file__).parents[3] / "docs" / "evals"
 PASS_THRESHOLD = 80.0
+HAIKU_MODEL = "claude-haiku-4-5-20251001"
 
 
 # ---------------------------------------------------------------------------
@@ -93,12 +93,15 @@ async def score_coherence(
         'Return ONLY valid JSON: {"score": <integer>}'
     )
     response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=HAIKU_MODEL,
         max_tokens=100,
         messages=[{"role": "user", "content": prompt}],
     )
-    result = json.loads(response.content[0].text)
-    return float(result["score"])
+    try:
+        result = json.loads(response.content[0].text)
+        return float(result["score"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
