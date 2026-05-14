@@ -200,16 +200,16 @@ def json_reporter(eval_results, request):
     # Print console table
     print("\n")
     print(f"NTM Agent Eval Results  {date.today().isoformat()}  [mode: {mode}]")
-    print("─" * 62)
+    print("-" * 62)
     print(f"{'Agent':<8} {'completeness':>13} {'format':>7} {'coherence':>10} {'overall':>8}")
     for a in agent_summaries:
-        coh = f"{a['coherence']:.1f}" if a["coherence"] is not None else "—"
-        mark = "✓" if a["pass"] else "✗"
+        coh = f"{a['coherence']:.1f}" if a["coherence"] is not None else "-"
+        mark = "PASS" if a["pass"] else "FAIL"
         print(
             f"{a['id']:<8} {a['completeness']:>13.1f} {a['format']:>7.1f} "
             f"{coh:>10} {a['overall']:>7.1f} {mark}"
         )
-    print("─" * 62)
+    print("-" * 62)
     total = len(agent_summaries)
     passed = sum(1 for a in agent_summaries if a["pass"])
     verdict = "PASS" if all_pass else "FAIL"
