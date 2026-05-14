@@ -213,5 +213,5 @@ def json_reporter(eval_results, request):
     total = len(agent_summaries)
     passed = sum(1 for a in agent_summaries if a["pass"])
     verdict = "PASS" if all_pass else "FAIL"
-    print(f"Overall: {verdict}  {passed}/{total} agents ≥ {PASS_THRESHOLD}")
+    print(f"Overall: {verdict}  {passed}/{total} agents >= {PASS_THRESHOLD}")
     print(f"Report saved: {report_path}\n")
