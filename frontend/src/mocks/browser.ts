@@ -6,6 +6,7 @@ import { roleHandlers } from './handlers/roles'
 import { auditHandlers } from './handlers/audit'
 import { healthHandlers } from './handlers/health'
 import { analyticsHandlers } from './handlers/analytics'
+import { campaignHandlers } from './handlers/campaigns'
 
 export const worker = setupWorker(
   ...authHandlers,
@@ -15,4 +16,5 @@ export const worker = setupWorker(
   ...auditHandlers,
   ...healthHandlers,
   ...analyticsHandlers,
+  ...campaignHandlers,
 )
