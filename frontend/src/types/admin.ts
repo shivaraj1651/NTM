@@ -66,6 +66,13 @@ export interface KpiResult {
   status: 'red' | 'amber' | 'green' | 'no_kpis'
 }
 
+export interface ActivationMetrics {
+  impressions: number
+  clicks: number
+  conversions: number
+  spend: number
+}
+
 export interface AnalyticsActivation {
   activation_id: string
   campaign_id: string
@@ -73,12 +80,7 @@ export interface AnalyticsActivation {
   sub_channel?: string
   status: 'red' | 'amber' | 'green' | 'no_kpis'
   kpi_results: KpiResult[]
-  metrics: {
-    impressions: number
-    clicks: number
-    conversions: number
-    spend: number
-  }
+  metrics: ActivationMetrics
 }
 
 export interface RedAlert {
