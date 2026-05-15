@@ -7,6 +7,7 @@ import { UsersPage } from '@/pages/Admin/Users/UsersPage'
 import { RolesPage } from '@/pages/Admin/Roles/RolesPage'
 import { AuditLogPage } from '@/pages/Admin/AuditLog/AuditLogPage'
 import { HealthPage } from '@/pages/Admin/Health/HealthPage'
+import { AnalyticsPage } from '@/pages/Admin/Analytics/AnalyticsPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/admin/tenants" replace /> },
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
           { path: 'roles', element: <RolesPage /> },
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'health', element: <HealthPage /> },
+          { path: 'analytics', element: <AnalyticsPage /> },
         ],
       },
     ],
