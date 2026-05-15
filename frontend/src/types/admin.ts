@@ -112,3 +112,65 @@ export interface TrendPoint {
   spend: number
   impressions: number
 }
+
+export interface Mandate {
+  id: string
+  name: string
+  tenant_id: string
+  budget: { total_budget: number; currency: string }
+  geography: { regions: string[]; markets: string[]; country_list: string[] }
+  created_at: string
+}
+
+export interface CampaignConcept {
+  id: string
+  name: string
+  tagline: string
+  channels: string[]
+  tone_board: string
+  target_audience: string
+  risk_flags: { legal: string | null; regulatory: string | null; sensitivity: string | null }
+}
+
+export interface Activation {
+  id: string
+  channel: string
+  sub_channel: string
+  budget: number
+  currency: string
+  audience: string
+  kpis: { name: string; target: number; unit: string }[]
+}
+
+export interface BudgetAllocation {
+  channel: string
+  amount: number
+  percentage: number
+}
+
+export interface BudgetProposal {
+  total_budget: number
+  currency: string
+  allocations: BudgetAllocation[]
+}
+
+export type CampaignStatus =
+  | 'pending'
+  | 'concepts_ready'
+  | 'confirmed'
+  | 'planned'
+  | 'budget_proposed'
+  | 'approved'
+
+export interface Campaign {
+  id: string
+  mandate_id: string
+  tenant_id: string
+  status: CampaignStatus
+  concepts: CampaignConcept[]
+  selected_concept_id: string | null
+  activation_plan: Activation[]
+  budget_proposal: BudgetProposal | null
+  created_at: string
+  updated_at: string
+}
