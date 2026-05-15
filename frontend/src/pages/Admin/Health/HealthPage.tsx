@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +18,7 @@ interface LatencyPoint { time: string; ms: number }
 
 export function HealthPage() {
   const { data, dataUpdatedAt } = useHealth()
-  const latencyHistory = useRef<LatencyPoint[]>([])
+  const [latencyHistory, setLatencyHistory] = useState<LatencyPoint[]>([])
 
   useEffect(() => {
     if (!data) return
@@ -26,7 +26,7 @@ export function HealthPage() {
       time: new Date(dataUpdatedAt).toLocaleTimeString(),
       ms: data.latency_ms,
     }
-    latencyHistory.current = [...latencyHistory.current.slice(-9), point]
+    setLatencyHistory((prev) => [...prev.slice(-9), point])
   }, [data, dataUpdatedAt])
 
   const services: { label: string; key: keyof Pick<HealthStatus, 'api' | 'db' | 'celery'> }[] = [
@@ -74,7 +74,7 @@ export function HealthPage() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={latencyHistory.current}>
+            <LineChart data={latencyHistory}>
               <XAxis dataKey="time" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
