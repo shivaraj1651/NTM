@@ -127,13 +127,14 @@ function generateTrends(): TrendPoint[] {
   const points: TrendPoint[] = []
   const base = new Date()
   base.setDate(base.getDate() - 29)
+  const baseSpend = 520
+  const baseImpressions = 9200
   for (let i = 0; i < 30; i++) {
-    const d = new Date(base)
-    d.setDate(base.getDate() + i)
+    const d = new Date(base.getTime() + i * 24 * 60 * 60 * 1000)
     points.push({
       date: d.toISOString().split('T')[0],
-      spend: Math.round(500 + Math.random() * 300 + i * 10),
-      impressions: Math.round(8000 + Math.random() * 4000 + i * 100),
+      spend: baseSpend + i * 12 + (i % 3 === 0 ? 40 : 0),
+      impressions: baseImpressions + i * 120 + (i % 5 === 0 ? 500 : 0),
     })
   }
   return points

@@ -8,7 +8,7 @@ export const analyticsHandlers = [
 
   http.get('/api/v1/analytics/trends', ({ request }) => {
     const url = new URL(request.url)
-    const days = parseInt(url.searchParams.get('days') ?? '7')
+    const days = parseInt(url.searchParams.get('days') ?? '7') || 7
     return HttpResponse.json(analyticsTrends.slice(-days))
   }),
 
