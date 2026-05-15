@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getAnalyticsSummary,
   getAnalyticsTrends,
@@ -29,13 +29,17 @@ export function useAnalyticsTrends(
 }
 
 export function useTriggerReplan() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (campaignId: string) => triggerReplan(campaignId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['analytics-summary'] }),
   })
 }
 
 export function useDismissAlert() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (alertId: string) => dismissAlert(alertId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['analytics-summary'] }),
   })
 }
