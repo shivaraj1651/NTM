@@ -18,10 +18,13 @@ export function useCreateUser(tenantId: string | null) {
   })
 }
 
-export function useDeactivateUser() {
+export function useDeactivateUser(tenantId?: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (userId: string) => deactivateUser(userId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: tenantId ? ['users', tenantId] : ['users'],
+      }),
   })
 }
