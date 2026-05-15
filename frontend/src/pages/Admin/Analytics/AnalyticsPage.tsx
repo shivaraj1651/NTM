@@ -84,7 +84,7 @@ export function AnalyticsPage() {
     {
       id: 'mandate',
       header: 'Mandate',
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const s = summaries.find((s) =>
           s.red_alerts.some((a) => a.activation_id === row.original.activation_id)
         )
@@ -101,7 +101,7 @@ export function AnalyticsPage() {
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const alert = row.original
         const state = replanStates[alert.activation_id] ?? 'idle'
         return (
@@ -149,7 +149,7 @@ export function AnalyticsPage() {
                 <SelectValue placeholder="Select tenant…" />
               </SelectTrigger>
               <SelectContent>
-                {tenants.map((t) => (
+                {tenants.map((t: any) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
                   </SelectItem>
