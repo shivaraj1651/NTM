@@ -44,3 +44,24 @@ export const getAuditLog = (filters: AuditFilters) => {
 
 export const getHealth = () =>
   apiClient.get('/admin/health').then((r) => r.data)
+
+export const getAnalyticsSummary = (tenantId: string, date: string) =>
+  apiClient
+    .get(`/analytics/summary?tenant_id=${tenantId}&date=${date}`)
+    .then((r) => r.data)
+
+export const getAnalyticsTrends = (
+  tenantId: string,
+  mandateId: string | null,
+  days: 7 | 30
+) => {
+  const params = new URLSearchParams({ tenant_id: tenantId, days: String(days) })
+  if (mandateId) params.set('mandate_id', mandateId)
+  return apiClient.get(`/analytics/trends?${params}`).then((r) => r.data)
+}
+
+export const triggerReplan = (campaignId: string) =>
+  apiClient.post(`/campaigns/${campaignId}/replan`).then((r) => r.data)
+
+export const dismissAlert = (alertId: string) =>
+  apiClient.delete(`/alerts/${alertId}`).then((r) => r.data)
