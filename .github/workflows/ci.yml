@@ -50,7 +50,8 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://ntm_user:ntm_pass@localhost:5432/ntm_db
       MONGODB_URL: mongodb://localhost:27017/ntm
       REDIS_URL: redis://localhost:6379/0
-      JWT_SECRET_KEY: ci-test-secret-key-not-for-production
+      SECRET_KEY: ci-test-secret-key-not-for-production-use
+      JWT_SECRET_KEY: ci-test-secret-key-not-for-production-use
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       PYTHONPATH: .
       CELERY_BROKER_URL: redis://localhost:6379/0

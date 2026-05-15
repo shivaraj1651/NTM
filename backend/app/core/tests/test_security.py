@@ -1,7 +1,18 @@
 import pytest
 from backend.app.core.security import hash_password, verify_password, create_access_token, decode_token
-from backend.app.core.config import settings
 from datetime import timedelta
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings(monkeypatch):
+    """Reset the Settings singleton and inject required env vars for each test."""
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test_db")
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-for-jwt-signing-32x")
+    import backend.app.core.config as cfg
+    cfg._settings_instance = None
+    yield
+    cfg._settings_instance = None
+
 
 def test_hash_password():
     """hash_password should return a bcrypt hash"""
@@ -57,11 +68,10 @@ def test_decode_token_valid():
 def test_decode_token_expired():
     """decode_token should raise exception for expired token"""
     from backend.app.core.security import TokenExpiredError
+    import time
 
     data = {"sub": "user-123"}
     token = create_access_token(data, expires_delta=timedelta(seconds=-1))
-
-    import time
     time.sleep(0.1)
 
     with pytest.raises(TokenExpiredError):
