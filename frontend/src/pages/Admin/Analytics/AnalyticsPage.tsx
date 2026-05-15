@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { PageHeader } from '@/components/PageHeader'
@@ -67,15 +67,10 @@ export function AnalyticsPage() {
   const dismissAlert = useDismissAlert()
 
   const totalMandates = summaries.length
-  const activeActivations = summaries.flatMap((s) =>
-    s.activations.filter((a) => a.status !== 'no_kpis')
-  ).length
-  const totalSpend = summaries
-    .flatMap((s) => s.activations)
-    .reduce((sum, a) => sum + (a.metrics.spend ?? 0), 0)
-  const allAchievements = summaries
-    .flatMap((s) => s.activations)
-    .flatMap((a) => a.kpi_results.map((k) => k.achievement_percent))
+  const activations = summaries.flatMap((s) => s.activations)
+  const activeActivations = activations.filter((a) => a.status !== 'no_kpis').length
+  const totalSpend = activations.reduce((sum, a) => sum + (a.metrics.spend ?? 0), 0)
+  const allAchievements = activations.flatMap((a) => a.kpi_results.map((k) => k.achievement_percent))
   const avgAchievement =
     allAchievements.length
       ? Math.round(allAchievements.reduce((s, v) => s + v, 0) / allAchievements.length)
@@ -85,9 +80,9 @@ export function AnalyticsPage() {
   const visibleAlerts = allAlerts.filter((a) => !dismissedAlerts.has(a.activation_id))
   const channelTotals = aggregateChannels(summaries)
 
-  const alertColumns: ColumnDef<RedAlert>[] = [
+  const alertColumns: ColumnDef<RedAlert>[] = useMemo(() => [
     {
-      accessorKey: 'mandate_id',
+      id: 'mandate',
       header: 'Mandate',
       cell: ({ row }) => {
         const s = summaries.find((s) =>
@@ -114,7 +109,7 @@ export function AnalyticsPage() {
             <Button
               size="sm"
               variant="destructive"
-              disabled={state === 'queued' || triggerReplan.isPending}
+              disabled={state === 'queued'}
               onClick={async () => {
                 try {
                   await triggerReplan.mutateAsync(alert.campaign_id)
@@ -140,7 +135,7 @@ export function AnalyticsPage() {
         )
       },
     },
-  ]
+  ], [replanStates, summaries])
 
   return (
     <div>
