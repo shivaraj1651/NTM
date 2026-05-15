@@ -65,3 +65,29 @@ export const triggerReplan = (campaignId: string) =>
 
 export const dismissAlert = (alertId: string) =>
   apiClient.delete(`/alerts/${alertId}`).then((r) => r.data)
+
+export const getCampaigns = (tenantId: string) =>
+  apiClient.get(`/campaigns?tenant_id=${tenantId}`).then((r) => r.data)
+
+export const getCampaign = (id: string) =>
+  apiClient.get(`/campaigns/${id}`).then((r) => r.data)
+
+export const createCampaign = (mandateId: string) =>
+  apiClient.post('/campaigns', { mandate_id: mandateId }).then((r) => r.data)
+
+export const confirmConcept = (id: string, selectedConceptId: string) =>
+  apiClient
+    .post(`/campaigns/${id}/confirm`, { selected_concept_id: selectedConceptId })
+    .then((r) => r.data)
+
+export const getActivationPlan = (id: string) =>
+  apiClient.get(`/campaigns/${id}/activation-plan`).then((r) => r.data)
+
+export const approveBudget = (id: string) =>
+  apiClient.post(`/campaigns/${id}/approve-budget`).then((r) => r.data)
+
+export const confirmBudget = (id: string) =>
+  apiClient.post(`/campaigns/${id}/confirm-budget`).then((r) => r.data)
+
+export const getMandates = (tenantId: string) =>
+  apiClient.get(`/mandates?tenant_id=${tenantId}`).then((r) => r.data)
