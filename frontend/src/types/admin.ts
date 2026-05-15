@@ -56,3 +56,57 @@ export const ROLES = [
 ] as const
 
 export type RoleName = (typeof ROLES)[number]
+
+export interface KpiResult {
+  kpi_name: string
+  target: number
+  actual: number
+  achievement_percent: number
+  threshold_unit: string
+  status: 'red' | 'amber' | 'green' | 'no_kpis'
+}
+
+export interface AnalyticsActivation {
+  activation_id: string
+  campaign_id: string
+  channel: string
+  sub_channel?: string
+  status: 'red' | 'amber' | 'green' | 'no_kpis'
+  kpi_results: KpiResult[]
+  metrics: {
+    impressions: number
+    clicks: number
+    conversions: number
+    spend: number
+  }
+}
+
+export interface RedAlert {
+  activation_id: string
+  campaign_id: string
+  channel: string
+  failed_kpi: string
+  severity: 'red'
+}
+
+export interface ChannelSummaryItem {
+  total: number
+  red: number
+  amber: number
+  green: number
+}
+
+export interface AnalyticsSummary {
+  mandate_id: string
+  date: string
+  summary_generated_at: string
+  activations: AnalyticsActivation[]
+  red_alerts: RedAlert[]
+  summary_by_channel: Record<string, ChannelSummaryItem>
+}
+
+export interface TrendPoint {
+  date: string
+  spend: number
+  impressions: number
+}
