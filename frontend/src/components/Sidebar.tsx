@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Building2, Users, Shield, ClipboardList, Activity, BarChart2, LogOut } from 'lucide-react'
+import { Building2, Users, Shield, ClipboardList, Activity, BarChart2, Megaphone, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -7,12 +7,13 @@ import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/store/useAuthStore'
 
 const navItems = [
-  { label: 'Tenants',   to: '/admin/tenants', icon: Building2 },
-  { label: 'Users',     to: '/admin/users',   icon: Users },
-  { label: 'Roles',     to: '/admin/roles',   icon: Shield },
-  { label: 'Audit Log', to: '/admin/audit',   icon: ClipboardList },
-  { label: 'Health',    to: '/admin/health',  icon: Activity },
-  { label: 'Analytics', to: '/admin/analytics', icon: BarChart2 },
+  { label: 'Tenants',   to: '/admin/tenants',   icon: Building2 },
+  { label: 'Users',     to: '/admin/users',      icon: Users },
+  { label: 'Roles',     to: '/admin/roles',      icon: Shield },
+  { label: 'Audit Log', to: '/admin/audit',      icon: ClipboardList },
+  { label: 'Health',    to: '/admin/health',     icon: Activity },
+  { label: 'Analytics', to: '/admin/analytics',  icon: BarChart2 },
+  { label: 'Campaigns', to: '/admin/campaigns',  icon: Megaphone },
 ]
 
 export function Sidebar() {

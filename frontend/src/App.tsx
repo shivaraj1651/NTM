@@ -8,6 +8,11 @@ import { RolesPage } from '@/pages/Admin/Roles/RolesPage'
 import { AuditLogPage } from '@/pages/Admin/AuditLog/AuditLogPage'
 import { HealthPage } from '@/pages/Admin/Health/HealthPage'
 import { AnalyticsPage } from '@/pages/Admin/Analytics/AnalyticsPage'
+import { CampaignsPage } from '@/pages/Admin/Campaigns/CampaignsPage'
+import { CampaignDetailPage } from '@/pages/Admin/Campaigns/CampaignDetailPage'
+import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
+import { PlanPage } from '@/pages/Admin/Campaigns/PlanPage'
+import { BudgetPage } from '@/pages/Admin/Campaigns/BudgetPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/admin/tenants" replace /> },
@@ -26,6 +31,16 @@ export const router = createBrowserRouter([
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'health', element: <HealthPage /> },
           { path: 'analytics', element: <AnalyticsPage /> },
+          { path: 'campaigns', element: <CampaignsPage /> },
+          {
+            path: 'campaigns/:id',
+            element: <CampaignDetailPage />,
+            children: [
+              { path: 'concepts', element: <ConceptsPage /> },
+              { path: 'plan', element: <PlanPage /> },
+              { path: 'budget', element: <BudgetPage /> },
+            ],
+          },
         ],
       },
     ],
