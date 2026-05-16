@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import * as db from '../db/campaigns'
-import type { Campaign } from '@/types/admin'
+import type { Campaign, KpiConfig } from '@/types/admin'
+import { kpiActualsDb } from '../db/analytics'
 
 const IMAGE_SIZES: Record<string, string> = {
   square: '1024x1024/1a1a2e/ffffff?text=Square+Ad',
@@ -181,4 +182,81 @@ export const campaignHandlers = [
     db.campaignStore[campaign.id] = { ...campaign, creative_assets: assets, updated_at: new Date().toISOString() }
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
+
+  http.post('/api/v1/campaigns/:id/go-live', ({ params }) => {
+    const campaign = db.campaignStore[params.id as string]
+    if (!campaign) return new HttpResponse(null, { status: 404 })
+    const kpi_configs: KpiConfig[] = campaign.activation_plan.flatMap((act) =>
+      act.kpis.map((kpi) => ({
+        activation_id: act.id,
+        kpi_name: kpi.name,
+        unit: kpi.unit,
+        target: kpi.target,
+        green_threshold: 90,
+        amber_threshold: 70,
+      }))
+    )
+    db.campaignStore[campaign.id] = {
+      ...campaign,
+      status: 'live',
+      kpi_configs,
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(db.campaignStore[campaign.id])
+  }),
+
+  http.get('/api/v1/campaigns/:id/kpis', ({ params }) => {
+    const campaign = db.campaignStore[params.id as string]
+    if (!campaign) return new HttpResponse(null, { status: 404 })
+    const rows = campaign.kpi_configs.map((config) => {
+      const actual = kpiActualsDb[campaign.id]?.[config.activation_id]?.[config.kpi_name] ?? 0
+      const achievement_percent =
+        config.target > 0 ? Math.round((actual / config.target) * 1000) / 10 : 0
+      const status: 'green' | 'amber' | 'red' =
+        achievement_percent >= config.green_threshold
+          ? 'green'
+          : achievement_percent >= config.amber_threshold
+          ? 'amber'
+          : 'red'
+      const act = campaign.activation_plan.find((a) => a.id === config.activation_id)
+      return {
+        activation_id: config.activation_id,
+        channel: act?.channel ?? '',
+        sub_channel: act?.sub_channel ?? '',
+        kpi_name: config.kpi_name,
+        unit: config.unit,
+        target: config.target,
+        actual,
+        achievement_percent,
+        green_threshold: config.green_threshold,
+        amber_threshold: config.amber_threshold,
+        status,
+      }
+    })
+    return HttpResponse.json(rows)
+  }),
+
+  http.patch(
+    '/api/v1/campaigns/:id/kpi-configs/:activationId/:kpiName',
+    async ({ params, request }) => {
+      const campaign = db.campaignStore[params.id as string]
+      if (!campaign) return new HttpResponse(null, { status: 404 })
+      const { activationId, kpiName } = params as { activationId: string; kpiName: string }
+      const patch = (await request.json()) as {
+        target?: number
+        green_threshold?: number
+        amber_threshold?: number
+      }
+      db.campaignStore[campaign.id] = {
+        ...campaign,
+        kpi_configs: campaign.kpi_configs.map((cfg) =>
+          cfg.activation_id === activationId && cfg.kpi_name === kpiName
+            ? { ...cfg, ...patch }
+            : cfg
+        ),
+        updated_at: new Date().toISOString(),
+      }
+      return HttpResponse.json(db.campaignStore[campaign.id])
+    }
+  ),
 ]
