@@ -109,8 +109,8 @@ export function generateCreativeAssets(campaignId: string): CreativeAssets {
     {
       asset_type: 'social_caption',
       variants: [
-        { variant: 'A', content: 'Ready to transform your business? Our solutions help you scale faster than ever. #Innovation #Growth', word_count: 17 },
-        { variant: 'B', content: 'Join 500+ companies already growing with us. Start your journey today. #BusinessGrowth', word_count: 14 },
+        { variant: 'A', content: 'Ready to transform your business? Our solutions help you scale faster than ever. #Innovation #Growth', word_count: 15 },
+        { variant: 'B', content: 'Join 500+ companies already growing with us. Start your journey today. #BusinessGrowth', word_count: 12 },
       ],
       approved: null,
     },
@@ -118,7 +118,7 @@ export function generateCreativeAssets(campaignId: string): CreativeAssets {
       asset_type: 'headline',
       variants: [
         { variant: 'A', content: 'Scale Smarter. Grow Faster. Win Bigger.', word_count: 6 },
-        { variant: 'B', content: 'The Future of Business Starts Here.', word_count: 7 },
+        { variant: 'B', content: 'The Future of Business Starts Here.', word_count: 6 },
       ],
       approved: null,
     },
