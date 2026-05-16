@@ -57,10 +57,12 @@ function ApproveButtons({
   approved,
   onApprove,
   onReject,
+  disabled,
 }: {
   approved: boolean | null
   onApprove: () => void
   onReject: () => void
+  disabled?: boolean
 }) {
   return (
     <div className="flex gap-1">
@@ -69,6 +71,7 @@ function ApproveButtons({
         size="sm"
         className={approved === true ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
         onClick={onApprove}
+        disabled={disabled}
       >
         <Check className="h-3 w-3" />
       </Button>
@@ -77,6 +80,7 @@ function ApproveButtons({
         size="sm"
         className={approved === false ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
         onClick={onReject}
+        disabled={disabled}
       >
         <X className="h-3 w-3" />
       </Button>
@@ -88,10 +92,12 @@ function CopyTab({
   assets,
   onApprove,
   onRegenerate,
+  isPending,
 }: {
   assets: CopyAsset[]
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
 }) {
   return (
     <Accordion type="single" collapsible className="w-full">
@@ -142,12 +148,14 @@ function CopyTab({
                   onReject={() =>
                     onApprove({ assetKind: 'copy', assetId: asset.asset_type, approved: false })
                   }
+                  disabled={isPending}
                 />
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-1 text-xs"
                   onClick={() => onRegenerate({ assetKind: 'copy', assetId: asset.asset_type })}
+                  disabled={isPending}
                 >
                   <RefreshCw className="h-3 w-3" /> Regenerate
                 </Button>
@@ -164,10 +172,12 @@ function ScriptsTab({
   assets,
   onApprove,
   onRegenerate,
+  isPending,
 }: {
   assets: ScriptAsset[]
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
 }) {
   return (
     <div className="space-y-4">
@@ -200,6 +210,7 @@ function ScriptsTab({
                 onReject={() =>
                   onApprove({ assetKind: 'scripts', assetId: script.id, approved: false })
                 }
+                disabled={isPending}
               />
               <Button
                 variant="ghost"
@@ -214,6 +225,7 @@ function ScriptsTab({
                 size="sm"
                 className="gap-1 text-xs"
                 onClick={() => onRegenerate({ assetKind: 'scripts', assetId: script.id })}
+                disabled={isPending}
               >
                 <RefreshCw className="h-3 w-3" /> Regenerate
               </Button>
@@ -229,10 +241,12 @@ function ImagesTab({
   assets,
   onApprove,
   onRegenerate,
+  isPending,
 }: {
   assets: ImageAsset[]
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
 }) {
   return (
     <div className="grid grid-cols-3 gap-4">
@@ -268,17 +282,19 @@ function ImagesTab({
                 onReject={() =>
                   onApprove({ assetKind: 'images', assetId: img.id, approved: false })
                 }
+                disabled={isPending}
               />
-              <a href={img.url} download>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs px-2">
+              <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
+                <a href={img.url} download>
                   <Download className="h-3 w-3" /> Download
-                </Button>
-              </a>
+                </a>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1 text-xs"
                 onClick={() => onRegenerate({ assetKind: 'images', assetId: img.id })}
+                disabled={isPending}
               >
                 <RefreshCw className="h-3 w-3" /> Regenerate
               </Button>
@@ -294,10 +310,12 @@ function AudioTab({
   assets,
   onApprove,
   onRegenerate,
+  isPending,
 }: {
   assets: AudioAsset[]
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
 }) {
   return (
     <div className="space-y-4">
@@ -310,7 +328,7 @@ function AudioTab({
                   {MEDIA_FORMAT_LABELS[audio.format] ?? audio.format}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
-                  {VOICE_LABELS[audio.voice_style]} voice
+                  {VOICE_LABELS[audio.voice_style] ?? audio.voice_style} voice
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
                   {formatDuration(audio.duration_seconds)}
@@ -334,17 +352,19 @@ function AudioTab({
                 onReject={() =>
                   onApprove({ assetKind: 'audio', assetId: audio.id, approved: false })
                 }
+                disabled={isPending}
               />
-              <a href={audio.url} download>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs px-2">
+              <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
+                <a href={audio.url} download>
                   <Download className="h-3 w-3" /> Download
-                </Button>
-              </a>
+                </a>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1 text-xs"
                 onClick={() => onRegenerate({ assetKind: 'audio', assetId: audio.id })}
+                disabled={isPending}
               >
                 <RefreshCw className="h-3 w-3" /> Regenerate
               </Button>
@@ -358,11 +378,13 @@ function AudioTab({
 
 export function CreativesPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: campaign } = useCampaign(id!)
-  const generateCreatives = useGenerateCreatives(id!)
-  const approveAsset = useApproveCreativeAsset(id!)
-  const regenerateAsset = useRegenerateAsset(id!)
+  const { data: campaign, isError } = useCampaign(id ?? '')
+  const generateCreatives = useGenerateCreatives(id ?? '')
+  const approveAsset = useApproveCreativeAsset(id ?? '')
+  const regenerateAsset = useRegenerateAsset(id ?? '')
 
+  if (!id) return null
+  if (isError) return <p className="text-destructive text-sm">Failed to load campaign.</p>
   if (!campaign) return null
 
   const { status, creative_assets } = campaign
@@ -391,10 +413,16 @@ export function CreativesPage() {
     )
   }
 
-  if (
-    (status !== 'creative_ready' && status !== 'creative_generating') ||
-    !creative_assets
-  ) {
+  if (status === 'creative_generating' && !creative_assets) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Generating assets…
+      </div>
+    )
+  }
+
+  if (status !== 'creative_ready' || !creative_assets) {
     return <p className="text-muted-foreground text-sm">No assets available.</p>
   }
 
@@ -413,6 +441,7 @@ export function CreativesPage() {
             assets={creative_assets.copy}
             onApprove={approveAsset.mutate}
             onRegenerate={regenerateAsset.mutate}
+            isPending={approveAsset.isPending || regenerateAsset.isPending}
           />
         </TabsContent>
         <TabsContent value="scripts" className="mt-4">
@@ -420,6 +449,7 @@ export function CreativesPage() {
             assets={creative_assets.scripts}
             onApprove={approveAsset.mutate}
             onRegenerate={regenerateAsset.mutate}
+            isPending={approveAsset.isPending || regenerateAsset.isPending}
           />
         </TabsContent>
         <TabsContent value="images" className="mt-4">
@@ -427,6 +457,7 @@ export function CreativesPage() {
             assets={creative_assets.images}
             onApprove={approveAsset.mutate}
             onRegenerate={regenerateAsset.mutate}
+            isPending={approveAsset.isPending || regenerateAsset.isPending}
           />
         </TabsContent>
         <TabsContent value="audio" className="mt-4">
@@ -434,6 +465,7 @@ export function CreativesPage() {
             assets={creative_assets.audio}
             onApprove={approveAsset.mutate}
             onRegenerate={regenerateAsset.mutate}
+            isPending={approveAsset.isPending || regenerateAsset.isPending}
           />
         </TabsContent>
       </Tabs>
