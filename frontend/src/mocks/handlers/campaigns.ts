@@ -2,6 +2,18 @@ import { http, HttpResponse } from 'msw'
 import * as db from '../db/campaigns'
 import type { Campaign } from '@/types/admin'
 
+const IMAGE_SIZES: Record<string, string> = {
+  square: '1024x1024/1a1a2e/ffffff?text=Square+Ad',
+  landscape: '1344x768/16213e/ffffff?text=Landscape+Ad',
+  portrait: '768x1344/0f3460/ffffff?text=Portrait+Ad',
+}
+
+const AUDIO_POOL = [
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+]
+
 export const campaignHandlers = [
   http.get('/api/v1/campaigns', ({ request }) => {
     const tenantId = new URL(request.url).searchParams.get('tenant_id')
@@ -148,11 +160,6 @@ export const campaignHandlers = [
         assets = { ...assets, scripts: updated }
       }
     } else if (assetKind === 'images') {
-      const IMAGE_SIZES: Record<string, string> = {
-        square: '1024x1024/1a1a2e/ffffff?text=Square+Ad',
-        landscape: '1344x768/16213e/ffffff?text=Landscape+Ad',
-        portrait: '768x1344/0f3460/ffffff?text=Portrait+Ad',
-      }
       assets = {
         ...assets,
         images: assets.images.map((img) =>
@@ -162,11 +169,6 @@ export const campaignHandlers = [
         ),
       }
     } else if (assetKind === 'audio') {
-      const AUDIO_POOL = [
-        'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-        'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-      ]
       const idx = assets.audio.findIndex((a) => a.id === assetId)
       if (idx >= 0) {
         const updated = [...assets.audio]
