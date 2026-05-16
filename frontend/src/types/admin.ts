@@ -163,6 +163,7 @@ export type CampaignStatus =
   | 'approved'
   | 'creative_generating'
   | 'creative_ready'
+  | 'live'
 
 export interface Campaign {
   id: string
@@ -174,8 +175,32 @@ export interface Campaign {
   activation_plan: Activation[]
   budget_proposal: BudgetProposal | null
   creative_assets: CreativeAssets | null
+  kpi_configs: KpiConfig[]
   created_at: string
   updated_at: string
+}
+
+export interface KpiConfig {
+  activation_id: string
+  kpi_name: string
+  unit: string
+  target: number
+  green_threshold: number
+  amber_threshold: number
+}
+
+export interface CampaignKpiRow {
+  activation_id: string
+  channel: string
+  sub_channel: string
+  kpi_name: string
+  unit: string
+  target: number
+  actual: number
+  achievement_percent: number
+  green_threshold: number
+  amber_threshold: number
+  status: 'red' | 'amber' | 'green'
 }
 
 export type CopyAssetType =
