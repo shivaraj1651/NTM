@@ -208,7 +208,7 @@ export const campaignHandlers = [
   http.get('/api/v1/campaigns/:id/kpis', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign) return new HttpResponse(null, { status: 404 })
-    const rows = campaign.kpi_configs.map((config) => {
+    const rows = (campaign.kpi_configs ?? []).map((config) => {
       const actual = kpiActualsDb[campaign.id]?.[config.activation_id]?.[config.kpi_name] ?? 0
       const achievement_percent =
         config.target > 0 ? Math.round((actual / config.target) * 1000) / 10 : 0
