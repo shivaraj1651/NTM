@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { PageHeader } from '@/components/PageHeader'
@@ -45,6 +46,7 @@ function aggregateChannels(summaries: AnalyticsSummary[]) {
 export function AnalyticsPage() {
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'platform_admin'
+  const navigate = useNavigate()
 
   const { data: tenants = [] } = useTenants()
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
@@ -131,11 +133,18 @@ export function AnalyticsPage() {
             >
               Dismiss
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/admin/campaigns/${alert.campaign_id}/kpis`)}
+            >
+              View KPIs
+            </Button>
           </div>
         )
       },
     },
-  ], [replanStates, summaries])
+  ], [replanStates, summaries, navigate])
 
   return (
     <div>
