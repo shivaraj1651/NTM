@@ -161,6 +161,8 @@ export type CampaignStatus =
   | 'planned'
   | 'budget_proposed'
   | 'approved'
+  | 'creative_generating'
+  | 'creative_ready'
 
 export interface Campaign {
   id: string
@@ -171,6 +173,60 @@ export interface Campaign {
   selected_concept_id: string | null
   activation_plan: Activation[]
   budget_proposal: BudgetProposal | null
+  creative_assets: CreativeAssets | null
   created_at: string
   updated_at: string
+}
+
+export type CopyAssetType =
+  | 'social_caption'
+  | 'headline'
+  | 'body_copy'
+  | 'print_ad'
+  | 'email'
+  | 'ooh_billboard'
+  | 'influencer_brief'
+
+export interface CopyVariant {
+  variant: 'A' | 'B'
+  content: string
+  word_count: number
+}
+
+export interface CopyAsset {
+  asset_type: CopyAssetType
+  variants: CopyVariant[]
+  approved: boolean | null
+}
+
+export interface ScriptAsset {
+  id: string
+  format: 'tvc_vo' | 'radio' | 'social_video'
+  content: string
+  duration_estimate: string
+  approved: boolean | null
+}
+
+export interface ImageAsset {
+  id: string
+  format: 'square' | 'landscape' | 'portrait'
+  url: string
+  approved: boolean | null
+}
+
+export interface AudioAsset {
+  id: string
+  format: 'radio' | 'tvc_vo' | 'social_video'
+  voice_style: 'warm' | 'authoritative' | 'youthful'
+  url: string
+  duration_seconds: number
+  approved: boolean | null
+}
+
+export interface CreativeAssets {
+  campaign_id: string
+  copy: CopyAsset[]
+  scripts: ScriptAsset[]
+  images: ImageAsset[]
+  audio: AudioAsset[]
 }
