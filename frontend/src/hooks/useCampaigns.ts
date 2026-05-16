@@ -11,8 +11,11 @@ import {
   generateCreatives,
   approveCreativeAsset,
   regenerateAsset,
+  goLive,
+  getCampaignKpis,
+  updateKpiConfig,
 } from '@/api/admin'
-import type { Campaign, Mandate } from '@/types/admin'
+import type { Campaign, CampaignKpiRow, Mandate } from '@/types/admin'
 
 export function useCampaigns(tenantId: string | null) {
   return useQuery<Campaign[]>({
@@ -114,5 +117,38 @@ export function useRegenerateAsset(campaignId: string) {
     mutationFn: ({ assetKind, assetId }: RegeneratePayload) =>
       regenerateAsset(campaignId, assetKind, assetId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  })
+}
+
+export interface UpdateKpiConfigPayload {
+  activationId: string
+  kpiName: string
+  target?: number
+  green_threshold?: number
+  amber_threshold?: number
+}
+
+export function useGoLive(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => goLive(campaignId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  })
+}
+
+export function useCampaignKpis(campaignId: string) {
+  return useQuery<CampaignKpiRow[]>({
+    queryKey: ['campaign-kpis', campaignId],
+    queryFn: () => getCampaignKpis(campaignId),
+    enabled: !!campaignId,
+  })
+}
+
+export function useUpdateKpiConfig(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation<void, unknown, UpdateKpiConfigPayload>({
+    mutationFn: ({ activationId, kpiName, ...patch }: UpdateKpiConfigPayload) =>
+      updateKpiConfig(campaignId, activationId, kpiName, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign-kpis', campaignId] }),
   })
 }

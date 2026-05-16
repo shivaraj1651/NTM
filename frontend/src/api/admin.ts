@@ -109,3 +109,19 @@ export const regenerateAsset = (id: string, assetKind: string, assetId: string) 
   apiClient
     .post(`/campaigns/${id}/creatives/${assetKind}/${assetId}/regenerate`)
     .then((r) => r.data)
+
+export const goLive = (id: string) =>
+  apiClient.post(`/campaigns/${id}/go-live`).then((r) => r.data)
+
+export const getCampaignKpis = (id: string) =>
+  apiClient.get(`/campaigns/${id}/kpis`).then((r) => r.data)
+
+export const updateKpiConfig = (
+  id: string,
+  activationId: string,
+  kpiName: string,
+  payload: { target?: number; green_threshold?: number; amber_threshold?: number },
+) =>
+  apiClient
+    .patch(`/campaigns/${id}/kpi-configs/${activationId}/${kpiName}`, payload)
+    .then((r) => r.data)
