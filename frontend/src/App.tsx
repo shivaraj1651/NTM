@@ -13,6 +13,7 @@ import { CampaignDetailPage } from '@/pages/Admin/Campaigns/CampaignDetailPage'
 import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
 import { PlanPage } from '@/pages/Admin/Campaigns/PlanPage'
 import { BudgetPage } from '@/pages/Admin/Campaigns/BudgetPage'
+import { CreativesPage } from '@/pages/Admin/Campaigns/CreativesPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/admin/tenants" replace /> },
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
               { path: 'concepts', element: <ConceptsPage /> },
               { path: 'plan', element: <PlanPage /> },
               { path: 'budget', element: <BudgetPage /> },
+              { path: 'creatives', element: <CreativesPage /> },
             ],
           },
         ],
