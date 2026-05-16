@@ -104,6 +104,105 @@ const baseBudgetProposal: BudgetProposal = {
   ],
 }
 
+function generateCreativeAssets(campaignId: string): CreativeAssets {
+  const copy: CopyAsset[] = [
+    {
+      asset_type: 'social_caption',
+      variants: [
+        { variant: 'A', content: 'Ready to transform your business? Our solutions help you scale faster than ever. #Innovation #Growth', word_count: 17 },
+        { variant: 'B', content: 'Join 500+ companies already growing with us. Start your journey today. #BusinessGrowth', word_count: 14 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'headline',
+      variants: [
+        { variant: 'A', content: 'Scale Smarter. Grow Faster. Win Bigger.', word_count: 6 },
+        { variant: 'B', content: 'The Future of Business Starts Here.', word_count: 7 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'body_copy',
+      variants: [
+        { variant: 'A', content: 'In today\'s competitive landscape, every decision counts. Our platform gives you the insights, tools, and support to outpace the competition. From real-time analytics to automated workflows, we\'ve built everything you need to grow with confidence.', word_count: 42 },
+        { variant: 'B', content: 'What separates thriving businesses from struggling ones? Better data, faster decisions, and the right partner. That\'s what we deliver — proven results for companies like yours, backed by 10 years of expertise.', word_count: 35 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'print_ad',
+      variants: [
+        { variant: 'A', content: 'HEADLINE: Your Growth, Amplified.\nBODY: We turn strategy into results. 500+ clients. 3× average ROI. Trusted by leaders in 40 countries.\nCTA: Get Started Today', word_count: 27 },
+        { variant: 'B', content: 'HEADLINE: Don\'t Just Compete. Dominate.\nBODY: Market leaders choose us for precision targeting, unmatched reach, and measurable impact.\nCTA: See How We Do It', word_count: 24 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'email',
+      variants: [
+        { variant: 'A', content: 'Subject: You\'re leaving money on the table\n\nHi [First Name],\n\nMost businesses only capture 30% of their growth potential. The other 70%? It\'s sitting in untapped channels and missed opportunities.\n\nWe fix that. Book a free 30-minute strategy session.\n\n[Book My Session]', word_count: 50 },
+        { variant: 'B', content: 'Subject: Quick question about your Q3 targets\n\nHi [First Name],\n\nAre you on track to hit your Q3 goals? Our team has helped 200+ businesses close their growth gap — often within 60 days.\n\nNo obligation. Just clarity.\n\n[Schedule a Call]', word_count: 46 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'ooh_billboard',
+      variants: [
+        { variant: 'A', content: 'GROW BOLD.\n[Logo] — example.com', word_count: 4 },
+        { variant: 'B', content: 'RESULTS YOU CAN SEE.\n[Logo] — example.com', word_count: 5 },
+      ],
+      approved: null,
+    },
+    {
+      asset_type: 'influencer_brief',
+      variants: [
+        { variant: 'A', content: 'CAMPAIGN BRIEF — Influencer Partnership\n\nObjective: Drive awareness among 25–40 professionals.\nKey Message: Our platform makes growing your business effortless.\nTone: Authentic, conversational — not salesy.\nMandatories: Mention the free trial. Tag @Brand. Use #GrowBold.\nDeliverables: 1× feed post + 3× Stories with link sticker.', word_count: 56 },
+        { variant: 'B', content: 'INFLUENCER GUIDE — Brand Collaboration\n\nWhat we want: Show your real workflow using our tools.\nDon\'t: Read from a script or make it feel like an ad.\nDo: Be genuine. Share a specific win.\nMust-haves: Disclose partnership, tag @Brand, include swipe-up link.\nFormat: 60–90 second Reel or TikTok preferred.', word_count: 55 },
+      ],
+      approved: null,
+    },
+  ]
+
+  const scripts: ScriptAsset[] = [
+    {
+      id: `${campaignId}-scr-1`,
+      format: 'tvc_vo',
+      content: '[OPEN ON: Busy city office, professionals at work]\n\nVO: Every day, thousands of decisions shape your business future.\n\n[CUT TO: Dashboard with rising metrics]\n\nVO: What if you had the clarity to make every one count?\n\n[CUT TO: Satisfied team celebrating]\n\nVO: [Brand]. Decisions made smarter.\n\n[SUPER: example.com]',
+      duration_estimate: '30s',
+      approved: null,
+    },
+    {
+      id: `${campaignId}-scr-2`,
+      format: 'radio',
+      content: 'SFX: Upbeat music, fades under VO\n\nVO: Struggling to hit your growth targets? You\'re not alone — but you don\'t have to stay stuck. [Brand] helps businesses like yours unlock real, measurable growth. More leads. Better conversions. Higher ROI.\n\nVisit example.com and start your free trial. [Brand] — Grow Bolder.\n\nSFX: Music up and out',
+      duration_estimate: '30s',
+      approved: null,
+    },
+    {
+      id: `${campaignId}-scr-3`,
+      format: 'social_video',
+      content: '[0:00–0:03] HOOK: Text overlay — "Still doing this manually?"\n[0:03–0:10] Pain point: spreadsheets, manual tracking\n[0:10–0:20] Product reveal: dashboard auto-updating in real time\n[0:20–0:25] Social proof: "Trusted by 500+ teams"\n[0:25–0:30] CTA: "Try free — link in bio"\n\nCaption: Work smarter, not harder. #ProductivityHack #GrowthMindset',
+      duration_estimate: '30s',
+      approved: null,
+    },
+  ]
+
+  const images: ImageAsset[] = [
+    { id: `${campaignId}-img-1`, format: 'square',    url: 'https://placehold.co/1024x1024/1a1a2e/ffffff?text=Square+Ad',    approved: null },
+    { id: `${campaignId}-img-2`, format: 'landscape', url: 'https://placehold.co/1344x768/16213e/ffffff?text=Landscape+Ad', approved: null },
+    { id: `${campaignId}-img-3`, format: 'portrait',  url: 'https://placehold.co/768x1344/0f3460/ffffff?text=Portrait+Ad',  approved: null },
+  ]
+
+  const audio: AudioAsset[] = [
+    { id: `${campaignId}-aud-1`, format: 'radio',        voice_style: 'warm',          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', duration_seconds: 30, approved: null },
+    { id: `${campaignId}-aud-2`, format: 'tvc_vo',       voice_style: 'authoritative', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', duration_seconds: 30, approved: null },
+    { id: `${campaignId}-aud-3`, format: 'social_video', voice_style: 'youthful',      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', duration_seconds: 30, approved: null },
+  ]
+
+  return { campaign_id: campaignId, copy, scripts, images, audio }
+}
+
 const initialCampaigns: Record<string, Campaign> = {
   'c-001': {
     id: 'c-001',
@@ -247,103 +346,4 @@ export function generateBudgetProposal(activations: Activation[]): BudgetProposa
     percentage: Math.round((amount / total) * 1000) / 10,
   }))
   return { total_budget: total, currency, allocations }
-}
-
-export function generateCreativeAssets(campaignId: string): CreativeAssets {
-  const copy: CopyAsset[] = [
-    {
-      asset_type: 'social_caption',
-      variants: [
-        { variant: 'A', content: 'Ready to transform your business? Our solutions help you scale faster than ever. #Innovation #Growth', word_count: 17 },
-        { variant: 'B', content: 'Join 500+ companies already growing with us. Start your journey today. #BusinessGrowth', word_count: 14 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'headline',
-      variants: [
-        { variant: 'A', content: 'Scale Smarter. Grow Faster. Win Bigger.', word_count: 6 },
-        { variant: 'B', content: 'The Future of Business Starts Here.', word_count: 7 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'body_copy',
-      variants: [
-        { variant: 'A', content: 'In today\'s competitive landscape, every decision counts. Our platform gives you the insights, tools, and support to outpace the competition. From real-time analytics to automated workflows, we\'ve built everything you need to grow with confidence.', word_count: 42 },
-        { variant: 'B', content: 'What separates thriving businesses from struggling ones? Better data, faster decisions, and the right partner. That\'s what we deliver — proven results for companies like yours, backed by 10 years of expertise.', word_count: 35 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'print_ad',
-      variants: [
-        { variant: 'A', content: 'HEADLINE: Your Growth, Amplified.\nBODY: We turn strategy into results. 500+ clients. 3× average ROI. Trusted by leaders in 40 countries.\nCTA: Get Started Today', word_count: 27 },
-        { variant: 'B', content: 'HEADLINE: Don\'t Just Compete. Dominate.\nBODY: Market leaders choose us for precision targeting, unmatched reach, and measurable impact.\nCTA: See How We Do It', word_count: 24 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'email',
-      variants: [
-        { variant: 'A', content: 'Subject: You\'re leaving money on the table\n\nHi [First Name],\n\nMost businesses only capture 30% of their growth potential. The other 70%? It\'s sitting in untapped channels and missed opportunities.\n\nWe fix that. Book a free 30-minute strategy session.\n\n[Book My Session]', word_count: 50 },
-        { variant: 'B', content: 'Subject: Quick question about your Q3 targets\n\nHi [First Name],\n\nAre you on track to hit your Q3 goals? Our team has helped 200+ businesses close their growth gap — often within 60 days.\n\nNo obligation. Just clarity.\n\n[Schedule a Call]', word_count: 46 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'ooh_billboard',
-      variants: [
-        { variant: 'A', content: 'GROW BOLD.\n[Logo] — example.com', word_count: 4 },
-        { variant: 'B', content: 'RESULTS YOU CAN SEE.\n[Logo] — example.com', word_count: 5 },
-      ],
-      approved: null,
-    },
-    {
-      asset_type: 'influencer_brief',
-      variants: [
-        { variant: 'A', content: 'CAMPAIGN BRIEF — Influencer Partnership\n\nObjective: Drive awareness among 25–40 professionals.\nKey Message: Our platform makes growing your business effortless.\nTone: Authentic, conversational — not salesy.\nMandatories: Mention the free trial. Tag @Brand. Use #GrowBold.\nDeliverables: 1× feed post + 3× Stories with link sticker.', word_count: 56 },
-        { variant: 'B', content: 'INFLUENCER GUIDE — Brand Collaboration\n\nWhat we want: Show your real workflow using our tools.\nDon\'t: Read from a script or make it feel like an ad.\nDo: Be genuine. Share a specific win.\nMust-haves: Disclose partnership, tag @Brand, include swipe-up link.\nFormat: 60–90 second Reel or TikTok preferred.', word_count: 55 },
-      ],
-      approved: null,
-    },
-  ]
-
-  const scripts: ScriptAsset[] = [
-    {
-      id: `${campaignId}-scr-1`,
-      format: 'tvc_vo',
-      content: '[OPEN ON: Busy city office, professionals at work]\n\nVO: Every day, thousands of decisions shape your business future.\n\n[CUT TO: Dashboard with rising metrics]\n\nVO: What if you had the clarity to make every one count?\n\n[CUT TO: Satisfied team celebrating]\n\nVO: [Brand]. Decisions made smarter.\n\n[SUPER: example.com]',
-      duration_estimate: '30s',
-      approved: null,
-    },
-    {
-      id: `${campaignId}-scr-2`,
-      format: 'radio',
-      content: 'SFX: Upbeat music, fades under VO\n\nVO: Struggling to hit your growth targets? You\'re not alone — but you don\'t have to stay stuck. [Brand] helps businesses like yours unlock real, measurable growth. More leads. Better conversions. Higher ROI.\n\nVisit example.com and start your free trial. [Brand] — Grow Bolder.\n\nSFX: Music up and out',
-      duration_estimate: '30s',
-      approved: null,
-    },
-    {
-      id: `${campaignId}-scr-3`,
-      format: 'social_video',
-      content: '[0:00–0:03] HOOK: Text overlay — "Still doing this manually?"\n[0:03–0:10] Pain point: spreadsheets, manual tracking\n[0:10–0:20] Product reveal: dashboard auto-updating in real time\n[0:20–0:25] Social proof: "Trusted by 500+ teams"\n[0:25–0:30] CTA: "Try free — link in bio"\n\nCaption: Work smarter, not harder. #ProductivityHack #GrowthMindset',
-      duration_estimate: '30s',
-      approved: null,
-    },
-  ]
-
-  const images: ImageAsset[] = [
-    { id: `${campaignId}-img-1`, format: 'square',    url: 'https://placehold.co/1024x1024/1a1a2e/ffffff?text=Square+Ad',    approved: null },
-    { id: `${campaignId}-img-2`, format: 'landscape', url: 'https://placehold.co/1344x768/16213e/ffffff?text=Landscape+Ad', approved: null },
-    { id: `${campaignId}-img-3`, format: 'portrait',  url: 'https://placehold.co/768x1344/0f3460/ffffff?text=Portrait+Ad',  approved: null },
-  ]
-
-  const audio: AudioAsset[] = [
-    { id: `${campaignId}-aud-1`, format: 'radio',        voice_style: 'warm',          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', duration_seconds: 30, approved: null },
-    { id: `${campaignId}-aud-2`, format: 'tvc_vo',       voice_style: 'authoritative', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', duration_seconds: 30, approved: null },
-    { id: `${campaignId}-aud-3`, format: 'social_video', voice_style: 'youthful',      url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', duration_seconds: 30, approved: null },
-  ]
-
-  return { campaign_id: campaignId, copy, scripts, images, audio }
 }
