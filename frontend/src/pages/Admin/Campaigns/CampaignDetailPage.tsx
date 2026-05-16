@@ -5,7 +5,10 @@ import { useCampaign } from '@/hooks/useCampaigns'
 import type { CampaignStatus } from '@/types/admin'
 import { cn } from '@/lib/utils'
 
-const STEPS = ['Create', 'Concepts', 'Confirmed', 'Plan', 'Budget', 'Approved', 'Creatives']
+const STEPS = [
+  'Create', 'Concepts', 'Confirmed', 'Plan',
+  'Budget', 'Approved', 'Creatives', 'Go Live', 'KPIs',
+]
 
 const STATUS_TO_STEP: Record<CampaignStatus, number> = {
   pending: 0,
@@ -15,10 +18,14 @@ const STATUS_TO_STEP: Record<CampaignStatus, number> = {
   budget_proposed: 4,
   approved: 5,
   creative_generating: 6,
-  creative_ready: 6,
+  creative_ready: 7,
+  live: 8,
 }
 
-const STEP_PATHS = [null, 'concepts', 'plan', 'plan', 'budget', 'budget', 'creatives']
+const STEP_PATHS = [
+  null, 'concepts', 'plan', 'plan',
+  'budget', 'budget', 'creatives', 'golive', 'kpis',
+]
 
 export function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -34,11 +41,9 @@ export function CampaignDetailPage() {
     if (status === 'concepts_ready') navigate(`${base}/concepts`, { replace: true })
     else if (status === 'confirmed' || status === 'planned') navigate(`${base}/plan`, { replace: true })
     else if (status === 'budget_proposed') navigate(`${base}/budget`, { replace: true })
-    else if (
-      status === 'approved' ||
-      status === 'creative_generating' ||
-      status === 'creative_ready'
-    ) navigate(`${base}/creatives`, { replace: true })
+    else if (status === 'approved' || status === 'creative_generating') navigate(`${base}/creatives`, { replace: true })
+    else if (status === 'creative_ready') navigate(`${base}/golive`, { replace: true })
+    else if (status === 'live') navigate(`${base}/kpis`, { replace: true })
   }, [campaign, id, navigate, location.pathname])
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
