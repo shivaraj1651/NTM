@@ -104,7 +104,7 @@ const baseBudgetProposal: BudgetProposal = {
   ],
 }
 
-function generateCreativeAssets(campaignId: string): CreativeAssets {
+export function generateCreativeAssets(campaignId: string): CreativeAssets {
   const copy: CopyAsset[] = [
     {
       asset_type: 'social_caption',
