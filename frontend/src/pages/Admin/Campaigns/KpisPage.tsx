@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -45,6 +45,10 @@ function EditDialog({ row, onClose, onSave, isPending }: EditDialogProps) {
   if (!row) return null
 
   const handleSave = () => {
+    if (target.trim() === '' || green.trim() === '' || amber.trim() === '') {
+      setError('All fields are required.')
+      return
+    }
     const t = Number(target)
     const g = Number(green)
     const a = Number(amber)
@@ -58,6 +62,10 @@ function EditDialog({ row, onClose, onSave, isPending }: EditDialogProps) {
     }
     if (a >= g) {
       setError('Amber threshold must be less than green threshold.')
+      return
+    }
+    if (t <= 0) {
+      setError('Target must be a positive number.')
       return
     }
     setError(null)
@@ -114,7 +122,7 @@ export function KpisPage() {
 
   if (!id) return null
 
-  const columns: ColumnDef<CampaignKpiRow>[] = [
+  const columns = useMemo<ColumnDef<CampaignKpiRow>[]>(() => [
     { accessorKey: 'channel', header: 'Channel' },
     { accessorKey: 'sub_channel', header: 'Sub-channel' },
     { accessorKey: 'kpi_name', header: 'KPI' },
@@ -144,7 +152,7 @@ export function KpisPage() {
         </Button>
       ),
     },
-  ]
+  ], [])
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (isError) return <p className="text-destructive text-sm">Failed to load KPI data.</p>
@@ -158,6 +166,7 @@ export function KpisPage() {
         <DataTable columns={columns} data={rows} />
       )}
       <EditDialog
+        key={editRow ? `${editRow.activation_id}-${editRow.kpi_name}` : 'closed'}
         row={editRow}
         onClose={() => setEditRow(null)}
         onSave={(activationId, kpiName, values) => {
