@@ -165,6 +165,9 @@ export function KpisPage() {
       ) : (
         <DataTable columns={columns} data={rows} />
       )}
+      {updateKpiConfig.isError && (
+        <p className="text-destructive text-sm mt-2">Failed to save changes. Please try again.</p>
+      )}
       <EditDialog
         key={editRow ? `${editRow.activation_id}-${editRow.kpi_name}` : 'closed'}
         row={editRow}

@@ -147,5 +147,6 @@ export const kpiActualsDb: Record<string, Record<string, Record<string, number>>
     'act-001': { 'Clicks': 2800, 'CTR': 3.1, 'Conversions': 130 },
     'act-002': { 'Impressions': 72000, 'Engagement Rate': 1.6, 'Lead Gen Forms': 175 },
     'act-003': { 'Reach': 140000, 'ROAS': 3.8 },
+    'act-004': { 'Video Views': 17500, 'Click-Through': 1.9 },
   },
 }

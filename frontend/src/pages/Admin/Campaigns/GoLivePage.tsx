@@ -14,6 +14,10 @@ export function GoLivePage() {
   if (isError) return <p className="text-destructive text-sm">Failed to load campaign.</p>
   if (!campaign) return null
 
+  if (campaign.status !== 'creative_ready') {
+    return <p className="text-muted-foreground text-sm">Campaign is not ready to launch.</p>
+  }
+
   const totalBudget = campaign.activation_plan.reduce((sum, a) => sum + a.budget, 0)
   const currency = campaign.activation_plan[0]?.currency ?? 'USD'
   const selectedConcept = campaign.concepts.find(

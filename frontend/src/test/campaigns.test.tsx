@@ -31,7 +31,7 @@ describe('CampaignsPage', () => {
     expect(screen.getByText(/Campaigns/i)).toBeInTheDocument()
   })
 
-  it('loads all 3 seeded campaigns for tenant t1', async () => {
+  it('loads all 4 seeded campaigns for tenant t1', async () => {
     renderWithProviders(<CampaignsPage />, {
       route: '/admin/campaigns',
       path: '/admin/campaigns',
@@ -41,6 +41,7 @@ describe('CampaignsPage', () => {
       expect(screen.getByText('c-001')).toBeInTheDocument()
       expect(screen.getByText('c-002')).toBeInTheDocument()
       expect(screen.getByText('c-003')).toBeInTheDocument()
+      expect(screen.getByText('c-004')).toBeInTheDocument()
     })
   })
 
