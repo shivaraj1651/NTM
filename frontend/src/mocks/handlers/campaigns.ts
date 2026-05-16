@@ -38,6 +38,7 @@ export const campaignHandlers = [
       activation_plan: [],
       budget_proposal: null,
       creative_assets: null,
+      kpi_configs: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

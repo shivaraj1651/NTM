@@ -1,5 +1,6 @@
 import type {
   Campaign,
+  KpiConfig,
   Mandate,
   CampaignConcept,
   Activation,
@@ -214,6 +215,7 @@ const initialCampaigns: Record<string, Campaign> = {
     activation_plan: [],
     budget_proposal: null,
     creative_assets: null,
+    kpi_configs: [],
     created_at: '2026-05-10T09:00:00Z',
     updated_at: '2026-05-10T09:05:00Z',
   },
@@ -227,6 +229,7 @@ const initialCampaigns: Record<string, Campaign> = {
     activation_plan: baseActivations,
     budget_proposal: null,
     creative_assets: null,
+    kpi_configs: [],
     created_at: '2026-05-08T11:00:00Z',
     updated_at: '2026-05-08T14:30:00Z',
   },
@@ -240,8 +243,32 @@ const initialCampaigns: Record<string, Campaign> = {
     activation_plan: baseActivations,
     budget_proposal: baseBudgetProposal,
     creative_assets: generateCreativeAssets('c-003'),
+    kpi_configs: [],
     created_at: '2026-05-05T10:00:00Z',
     updated_at: '2026-05-12T16:00:00Z',
+  },
+  'c-004': {
+    id: 'c-004',
+    mandate_id: 'm-002',
+    tenant_id: 't1',
+    status: 'live',
+    concepts: baseConcepts,
+    selected_concept_id: 'con-001',
+    activation_plan: baseActivations,
+    budget_proposal: baseBudgetProposal,
+    creative_assets: generateCreativeAssets('c-004'),
+    kpi_configs: baseActivations.flatMap((act) =>
+      act.kpis.map((kpi): KpiConfig => ({
+        activation_id: act.id,
+        kpi_name: kpi.name,
+        unit: kpi.unit,
+        target: kpi.target,
+        green_threshold: 90,
+        amber_threshold: 70,
+      }))
+    ),
+    created_at: '2026-05-01T10:00:00Z',
+    updated_at: '2026-05-14T12:00:00Z',
   },
 }
 
