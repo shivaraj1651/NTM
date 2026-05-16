@@ -8,6 +8,9 @@ import {
   approveBudget,
   confirmBudget,
   getMandates,
+  generateCreatives,
+  approveCreativeAsset,
+  regenerateAsset,
 } from '@/api/admin'
 import type { Campaign, Mandate } from '@/types/admin'
 
@@ -72,5 +75,44 @@ export function useMandates(tenantId: string | null) {
     queryKey: ['mandates', tenantId],
     queryFn: () => getMandates(tenantId!),
     enabled: !!tenantId,
+  })
+}
+
+type AssetKind = 'copy' | 'scripts' | 'images' | 'audio'
+
+export interface ApproveAssetPayload {
+  assetKind: AssetKind
+  assetId: string
+  approved: boolean
+}
+
+export interface RegeneratePayload {
+  assetKind: AssetKind
+  assetId: string
+}
+
+export function useGenerateCreatives(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => generateCreatives(campaignId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  })
+}
+
+export function useApproveCreativeAsset(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ assetKind, assetId, approved }: ApproveAssetPayload) =>
+      approveCreativeAsset(campaignId, assetKind, assetId, approved),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  })
+}
+
+export function useRegenerateAsset(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ assetKind, assetId }: RegeneratePayload) =>
+      regenerateAsset(campaignId, assetKind, assetId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
   })
 }

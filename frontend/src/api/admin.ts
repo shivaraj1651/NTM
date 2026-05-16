@@ -91,3 +91,21 @@ export const confirmBudget = (id: string) =>
 
 export const getMandates = (tenantId: string) =>
   apiClient.get(`/mandates?tenant_id=${tenantId}`).then((r) => r.data)
+
+export const generateCreatives = (id: string) =>
+  apiClient.post(`/campaigns/${id}/generate-creatives`).then((r) => r.data)
+
+export const approveCreativeAsset = (
+  id: string,
+  assetKind: string,
+  assetId: string,
+  approved: boolean,
+) =>
+  apiClient
+    .patch(`/campaigns/${id}/creatives/${assetKind}/${assetId}`, { approved })
+    .then((r) => r.data)
+
+export const regenerateAsset = (id: string, assetKind: string, assetId: string) =>
+  apiClient
+    .post(`/campaigns/${id}/creatives/${assetKind}/${assetId}/regenerate`)
+    .then((r) => r.data)
