@@ -391,7 +391,10 @@ export function CreativesPage() {
     )
   }
 
-  if (!creative_assets) {
+  if (
+    (status !== 'creative_ready' && status !== 'creative_generating') ||
+    !creative_assets
+  ) {
     return <p className="text-muted-foreground text-sm">No assets available.</p>
   }
 
