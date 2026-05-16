@@ -6,6 +6,8 @@ import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
 import { PlanPage } from '@/pages/Admin/Campaigns/PlanPage'
 import { BudgetPage } from '@/pages/Admin/Campaigns/BudgetPage'
 import { CreativesPage } from '@/pages/Admin/Campaigns/CreativesPage'
+import { GoLivePage } from '@/pages/Admin/Campaigns/GoLivePage'
+import { KpisPage } from '@/pages/Admin/Campaigns/KpisPage'
 import { renderWithProviders, renderCampaignPage, CAMPAIGN_MANAGER_USER } from './utils'
 
 // ── CampaignsPage ────────────────────────────────────────────────────────────
@@ -65,13 +67,16 @@ describe('CampaignDetailPage', () => {
     expect(document.body).toBeInTheDocument()
   })
 
-  it('renders all 7 stepper steps', async () => {
+  it('renders all 9 stepper steps', async () => {
     renderWithProviders(<CampaignDetailPage />, {
       route: '/admin/campaigns/c-001',
       path: '/admin/campaigns/:id',
     })
     await waitFor(() => {
-      for (const step of ['Create', 'Concepts', 'Confirmed', 'Plan', 'Budget', 'Approved', 'Creatives']) {
+      for (const step of [
+        'Create', 'Concepts', 'Confirmed', 'Plan',
+        'Budget', 'Approved', 'Creatives', 'Go Live', 'KPIs',
+      ]) {
         expect(screen.getByText(step)).toBeInTheDocument()
       }
     })
@@ -173,5 +178,60 @@ describe('CreativesPage', () => {
   it('shows copy asset accordion items', async () => {
     renderCampaignPage(<CreativesPage />, 'c-003')
     await waitFor(() => expect(screen.getByText('Social Caption')).toBeInTheDocument())
+  })
+})
+
+// ── GoLivePage (c-003 — creative_ready) ───────────────────────────────────────
+
+describe('GoLivePage', () => {
+  it('renders without crashing', () => {
+    renderCampaignPage(<GoLivePage />, 'c-003')
+    expect(document.body).toBeInTheDocument()
+  })
+
+  it('shows Go Live heading', async () => {
+    renderCampaignPage(<GoLivePage />, 'c-003')
+    await waitFor(() => expect(screen.getByText('Go Live')).toBeInTheDocument())
+  })
+
+  it('shows Campaign Summary card', async () => {
+    renderCampaignPage(<GoLivePage />, 'c-003')
+    await waitFor(() => expect(screen.getByText('Campaign Summary')).toBeInTheDocument())
+  })
+
+  it('shows Launch Campaign button', async () => {
+    renderCampaignPage(<GoLivePage />, 'c-003')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /launch campaign/i })).toBeInTheDocument()
+    )
+  })
+})
+
+// ── KpisPage (c-004 — live) ───────────────────────────────────────────────────
+
+describe('KpisPage', () => {
+  it('renders without crashing', () => {
+    renderCampaignPage(<KpisPage />, 'c-004')
+    expect(document.body).toBeInTheDocument()
+  })
+
+  it('shows KPI Tracking heading', async () => {
+    renderCampaignPage(<KpisPage />, 'c-004')
+    await waitFor(() => expect(screen.getByText('KPI Tracking')).toBeInTheDocument())
+  })
+
+  it('loads KPI rows from MSW', async () => {
+    renderCampaignPage(<KpisPage />, 'c-004')
+    await waitFor(() => {
+      expect(screen.getByText('Clicks')).toBeInTheDocument()
+      expect(screen.getByText('CTR')).toBeInTheDocument()
+    })
+  })
+
+  it('shows edit buttons', async () => {
+    renderCampaignPage(<KpisPage />, 'c-004')
+    await waitFor(() =>
+      expect(screen.getAllByRole('button').length).toBeGreaterThan(0)
+    )
   })
 })

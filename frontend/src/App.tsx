@@ -14,6 +14,8 @@ import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
 import { PlanPage } from '@/pages/Admin/Campaigns/PlanPage'
 import { BudgetPage } from '@/pages/Admin/Campaigns/BudgetPage'
 import { CreativesPage } from '@/pages/Admin/Campaigns/CreativesPage'
+import { GoLivePage } from '@/pages/Admin/Campaigns/GoLivePage'
+import { KpisPage } from '@/pages/Admin/Campaigns/KpisPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/admin/tenants" replace /> },
@@ -41,6 +43,8 @@ export const router = createBrowserRouter([
               { path: 'plan', element: <PlanPage /> },
               { path: 'budget', element: <BudgetPage /> },
               { path: 'creatives', element: <CreativesPage /> },
+              { path: 'golive', element: <GoLivePage /> },
+              { path: 'kpis', element: <KpisPage /> },
             ],
           },
         ],
