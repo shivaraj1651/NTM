@@ -19,7 +19,7 @@ import type { CampaignKpiRow } from '@/types/admin'
 
 function statusColor(status: CampaignKpiRow['status']) {
   if (status === 'green') return 'text-green-600'
-  if (status === 'amber') return 'text-amber-500'
+  if (status === 'amber') return 'text-amber-600'
   return 'text-red-600'
 }
 
