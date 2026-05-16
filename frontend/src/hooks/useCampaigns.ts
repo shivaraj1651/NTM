@@ -78,7 +78,7 @@ export function useMandates(tenantId: string | null) {
   })
 }
 
-type AssetKind = 'copy' | 'scripts' | 'images' | 'audio'
+export type AssetKind = 'copy' | 'scripts' | 'images' | 'audio'
 
 export interface ApproveAssetPayload {
   assetKind: AssetKind
