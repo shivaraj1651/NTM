@@ -4,14 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useMandateSummary, useConfirmMandate } from '@/hooks/useMandates'
-import type { MandateStatus } from '@/types/admin'
-
-function statusBadge(status: MandateStatus) {
-  if (status === 'confirmed') return <Badge variant="default">Confirmed</Badge>
-  if (status === 'rejected') return <Badge variant="destructive">Rejected</Badge>
-  if (status === 'draft') return <Badge variant="secondary">Draft</Badge>
-  return <Badge variant="outline">Pending Review</Badge>
-}
+import { MandateStatusBadge } from '@/lib/mandate-utils'
 
 export function MandateSummaryPage() {
   const { id } = useParams<{ id: string }>()
@@ -40,7 +33,7 @@ export function MandateSummaryPage() {
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-start justify-between">
             <h2 className="text-lg font-semibold">{mandate.name}</h2>
-            {statusBadge(mandate.status)}
+            <MandateStatusBadge status={mandate.status} />
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/PageHeader'
 import { DataTable } from '@/components/data-table'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -11,14 +10,8 @@ import {
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTenants } from '@/hooks/useTenants'
 import { useMandateList } from '@/hooks/useMandates'
-import type { MandateSummaryCard, MandateStatus } from '@/types/admin'
-
-function statusBadge(status: MandateStatus) {
-  if (status === 'confirmed') return <Badge variant="default">Confirmed</Badge>
-  if (status === 'rejected') return <Badge variant="destructive">Rejected</Badge>
-  if (status === 'draft') return <Badge variant="secondary">Draft</Badge>
-  return <Badge variant="outline">Pending Review</Badge>
-}
+import { MandateStatusBadge } from '@/lib/mandate-utils'
+import type { MandateSummaryCard } from '@/types/admin'
 
 export function MandatesPage() {
   const navigate = useNavigate()
@@ -44,7 +37,7 @@ export function MandatesPage() {
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ row }) => statusBadge(row.original.status),
+      cell: ({ row }) => <MandateStatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'created_at',
