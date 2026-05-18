@@ -3,28 +3,37 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+interface Entry {
+  id: string
+  val: string
+}
+
 interface Props {
   defaultValues: string[]
   onNext: (competitors: string[]) => void
   onBack: () => void
 }
 
+function makeEntry(val = ''): Entry {
+  return { id: crypto.randomUUID(), val }
+}
+
 export function CompetitorsStep({ defaultValues, onNext, onBack }: Props) {
-  const [competitors, setCompetitors] = useState<string[]>(
-    defaultValues.length ? defaultValues : ['']
+  const [entries, setEntries] = useState<Entry[]>(
+    defaultValues.length ? defaultValues.map(makeEntry) : [makeEntry()]
   )
   const [error, setError] = useState('')
 
-  const update = (i: number, val: string) =>
-    setCompetitors((prev) => prev.map((c, j) => (j === i ? val : c)))
+  const update = (id: string, val: string) =>
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, val } : e)))
 
-  const add = () => setCompetitors((prev) => [...prev, ''])
+  const add = () => setEntries((prev) => [...prev, makeEntry()])
 
-  const remove = (i: number) =>
-    setCompetitors((prev) => prev.filter((_, j) => j !== i))
+  const remove = (id: string) =>
+    setEntries((prev) => prev.filter((e) => e.id !== id))
 
   const handleNext = () => {
-    const valid = competitors.filter((c) => c.trim())
+    const valid = entries.map((e) => e.val.trim()).filter(Boolean)
     if (!valid.length) {
       setError('At least one competitor is required')
       return
@@ -38,18 +47,18 @@ export function CompetitorsStep({ defaultValues, onNext, onBack }: Props) {
       <h2 className="text-xl font-semibold">Competitors</h2>
       <div className="space-y-2">
         <Label>Add competitor names</Label>
-        {competitors.map((c, i) => (
-          <div key={i} className="flex gap-2">
+        {entries.map((e, i) => (
+          <div key={e.id} className="flex gap-2">
             <Input
-              value={c}
-              onChange={(e) => update(i, e.target.value)}
+              value={e.val}
+              onChange={(ev) => update(e.id, ev.target.value)}
               placeholder={`Competitor ${i + 1}`}
             />
-            {competitors.length > 1 && (
+            {entries.length > 1 && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => remove(i)}
+                onClick={() => remove(e.id)}
                 type="button"
                 aria-label="remove"
               >
@@ -64,8 +73,8 @@ export function CompetitorsStep({ defaultValues, onNext, onBack }: Props) {
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onBack} className="flex-1">← Back</Button>
-        <Button onClick={handleNext} className="flex-1">Next →</Button>
+        <Button variant="outline" onClick={onBack} type="button" className="flex-1">← Back</Button>
+        <Button onClick={handleNext} type="button" className="flex-1">Next →</Button>
       </div>
     </div>
   )

@@ -22,7 +22,7 @@ export function ReviewStep({ data, onSubmit, onBack, isPending }: Props) {
         </div>
         <div>
           <span className="font-medium">Competitors:</span>{' '}
-          {data.competitors.join(', ')}
+          {data.competitors.length ? data.competitors.join(', ') : '—'}
         </div>
       </div>
       <div className="flex gap-2">
