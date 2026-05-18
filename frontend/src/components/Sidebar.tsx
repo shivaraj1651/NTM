@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Building2, Users, Shield, ClipboardList, Activity, BarChart2, Megaphone, LogOut } from 'lucide-react'
+import { Building2, Users, Shield, ClipboardList, Activity, BarChart2, Megaphone, FileText, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Audit Log', to: '/admin/audit',      icon: ClipboardList },
   { label: 'Health',    to: '/admin/health',     icon: Activity },
   { label: 'Analytics', to: '/admin/analytics',  icon: BarChart2 },
+  { label: 'Mandates',  to: '/admin/mandates',   icon: FileText },
   { label: 'Campaigns', to: '/admin/campaigns',  icon: Megaphone },
 ]
 
