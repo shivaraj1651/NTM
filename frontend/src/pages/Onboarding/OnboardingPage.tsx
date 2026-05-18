@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { OrgInfoStep, type OrgInfoValues } from './OrgInfoStep'
 import { LogoStep } from './LogoStep'
 import { BrandGuidelinesStep } from './BrandGuidelinesStep'
+import { CompetitorsStep } from './CompetitorsStep'
+import { ReviewStep } from './ReviewStep'
 import { useCreateClient } from '@/hooks/useMandates'
 
 const STEP_LABELS = ['Organisation', 'Logo', 'Brand Guidelines', 'Competitors', 'Review'] as const
@@ -40,6 +42,11 @@ export function OnboardingPage() {
   const handleBrandGuidelines = (file: File) => {
     setData((d) => ({ ...d, brand_guidelines: file }))
     setStep(3)
+  }
+
+  const handleCompetitors = (competitors: string[]) => {
+    setData((d) => ({ ...d, competitors }))
+    setStep(4)
   }
 
   const handleSubmit = async () => {
@@ -84,7 +91,21 @@ export function OnboardingPage() {
         )}
         {step === 1 && <LogoStep onNext={handleLogo} onBack={() => setStep(0)} />}
         {step === 2 && <BrandGuidelinesStep onNext={handleBrandGuidelines} onBack={() => setStep(1)} />}
-        {/* Steps 3-4 added in subsequent tasks */}
+        {step === 3 && (
+          <CompetitorsStep
+            defaultValues={data.competitors}
+            onNext={handleCompetitors}
+            onBack={() => setStep(2)}
+          />
+        )}
+        {step === 4 && (
+          <ReviewStep
+            data={data}
+            onSubmit={handleSubmit}
+            onBack={() => setStep(3)}
+            isPending={createClient.isPending}
+          />
+        )}
       </div>
     </div>
   )
