@@ -25,8 +25,12 @@ export function MandateSummaryPage() {
   const isConfirmed = mandate.status === 'confirmed'
 
   const handleConfirm = async () => {
-    const campaign = await confirm.mutateAsync()
-    navigate(`/admin/campaigns/${campaign.id}`)
+    try {
+      const campaign = await confirm.mutateAsync()
+      navigate(`/admin/campaigns/${campaign.id}`)
+    } catch {
+      // mutation error handled via React Query's isError state
+    }
   }
 
   return (

@@ -14,10 +14,10 @@ import { useMandateList } from '@/hooks/useMandates'
 import type { MandateSummaryCard, MandateStatus } from '@/types/admin'
 
 function statusBadge(status: MandateStatus) {
-  if (status === 'confirmed') return <Badge variant="default">confirmed</Badge>
-  if (status === 'rejected') return <Badge variant="destructive">rejected</Badge>
-  if (status === 'draft') return <Badge variant="secondary">draft</Badge>
-  return <Badge variant="outline">pending review</Badge>
+  if (status === 'confirmed') return <Badge variant="default">Confirmed</Badge>
+  if (status === 'rejected') return <Badge variant="destructive">Rejected</Badge>
+  if (status === 'draft') return <Badge variant="secondary">Draft</Badge>
+  return <Badge variant="outline">Pending Review</Badge>
 }
 
 export function MandatesPage() {
