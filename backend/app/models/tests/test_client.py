@@ -34,8 +34,9 @@ async def test_create_client(db_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_client_nullable_fields(db_session: AsyncSession):
+    tenant_id = str(uuid4())
     client = Client(
-        tenant_id=str(uuid4()),
+        tenant_id=tenant_id,
         org_name="Minimal Corp",
         industry="Finance",
     )
@@ -43,7 +44,7 @@ async def test_client_nullable_fields(db_session: AsyncSession):
     await db_session.commit()
 
     result = await db_session.execute(
-        select(Client).where(Client.org_name == "Minimal Corp")
+        select(Client).where(Client.tenant_id == tenant_id)
     )
     fetched = result.scalar_one()
 

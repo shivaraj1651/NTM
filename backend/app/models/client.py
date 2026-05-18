@@ -19,7 +19,7 @@ class Client(Base):
     __tablename__ = "clients"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, nullable=False)
     org_name = Column(String, nullable=False)
     industry = Column(String, nullable=False)
     logo_url = Column(String, nullable=True)
