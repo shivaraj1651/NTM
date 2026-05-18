@@ -143,7 +143,7 @@ export const getMandateSummaryCard = (id: string) =>
   apiClient.get<MandateSummaryCard>(`/mandates/${id}/summary-card`).then((r) => r.data)
 
 export const confirmMandate = (id: string) =>
-  apiClient.post(`/mandates/${id}/confirm`).then((r) => r.data)
+  apiClient.post<MandateSummaryCard>(`/mandates/${id}/confirm`).then((r) => r.data)
 
 export const updateMandate = (id: string, payload: Partial<MandateCreate>) =>
   apiClient.patch<MandateSummaryCard>(`/mandates/${id}`, payload).then((r) => r.data)

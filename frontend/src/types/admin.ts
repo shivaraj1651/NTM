@@ -113,6 +113,15 @@ export interface TrendPoint {
   impressions: number
 }
 
+export type MandateObjective =
+  | 'awareness'
+  | 'consideration'
+  | 'conversion'
+  | 'loyalty'
+  | 'engagement'
+
+export type MandateStatus = 'draft' | 'pending_review' | 'confirmed' | 'rejected'
+
 export interface Mandate {
   id: string
   name: string
@@ -122,15 +131,6 @@ export interface Mandate {
   created_at: string
   status?: MandateStatus
 }
-
-export type MandateObjective =
-  | 'awareness'
-  | 'consideration'
-  | 'conversion'
-  | 'loyalty'
-  | 'engagement'
-
-export type MandateStatus = 'draft' | 'pending_review' | 'confirmed' | 'rejected'
 
 export interface ClientProfile {
   id: string
