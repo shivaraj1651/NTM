@@ -120,6 +120,49 @@ export interface Mandate {
   budget: { total_budget: number; currency: string }
   geography: { regions: string[]; markets: string[]; country_list: string[] }
   created_at: string
+  status?: MandateStatus
+}
+
+export type MandateObjective =
+  | 'awareness'
+  | 'consideration'
+  | 'conversion'
+  | 'loyalty'
+  | 'engagement'
+
+export type MandateStatus = 'draft' | 'pending_review' | 'confirmed' | 'rejected'
+
+export interface ClientProfile {
+  id: string
+  org_name: string
+  industry: string
+  logo_url: string
+  brand_guidelines_url: string
+  competitors: string[]
+  tenant_id: string
+  created_at: string
+}
+
+export interface MandateCreate {
+  name: string
+  objective: MandateObjective
+  region: string
+  countries: string[]
+  total_budget: number
+  currency: string
+  start_date: string
+  end_date: string
+  client_id: string
+}
+
+export interface MandateSummaryCard extends Mandate {
+  objective: MandateObjective
+  region: string
+  countries: string[]
+  start_date: string
+  end_date: string
+  status: MandateStatus
+  client: ClientProfile
 }
 
 export interface CampaignConcept {

@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { AuditFilters } from '@/types/admin'
+import type { AuditFilters, MandateCreate, MandateSummaryCard, ClientProfile } from '@/types/admin'
 
 export const login = (email: string, password: string) =>
   apiClient
@@ -90,7 +90,7 @@ export const confirmBudget = (id: string) =>
   apiClient.post(`/campaigns/${id}/confirm-budget`).then((r) => r.data)
 
 export const getMandates = (tenantId: string) =>
-  apiClient.get(`/mandates?tenant_id=${tenantId}`).then((r) => r.data)
+  apiClient.get<MandateSummaryCard[]>(`/mandates?tenant_id=${tenantId}`).then((r) => r.data)
 
 export const generateCreatives = (id: string) =>
   apiClient.post(`/campaigns/${id}/generate-creatives`).then((r) => r.data)
@@ -125,3 +125,25 @@ export const updateKpiConfig = (
   apiClient
     .patch(`/campaigns/${id}/kpi-configs/${activationId}/${kpiName}`, payload)
     .then((r) => r.data)
+
+export const createClient = (formData: FormData) =>
+  apiClient
+    .post<ClientProfile>('/clients', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((r) => r.data)
+
+export const createMandate = (payload: MandateCreate) =>
+  apiClient.post<MandateSummaryCard>('/mandates', payload).then((r) => r.data)
+
+export const getMandate = (id: string) =>
+  apiClient.get<MandateSummaryCard>(`/mandates/${id}`).then((r) => r.data)
+
+export const getMandateSummaryCard = (id: string) =>
+  apiClient.get<MandateSummaryCard>(`/mandates/${id}/summary-card`).then((r) => r.data)
+
+export const confirmMandate = (id: string) =>
+  apiClient.post(`/mandates/${id}/confirm`).then((r) => r.data)
+
+export const updateMandate = (id: string, payload: Partial<MandateCreate>) =>
+  apiClient.patch<MandateSummaryCard>(`/mandates/${id}`, payload).then((r) => r.data)
