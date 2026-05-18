@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import * as db from '../db/campaigns'
 import type { Campaign, KpiConfig } from '@/types/admin'
 import { kpiActualsDb } from '../db/analytics'
+import { mandateStore } from '../db/mandates'
 
 const IMAGE_SIZES: Record<string, string> = {
   square: '1024x1024/1a1a2e/ffffff?text=Square+Ad',
@@ -26,7 +27,7 @@ export const campaignHandlers = [
 
   http.post('/api/v1/campaigns', async ({ request }) => {
     const { mandate_id } = (await request.json()) as { mandate_id: string }
-    const mandate = db.mandates.find((m) => m.id === mandate_id)
+    const mandate = mandateStore[mandate_id]
     if (!mandate) return new HttpResponse(null, { status: 404 })
     const newId = `c-${Date.now()}`
     const newCampaign: Campaign = {
@@ -101,14 +102,6 @@ export const campaignHandlers = [
       updated_at: new Date().toISOString(),
     }
     return HttpResponse.json(db.campaignStore[campaign.id])
-  }),
-
-  http.get('/api/v1/mandates', ({ request }) => {
-    const tenantId = new URL(request.url).searchParams.get('tenant_id')
-    const results = tenantId
-      ? db.mandates.filter((m) => m.tenant_id === tenantId)
-      : db.mandates
-    return HttpResponse.json(results)
   }),
 
   http.post('/api/v1/campaigns/:id/generate-creatives', ({ params }) => {

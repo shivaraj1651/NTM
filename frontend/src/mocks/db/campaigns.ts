@@ -1,7 +1,6 @@
 import type {
   Campaign,
   KpiConfig,
-  Mandate,
   CampaignConcept,
   Activation,
   BudgetProposal,
@@ -11,6 +10,7 @@ import type {
   ImageAsset,
   AudioAsset,
 } from '@/types/admin'
+import { mandateStore } from './mandates'
 
 const baseConcepts: CampaignConcept[] = [
   {
@@ -274,25 +274,6 @@ const initialCampaigns: Record<string, Campaign> = {
 
 export const campaignStore: Record<string, Campaign> = { ...initialCampaigns }
 
-export const mandates: Mandate[] = [
-  {
-    id: 'm-001',
-    name: 'Q3 Brand Awareness',
-    tenant_id: 't1',
-    budget: { total_budget: 50000, currency: 'USD' },
-    geography: { regions: ['North America'], markets: ['US', 'CA'], country_list: ['United States', 'Canada'] },
-    created_at: '2026-04-01T00:00:00Z',
-  },
-  {
-    id: 'm-002',
-    name: 'Product Launch APAC',
-    tenant_id: 't1',
-    budget: { total_budget: 120000, currency: 'USD' },
-    geography: { regions: ['Asia Pacific'], markets: ['SG', 'AU', 'JP'], country_list: ['Singapore', 'Australia', 'Japan'] },
-    created_at: '2026-04-15T00:00:00Z',
-  },
-]
-
 export function generateConcepts(mandateId: string): CampaignConcept[] {
   return [
     {
@@ -326,7 +307,7 @@ export function generateConcepts(mandateId: string): CampaignConcept[] {
 }
 
 export function generateActivationPlan(mandateId: string): Activation[] {
-  const mandate = mandates.find((m) => m.id === mandateId)
+  const mandate = mandateStore[mandateId]
   const total = mandate?.budget.total_budget ?? 50000
   const currency = mandate?.budget.currency ?? 'USD'
   return [

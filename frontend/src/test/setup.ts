@@ -9,6 +9,7 @@ import { roleHandlers } from '@/mocks/handlers/roles'
 import { auditHandlers } from '@/mocks/handlers/audit'
 import { healthHandlers } from '@/mocks/handlers/health'
 import { analyticsHandlers } from '@/mocks/handlers/analytics'
+import { mandateHandlers } from '@/mocks/handlers/mandates'
 import { campaignHandlers } from '@/mocks/handlers/campaigns'
 
 // Mock browser APIs absent in jsdom
@@ -47,6 +48,7 @@ export const server = setupServer(
   ...auditHandlers,
   ...healthHandlers,
   ...analyticsHandlers,
+  ...mandateHandlers,
   ...campaignHandlers,
 )
 
