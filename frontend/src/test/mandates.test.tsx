@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { MandatesPage } from '@/pages/Mandate/MandatesPage'
 import { MandateSummaryPage } from '@/pages/Mandate/MandateSummaryPage'
+import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
 import { renderWithProviders, CAMPAIGN_MANAGER_USER } from './utils'
 
 describe('MandatesPage', () => {
@@ -78,5 +79,29 @@ describe('MandateSummaryPage', () => {
       expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument()
     })
+  })
+})
+
+describe('MandateFormPage', () => {
+  it('renders create form heading', () => {
+    renderWithProviders(<MandateFormPage />, {
+      route: '/admin/mandates/new',
+      path: '/admin/mandates/new',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+    expect(screen.getByText('New Mandate')).toBeInTheDocument()
+  })
+
+  it('shows validation error when name is too short', async () => {
+    renderWithProviders(<MandateFormPage />, {
+      route: '/admin/mandates/new',
+      path: '/admin/mandates/new',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+    fireEvent.change(screen.getByPlaceholderText('Q3 Brand Awareness'), { target: { value: 'ab' } })
+    fireEvent.click(screen.getByRole('button', { name: /create mandate/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/at least 3 characters/i)).toBeInTheDocument()
+    )
   })
 })
