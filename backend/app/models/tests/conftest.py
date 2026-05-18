@@ -17,6 +17,7 @@ from backend.app.models.campaign_concept import Base as Base7
 from backend.app.models.activation import Base as Base8
 from backend.app.models.budget import Base as Base9
 from backend.app.models.approval_log import Base as Base10
+from backend.app.models.physical_activation_log import Base as Base11
 
 
 @pytest.fixture(autouse=True)
@@ -64,6 +65,7 @@ async def db_session():
         await conn.run_sync(Base8.metadata.create_all)
         await conn.run_sync(Base9.metadata.create_all)
         await conn.run_sync(Base10.metadata.create_all)
+        await conn.run_sync(Base11.metadata.create_all)
 
     # Create session factory
     async_session = sessionmaker(
