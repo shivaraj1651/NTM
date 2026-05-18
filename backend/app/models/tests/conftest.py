@@ -11,6 +11,7 @@ from backend.app.models.activation_platform_mapping import Base as Base1
 from backend.app.models.platform_config_template import Base as Base2
 from backend.app.models.kpi import Base as Base3
 from backend.app.models.client import Base as Base4
+from backend.app.models.mandate import Base as Base5
 
 
 @pytest.fixture(autouse=True)
@@ -52,6 +53,7 @@ async def db_session():
         await conn.run_sync(Base2.metadata.create_all)
         await conn.run_sync(Base3.metadata.create_all)
         await conn.run_sync(Base4.metadata.create_all)
+        await conn.run_sync(Base5.metadata.create_all)
 
     # Create session factory
     async_session = sessionmaker(
