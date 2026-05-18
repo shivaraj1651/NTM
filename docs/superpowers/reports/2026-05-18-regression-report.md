@@ -10,6 +10,9 @@
 | Frontend tests | 65 | TBD |
 | Frontend passing | 65 | TBD |
 
+**Baseline captured:** 2026-05-18 with pytest testpaths=[backend/app, backend/tests, tests]  
+**Note:** Running against `backend/app backend/tests` only (372 tests, 77.4% coverage)
+
 ## Module Coverage Table
 
 | Module | Before Tests | After Tests | Before Cov% | After Cov% | Status |
