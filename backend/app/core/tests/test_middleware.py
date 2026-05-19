@@ -132,3 +132,21 @@ def test_health_endpoint_skips_tenant_validation():
     client = TestClient(app, raise_server_exceptions=False)
     response = client.get("/health")
     assert response.status_code == 200
+
+
+# ── CORS and app structure ────────────────────────────────────────────────────
+
+def test_main_app_has_cors_middleware():
+    from backend.app.main import app
+    # Starlette stores middleware as Middleware(cls=...) objects
+    cls_names = [getattr(m, "cls", type(m)).__name__ for m in app.user_middleware]
+    cors_present = any("CORS" in n or "cors" in n.lower() for n in cls_names)
+    assert cors_present, f"CORS middleware not found. Classes: {cls_names}"
+
+
+def test_app_includes_campaign_routes():
+    """Campaign routes should be registered in main app."""
+    from backend.app.main import app
+    paths = {getattr(r, "path", "") for r in app.routes}
+    assert any("/campaigns" in p for p in paths), \
+        f"No campaign routes found. Paths: {sorted(p for p in paths if p)}"
