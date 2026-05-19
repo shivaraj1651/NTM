@@ -92,8 +92,6 @@ def test_get_job_invalid_uuid_returns_422():
 
 # ── NEW: CRUD + lifecycle endpoint tests ──────────────────────────────────────
 
-from unittest.mock import patch
-
 
 def make_mock_sql_session():
     return MagicMock()
@@ -144,6 +142,7 @@ def test_create_mandate_returns_201():
         client = TestClient(app)
         response = client.post("/api/v1/mandates", json=mandate_payload)
     assert response.status_code == 201
+    mock_task.delay.assert_called_once_with("m-new", "test-tenant")
 
 
 def test_create_mandate_missing_required_field_returns_422():
@@ -208,6 +207,7 @@ def test_confirm_mandate_returns_200():
         client = TestClient(app)
         response = client.post("/api/v1/mandates/m-001/confirm")
     assert response.status_code == 200
+    mock_task.delay.assert_called_once_with("m-001", "test-tenant")
 
 
 def test_confirm_mandate_not_analyzed_returns_400():
