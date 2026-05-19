@@ -24,9 +24,18 @@ def _make_session_factory() -> async_sessionmaker:
     engine = create_async_engine(db_url, echo=False)
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+_SESSION_FACTORY: async_sessionmaker | None = None
+
+
+def _get_session_factory() -> async_sessionmaker:
+    global _SESSION_FACTORY
+    if _SESSION_FACTORY is None:
+        _SESSION_FACTORY = _make_session_factory()
+    return _SESSION_FACTORY
+
 
 async def _run_mandate_analysis(mandate_id: str, tenant_id: str) -> None:
-    factory = _make_session_factory()
+    factory = _get_session_factory()
 
     async with factory() as session:
         result = await session.execute(

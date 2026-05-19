@@ -150,9 +150,6 @@ async def test_create_mandate_sets_draft_status():
     )
     # We can't call to_dict on a real Mandate without a DB, but we can verify
     # that add and commit were called — meaning an ORM object was persisted
-    try:
-        await svc.create(data, "user-1", "tenant-1")
-    except Exception:
-        pass  # refresh may fail without a real session; we just check add/commit
+    await svc.create(data, "user-1", "tenant-1")
     assert session.add.called
     assert session.commit.called

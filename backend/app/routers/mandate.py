@@ -50,8 +50,10 @@ async def get_db() -> AsyncIOMotorDatabase:
     mongo_db_name = os.getenv("MONGO_DB_NAME", "ntm")
 
     client = AsyncIOMotorClient(mongo_url)
-    db = client[mongo_db_name]
-    return db
+    try:
+        yield client[mongo_db_name]
+    finally:
+        client.close()
 
 
 @router.post(
