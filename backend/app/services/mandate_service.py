@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import select
