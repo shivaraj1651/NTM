@@ -45,7 +45,7 @@ def make_svc_mock(**method_returns):
 def test_create_campaign_returns_201():
     from unittest.mock import patch
     app = make_app()
-    svc = make_svc_mock(create={"id": "c-new", "tenant_id": "test-tenant", "status": "pending"})
+    svc = make_svc_mock(create={"id": "c-new", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "pending"})
     with patch("backend.app.routers.campaign.CampaignService", return_value=svc):
         client = TestClient(app)
         response = client.post("/api/v1/campaigns", json={"mandate_id": "m-001"})
@@ -66,7 +66,7 @@ def test_create_campaign_missing_mandate_id_returns_422():
 def test_get_campaign_returns_200():
     from unittest.mock import patch
     app = make_app()
-    svc = make_svc_mock(get={"id": "c-001", "tenant_id": "test-tenant", "status": "pending"})
+    svc = make_svc_mock(get={"id": "c-001", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "pending"})
     with patch("backend.app.routers.campaign.CampaignService", return_value=svc):
         client = TestClient(app)
         response = client.get("/api/v1/campaigns/c-001")
@@ -88,7 +88,7 @@ def test_get_campaign_not_found_returns_404():
 def test_confirm_campaign_returns_200():
     from unittest.mock import patch
     app = make_app()
-    svc = make_svc_mock(confirm={"id": "c-001", "status": "confirmed"})
+    svc = make_svc_mock(confirm={"id": "c-001", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "confirmed"})
     with patch("backend.app.routers.campaign.CampaignService", return_value=svc):
         client = TestClient(app)
         response = client.post(
@@ -112,7 +112,7 @@ def test_confirm_missing_concept_id_returns_422():
 def test_approve_budget_returns_200():
     from unittest.mock import patch
     app = make_app()
-    svc = make_svc_mock(propose_budget={"id": "c-001", "status": "budget_proposed"})
+    svc = make_svc_mock(propose_budget={"id": "c-001", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "budget_proposed"})
     with patch("backend.app.routers.campaign.CampaignService", return_value=svc):
         client = TestClient(app)
         response = client.post("/api/v1/campaigns/c-001/approve-budget", json={})
