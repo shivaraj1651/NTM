@@ -88,3 +88,156 @@ def test_get_job_invalid_uuid_returns_422():
     client = TestClient(app)
     response = client.get("/api/v1/jobs/not-a-uuid")
     assert response.status_code == 422
+
+
+# ── NEW: CRUD + lifecycle endpoint tests ──────────────────────────────────────
+
+from unittest.mock import patch
+
+
+def make_mock_sql_session():
+    return MagicMock()
+
+
+def make_svc_mock(**method_returns):
+    svc = MagicMock()
+    for method, retval in method_returns.items():
+        if isinstance(retval, Exception):
+            setattr(svc, method, AsyncMock(side_effect=retval))
+        else:
+            setattr(svc, method, AsyncMock(return_value=retval))
+    return svc
+
+
+def make_app_with_sql(mock_mongo_db=None, mock_sql_session=None):
+    from backend.app.routers.mandate import router, get_db, get_sql_db
+    app = FastAPI()
+    app.include_router(router)
+    mock_user = make_mock_user()
+    app.dependency_overrides[current_user] = lambda: mock_user
+    app.dependency_overrides[get_current_tenant] = lambda: "test-tenant"
+    if mock_mongo_db is not None:
+        app.dependency_overrides[get_db] = lambda: mock_mongo_db
+    if mock_sql_session is not None:
+        app.dependency_overrides[get_sql_db] = lambda: mock_sql_session
+    return app
+
+
+# ── POST /api/v1/mandates ─────────────────────────────────────────────────────
+
+def test_create_mandate_returns_201():
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    mandate_payload = {
+        "name": "Summer Campaign",
+        "client_id": "c-001",
+        "objective": "Brand awareness",
+        "region": "EMEA",
+        "total_budget": 100000.0,
+        "currency": "USD",
+        "start_date": "2026-06-01",
+        "end_date": "2026-12-31",
+    }
+    svc = make_svc_mock(create={"id": "m-new", "status": "draft", "tenant_id": "test-tenant"})
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc), \
+         patch("backend.app.routers.mandate.run_mandate_analysis") as mock_task:
+        mock_task.delay = MagicMock()
+        client = TestClient(app)
+        response = client.post("/api/v1/mandates", json=mandate_payload)
+    assert response.status_code == 201
+
+
+def test_create_mandate_missing_required_field_returns_422():
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    with patch("backend.app.routers.mandate.MandateService"):
+        client = TestClient(app)
+        response = client.post("/api/v1/mandates", json={"name": "Incomplete"})
+    assert response.status_code == 422
+
+
+# ── GET /api/v1/mandates/{mandate_id} ────────────────────────────────────────
+
+def test_get_mandate_returns_200():
+    from fastapi import HTTPException
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(get={"id": "m-001", "status": "draft", "tenant_id": "test-tenant"})
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.get("/api/v1/mandates/m-001")
+    assert response.status_code == 200
+
+
+def test_get_mandate_not_found_returns_404():
+    from fastapi import HTTPException
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(get=HTTPException(status_code=404, detail="Not found"))
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.get("/api/v1/mandates/nonexistent")
+    assert response.status_code == 404
+
+
+# ── PUT /api/v1/mandates/{mandate_id} ────────────────────────────────────────
+
+def test_update_mandate_returns_200():
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(update={"id": "m-001", "status": "draft", "name": "Updated"})
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.put("/api/v1/mandates/m-001", json={"name": "Updated"})
+    assert response.status_code == 200
+
+
+def test_update_mandate_non_draft_returns_409():
+    from fastapi import HTTPException
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(update=HTTPException(status_code=409, detail="Conflict"))
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.put("/api/v1/mandates/m-001", json={"name": "Late Update"})
+    assert response.status_code == 409
+
+
+# ── POST /api/v1/mandates/{mandate_id}/confirm ───────────────────────────────
+
+def test_confirm_mandate_returns_200():
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(confirm={"id": "m-001", "status": "confirmed"})
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc), \
+         patch("backend.app.routers.mandate.run_campaign_strategy") as mock_task:
+        mock_task.delay = MagicMock()
+        client = TestClient(app)
+        response = client.post("/api/v1/mandates/m-001/confirm")
+    assert response.status_code == 200
+
+
+def test_confirm_mandate_not_analyzed_returns_400():
+    from fastapi import HTTPException
+    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(confirm=HTTPException(status_code=400, detail="Not analyzed"))
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.post("/api/v1/mandates/m-001/confirm")
+    assert response.status_code == 400
+
+
+# ── GET /api/v1/mandates/{mandate_id}/summary-card ───────────────────────────
+
+def test_get_summary_card_returns_200():
+    mongo_db = make_mock_db()
+    app = make_app_with_sql(mock_mongo_db=mongo_db, mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(get_summary_card={"mandate_id": "m-001", "score": 90})
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.get("/api/v1/mandates/m-001/summary-card")
+    assert response.status_code == 200
+
+
+def test_get_summary_card_not_available_returns_404():
+    from fastapi import HTTPException
+    mongo_db = make_mock_db()
+    app = make_app_with_sql(mock_mongo_db=mongo_db, mock_sql_session=make_mock_sql_session())
+    svc = make_svc_mock(get_summary_card=HTTPException(status_code=404, detail="Not available"))
+    with patch("backend.app.routers.mandate.MandateService", return_value=svc):
+        client = TestClient(app)
+        response = client.get("/api/v1/mandates/m-001/summary-card")
+    assert response.status_code == 404
