@@ -3,6 +3,42 @@ from backend.app.core.security import hash_password, verify_password, create_acc
 from datetime import timedelta
 
 
+# ── JWT strategy and auth backend ────────────────────────────────────────────
+
+def test_jwt_strategy_lifetime_is_positive(isolated_settings):
+    from backend.app.core.auth import get_jwt_strategy
+    strategy = get_jwt_strategy()
+    assert strategy.lifetime_seconds > 0
+
+
+def test_jwt_strategy_uses_configured_algorithm(isolated_settings):
+    from backend.app.core.auth import get_jwt_strategy
+    strategy = get_jwt_strategy()
+    assert strategy.algorithm in ("HS256", "HS384", "HS512", "RS256", "RS384", "RS512")
+
+
+def test_bearer_transport_token_url_contains_login():
+    from backend.app.core.auth import bearer_transport
+    # OAuth2PasswordBearer stores tokenUrl in scheme.model.flows.password.tokenUrl
+    url = bearer_transport.scheme.model.flows.password.tokenUrl
+    assert "login" in url
+
+
+def test_auth_backend_name_is_jwt():
+    from backend.app.core.auth import auth_backend
+    assert auth_backend.name == "jwt"
+
+
+def test_security_module_importable():
+    import backend.app.core.security  # noqa: F401
+
+
+def test_security_exposes_hash_and_verify():
+    from backend.app.core import security
+    assert hasattr(security, "hash_password") or hasattr(security, "get_password_hash")
+    assert hasattr(security, "verify_password")
+
+
 @pytest.fixture(autouse=True)
 def isolated_settings(monkeypatch):
     """Reset the Settings singleton and inject required env vars for each test."""

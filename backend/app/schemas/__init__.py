@@ -1,5 +1,12 @@
 """Schemas module for NTM application."""
 
+from backend.app.schemas.campaign import (
+    CampaignStatusEnum,
+    CampaignCreateRequest,
+    CampaignUpdateRequest,
+    CampaignConfirmRequest,
+    CampaignResponse,
+)
 from backend.app.schemas.campaign_concept import (
     CampaignConcept,
     AudienceSegmentation,
@@ -32,6 +39,11 @@ from backend.app.schemas.budget_optimizer import (
 )
 
 __all__ = [
+    "CampaignStatusEnum",
+    "CampaignCreateRequest",
+    "CampaignUpdateRequest",
+    "CampaignConfirmRequest",
+    "CampaignResponse",
     "CampaignConcept",
     "AudienceSegmentation",
     "ChannelRecommendation",

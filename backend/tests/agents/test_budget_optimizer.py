@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import date, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 from backend.app.agents.budget_optimizer import (
     ConversionRateEstimator,
     BudgetOptimizer,
@@ -374,4 +375,76 @@ class TestBudgetOptimizerAgent:
             campaign_context=campaign_context,
         )
 
+        assert isinstance(result, dict)
+
+
+# ── Boundary inputs ───────────────────────────────────────────────────────────
+
+class TestBudgetOptimizerAgentBoundary:
+    """Boundary and edge-case tests for budget_optimizer_agent."""
+
+    @pytest.mark.asyncio
+    async def test_budget_optimizer_zero_budget(self, sample_activations, campaign_context):
+        """Agent must handle zero total budget without raising."""
+        budget_envelope = {"total_budget": 0.0, "currency": "USD"}
+
+        result = await budget_optimizer_agent(
+            activations=sample_activations,
+            budget_envelope=budget_envelope,
+            campaign_context=campaign_context,
+        )
+
+        assert isinstance(result, dict)
+        assert "optimized_activations" in result or "status" in result
+
+    @pytest.mark.asyncio
+    async def test_budget_optimizer_empty_activations(self, campaign_context):
+        """Agent must handle empty activations list without raising."""
+        budget_envelope = {"total_budget": 50000.0, "currency": "USD"}
+
+        result = await budget_optimizer_agent(
+            activations=[],
+            budget_envelope=budget_envelope,
+            campaign_context=campaign_context,
+        )
+
+        assert isinstance(result, dict)
+        assert result.get("status") in ("success", "partial", "failed") or "optimized_activations" in result
+
+    @pytest.mark.asyncio
+    async def test_budget_optimizer_single_activation(self, campaign_context):
+        """Agent must handle a single activation."""
+        budget_envelope = {"total_budget": 10000.0, "currency": "USD"}
+        activations = [
+            {
+                "id": "act-single",
+                "phase": "Awareness",
+                "sub_channel": "Email",
+                "audience_segment": "Primary",
+                "cost_estimated": 5000.0,
+                "estimated_reach": 20000,
+            }
+        ]
+
+        result = await budget_optimizer_agent(
+            activations=activations,
+            budget_envelope=budget_envelope,
+            campaign_context=campaign_context,
+        )
+
+        assert isinstance(result, dict)
+        assert result.get("status") != "failed" or "optimized_activations" in result
+
+    @pytest.mark.asyncio
+    async def test_budget_optimizer_missing_budget_key(self, sample_activations, campaign_context):
+        """Agent must not raise when budget_envelope lacks total_budget key (defaults to 0)."""
+        budget_envelope = {"currency": "USD"}  # missing total_budget
+
+        result = await budget_optimizer_agent(
+            activations=sample_activations,
+            budget_envelope=budget_envelope,
+            campaign_context=campaign_context,
+        )
+
+        # Should return a dict regardless — agent uses .get("total_budget", 0.0)
         assert isinstance(result, dict)

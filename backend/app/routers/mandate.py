@@ -12,17 +12,29 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.agents.competitive_intel import competitive_intel_agent
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
+from backend.app.db import get_db as _get_sql_db
 from backend.app.schemas.competitive_intel import CIReportInitial, CIReport
+from backend.app.schemas.mandate import CreateMandateRequest, UpdateMandateRequest
+from backend.app.services.mandate_service import MandateService
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics
+from backend.app.tasks.mandate_tasks import run_mandate_analysis
+from backend.app.tasks.campaign_tasks import run_campaign_strategy
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["mandates"])
+
+
+async def get_sql_db():
+    """SQLAlchemy AsyncSession dependency (separate from MongoDB get_db above)."""
+    async for session in _get_sql_db():
+        yield session
 
 
 async def get_db() -> AsyncIOMotorDatabase:
@@ -38,8 +50,10 @@ async def get_db() -> AsyncIOMotorDatabase:
     mongo_db_name = os.getenv("MONGO_DB_NAME", "ntm")
 
     client = AsyncIOMotorClient(mongo_url)
-    db = client[mongo_db_name]
-    return db
+    try:
+        yield client[mongo_db_name]
+    finally:
+        client.close()
 
 
 @router.post(
@@ -246,3 +260,68 @@ async def get_job_status(
         # Complete, partial, or failed - return full CIReport
         logger.info(f"Job complete: job_id={job_id_str}, status={status}")
         return CIReport(**report)
+
+
+# ---------------------------------------------------------------------------
+# Mandate CRUD + lifecycle (SQLAlchemy / Postgres)
+# ---------------------------------------------------------------------------
+
+@router.post("/mandates", status_code=201)
+async def create_mandate(
+    body: CreateMandateRequest,
+    user: User = Depends(current_user),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+) -> dict:
+    svc = MandateService(db)
+    result = await svc.create(body, user.id, tenant_id)
+    run_mandate_analysis.delay(result["id"], tenant_id)
+    return result
+
+
+@router.get("/mandates/{mandate_id}", status_code=200)
+async def get_mandate(
+    mandate_id: str,
+    user: User = Depends(current_user),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+) -> dict:
+    svc = MandateService(db)
+    return await svc.get(mandate_id, tenant_id)
+
+
+@router.put("/mandates/{mandate_id}", status_code=200)
+async def update_mandate(
+    mandate_id: str,
+    body: UpdateMandateRequest,
+    user: User = Depends(current_user),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+) -> dict:
+    svc = MandateService(db)
+    return await svc.update(mandate_id, body, tenant_id)
+
+
+@router.post("/mandates/{mandate_id}/confirm", status_code=200)
+async def confirm_mandate(
+    mandate_id: str,
+    user: User = Depends(current_user),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+) -> dict:
+    svc = MandateService(db)
+    result = await svc.confirm(mandate_id, tenant_id)
+    run_campaign_strategy.delay(mandate_id, tenant_id)
+    return result
+
+
+@router.get("/mandates/{mandate_id}/summary-card", status_code=200)
+async def get_mandate_summary_card(
+    mandate_id: str,
+    user: User = Depends(current_user),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+    mongo_db: AsyncIOMotorDatabase = Depends(get_db),
+) -> dict:
+    svc = MandateService(db)
+    return await svc.get_summary_card(mandate_id, tenant_id, mongo_db)
