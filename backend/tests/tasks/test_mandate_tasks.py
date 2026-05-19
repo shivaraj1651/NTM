@@ -27,3 +27,8 @@ def test_run_mandate_analysis_handles_exception_gracefully():
     with patch("backend.app.tasks.mandate_tasks.asyncio.run", side_effect=Exception("boom")):
         with pytest.raises((Retry, Exception)):
             run_mandate_analysis("m-001", "tenant-1")
+
+
+def test_run_campaign_strategy_is_celery_task():
+    from backend.app.tasks.campaign_tasks import run_campaign_strategy
+    assert hasattr(run_campaign_strategy, 'delay'), "must be a Celery task"
