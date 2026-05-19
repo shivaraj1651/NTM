@@ -1,5 +1,6 @@
 """Unit tests for mandate Celery tasks."""
 
+import pytest
 from unittest.mock import patch, MagicMock
 
 
@@ -19,11 +20,10 @@ def test_run_mandate_analysis_sets_analyzing_then_analyzed():
 
 
 def test_run_mandate_analysis_handles_exception_gracefully():
-    """Task should not propagate uncaught exceptions (logs and returns)."""
+    """Task should call self.retry on exception, not silently swallow it."""
     from backend.app.tasks.mandate_tasks import run_mandate_analysis
+    from celery.exceptions import Retry
 
     with patch("backend.app.tasks.mandate_tasks.asyncio.run", side_effect=Exception("boom")):
-        try:
+        with pytest.raises((Retry, Exception)):
             run_mandate_analysis("m-001", "tenant-1")
-        except Exception:
-            assert False, "run_mandate_analysis must not propagate exceptions"

@@ -19,15 +19,16 @@ MONGO_DB_URL = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ntm")
 
 
-async def _get_sql_session() -> AsyncSession:
+def _make_session_factory() -> async_sessionmaker:
     db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     engine = create_async_engine(db_url, echo=False)
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    return factory()
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def _run_mandate_analysis(mandate_id: str, tenant_id: str) -> None:
-    async with await _get_sql_session() as session:
+    factory = _make_session_factory()
+
+    async with factory() as session:
         result = await session.execute(
             select(Mandate).where(
                 Mandate.id == mandate_id,
@@ -41,27 +42,26 @@ async def _run_mandate_analysis(mandate_id: str, tenant_id: str) -> None:
 
         mandate.status = "analyzing"
         await session.commit()
-
         mandate_dict = mandate.to_dict()
 
-    try:
-        analysis = await mandate_analyst_agent(mandate_dict)
-    except Exception as e:
-        logger.error(f"[run_mandate_analysis] AGT-01 failed for {mandate_id}: {e}")
-        analysis = {"error": str(e), "completeness_score": 0}
+    # Run AGT-01 — exceptions propagate to Celery retry handler
+    analysis = await mandate_analyst_agent(mandate_dict)
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
-    db = mongo_client[MONGO_DB_NAME]
-    doc = {
-        "mandate_id": mandate_id,
-        "tenant_id": tenant_id,
-        "analysis": analysis,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db["mandate_analyses"].insert_one(doc)
-    logger.info(f"[run_mandate_analysis] Stored analysis for mandate {mandate_id}")
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        doc = {
+            "mandate_id": mandate_id,
+            "tenant_id": tenant_id,
+            "analysis": analysis,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db["mandate_analyses"].insert_one(doc)
+        logger.info(f"[run_mandate_analysis] Stored analysis for mandate {mandate_id}")
+    finally:
+        mongo_client.close()
 
-    async with await _get_sql_session() as session:
+    async with factory() as session:
         await session.execute(
             update(Mandate)
             .where(Mandate.id == mandate_id, Mandate.tenant_id == tenant_id)
@@ -77,3 +77,4 @@ def run_mandate_analysis(self, mandate_id: str, tenant_id: str) -> None:
         asyncio.run(_run_mandate_analysis(mandate_id, tenant_id))
     except Exception as e:
         logger.error(f"[run_mandate_analysis] task failed for {mandate_id}: {e}")
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)
