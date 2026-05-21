@@ -116,21 +116,59 @@ export const campaignHandlers = [
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
 
-  http.patch('/api/v1/campaigns/:id/creatives/:assetKind/:assetId', async ({ params, request }) => {
+  // POST /api/v1/campaigns/:id/creatives/stage — advance stage
+  http.post('/api/v1/campaigns/:id/creatives/stage', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign?.creative_assets) return new HttpResponse(null, { status: 404 })
-    const { approved } = (await request.json()) as { approved: boolean }
-    const { assetKind, assetId } = params as { assetKind: string; assetId: string }
-    let assets = campaign.creative_assets
-    if (assetKind === 'copy') {
-      assets = { ...assets, copy: assets.copy.map((a) => a.asset_type === assetId ? { ...a, approved } : a) }
-    } else if (assetKind === 'scripts') {
-      assets = { ...assets, scripts: assets.scripts.map((s) => s.id === assetId ? { ...s, approved } : s) }
-    } else if (assetKind === 'images') {
-      assets = { ...assets, images: assets.images.map((i) => i.id === assetId ? { ...i, approved } : i) }
-    } else if (assetKind === 'audio') {
-      assets = { ...assets, audio: assets.audio.map((a) => a.id === assetId ? { ...a, approved } : a) }
+    const current = campaign.creative_assets.stage
+    const next: Record<string, string> = {
+      internal_review: 'client_review',
+      client_review: 'locked',
     }
+    const nextStage = next[current]
+    if (!nextStage) return new HttpResponse(null, { status: 400 })
+    db.campaignStore[campaign.id] = {
+      ...campaign,
+      creative_assets: { ...campaign.creative_assets, stage: nextStage as any },
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(db.campaignStore[campaign.id])
+  }),
+
+  // POST /api/v1/campaigns/:id/creatives/:kind/:assetId/review
+  http.post('/api/v1/campaigns/:id/creatives/:kind/:assetId/review', async ({ params, request }) => {
+    const campaign = db.campaignStore[params.id as string]
+    if (!campaign?.creative_assets) return new HttpResponse(null, { status: 404 })
+    const { action } = (await request.json()) as { action: string; comment?: string }
+    const { kind, assetId } = params as { kind: string; assetId: string }
+    const approved = action === 'approve' ? true : action === 'reject' ? false : null
+
+    let assets = campaign.creative_assets
+    const patchAsset = (a: any) =>
+      a.asset_type === assetId || a.id === assetId
+        ? {
+            ...a,
+            approved,
+            revision_count: action === 'request_change' ? (a.revision_count ?? 0) + 1 : a.revision_count,
+          }
+        : a
+
+    if (kind === 'copy') assets = { ...assets, copy: assets.copy.map(patchAsset) }
+    else if (kind === 'scripts') assets = { ...assets, scripts: assets.scripts.map(patchAsset) }
+    else if (kind === 'images') assets = { ...assets, images: assets.images.map(patchAsset) }
+    else if (kind === 'audio') assets = { ...assets, audio: assets.audio.map(patchAsset) }
+
+    // Auto-lock: if client_review and every asset is approved, advance to locked
+    if (assets.stage === 'client_review') {
+      const allApproved = [
+        ...assets.copy.map((a: any) => a.approved),
+        ...assets.scripts.map((a: any) => a.approved),
+        ...assets.images.map((a: any) => a.approved),
+        ...assets.audio.map((a: any) => a.approved),
+      ].every(Boolean)
+      if (allApproved) assets = { ...assets, stage: 'locked' as any }
+    }
+
     db.campaignStore[campaign.id] = { ...campaign, creative_assets: assets, updated_at: new Date().toISOString() }
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
@@ -252,4 +290,38 @@ export const campaignHandlers = [
       return HttpResponse.json(db.campaignStore[campaign.id])
     }
   ),
+
+  // Physical Activation Log — M8
+  http.get('/api/v1/activations/:activationId/physical-logs', ({ params }) => {
+    const logs = (db.physicalLogStore[params.activationId as string] ?? [])
+    return HttpResponse.json(logs)
+  }),
+
+  http.post('/api/v1/activations/:activationId/log-physical', async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    const log = {
+      id: `pal-${Date.now()}`,
+      tenant_id: 'tenant-1',
+      campaign_id: body.campaign_id ?? '',
+      activation_id: params.activationId as string,
+      event_type: body.event_type ?? 'proof_of_execution',
+      channel: body.channel ?? '',
+      payload: {
+        actual_run_date: body.actual_run_date,
+        actual_cost: body.actual_cost,
+        vendor_name: body.vendor_name,
+        grp_circulation: body.grp_circulation,
+        proof_urls: body.proof_urls ?? [],
+        notes: body.notes,
+        logged_by: 'mock-user',
+      },
+      logged_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+    if (!db.physicalLogStore[params.activationId as string]) {
+      db.physicalLogStore[params.activationId as string] = []
+    }
+    db.physicalLogStore[params.activationId as string].push(log)
+    return HttpResponse.json(log, { status: 201 })
+  }),
 ]

@@ -13,6 +13,8 @@ import type {
 } from '@/types/admin'
 import { mandateStore } from './mandates'
 
+export const physicalLogStore: Record<string, any[]> = {}
+
 const baseConcepts: CampaignConcept[] = [
   {
     id: 'con-001',
