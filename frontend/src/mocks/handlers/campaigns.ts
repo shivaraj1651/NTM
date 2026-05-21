@@ -324,4 +324,106 @@ export const campaignHandlers = [
     db.physicalLogStore[params.activationId as string].push(log)
     return HttpResponse.json(log, { status: 201 })
   }),
+
+  // ── Activations resource (PRD Section 10) ──────────────────────────────────
+
+  http.get('/api/v1/activations', ({ request }) => {
+    const url = new URL(request.url)
+    const campaignId = url.searchParams.get('campaign_id')
+    const status = url.searchParams.get('status')
+    let activations = Object.values(db.activationStore ?? {})
+    if (campaignId) activations = activations.filter((a: any) => a.campaign_id === campaignId)
+    if (status) activations = activations.filter((a: any) => a.status === status)
+    return HttpResponse.json({ activations, total: activations.length })
+  }),
+
+  http.get('/api/v1/activations/:activationId/performance', ({ params }) => {
+    const metrics = db.performanceStore?.[params.activationId as string] ?? []
+    return HttpResponse.json({ activation_id: params.activationId, metrics, total: metrics.length })
+  }),
+
+  // ── Creatives resource (PRD Section 10) ────────────────────────────────────
+
+  http.get('/api/v1/creatives', ({ request }) => {
+    const url = new URL(request.url)
+    const campaignId = url.searchParams.get('campaign_id')
+    const activationId = url.searchParams.get('activation_id')
+    let creatives = Object.values(db.creativesStore ?? {})
+    if (campaignId) creatives = creatives.filter((c: any) => c.campaign_id === campaignId)
+    if (activationId) creatives = creatives.filter((c: any) => c.activation_id === activationId)
+    return HttpResponse.json({ creatives, total: creatives.length })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/internal-approve', ({ params }) => {
+    return HttpResponse.json({ id: params.creativeId, validation_status: 'internal_approved' })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/client-approve', ({ params }) => {
+    return HttpResponse.json({ id: params.creativeId, validation_status: 'client_approved' })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/request-revision', async ({ params, request }) => {
+    const body = (await request.json()) as { comment: string }
+    return HttpResponse.json({
+      id: params.creativeId,
+      validation_status: 'revision_requested',
+      refinement_attempts: 1,
+      comment: body.comment,
+    })
+  }),
+
+  http.get('/api/v1/creatives/:creativeId/download', ({ params }) => {
+    return HttpResponse.json({
+      id: params.creativeId,
+      asset_url: 'https://placehold.co/1024x1024/1a1a2e/ffffff?text=Creative+Asset',
+      creative_type: 'social_post',
+      platform: 'instagram',
+    })
+  }),
+
+  // ── Campaign deck (PRD Section 10) ─────────────────────────────────────────
+
+  http.get('/api/v1/campaigns/:campaignId/deck', ({ params }) => {
+    return HttpResponse.json({
+      campaign_id: params.campaignId,
+      deck_url: null,
+      sections: {
+        executive_summary: 'Bold campaign strategy for market expansion',
+        campaign_name_options: ['Rise Together', 'Forward India', 'The Next Chapter'],
+        tagline_options: ['Where ambition meets scale', 'Built for tomorrow'],
+        narrative: 'A story of growth, trust, and bold market moves.',
+        channel_mix: { digital: 60, ooh: 20, print: 15, radio: 5 },
+        tone_board: ['Bold', 'Aspirational', 'Authentic', 'Modern'],
+      },
+    })
+  }),
+
+  // ── Analytics mandate-scoped (PRD Section 10) ──────────────────────────────
+
+  http.get('/api/v1/analytics/dashboard', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, summary: {} })
+  }),
+
+  http.get('/api/v1/analytics/channel-performance', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({
+      mandate_id: mandateId,
+      channels: { google_ads: { total: 2, green: 1, amber: 1, red: 0 }, meta_ads: { total: 1, green: 1, amber: 0, red: 0 } },
+    })
+  }),
+
+  http.get('/api/v1/analytics/kpi-status', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, kpis: [], summary: { total: 0, red: 0, amber: 0, green: 0 } })
+  }),
+
+  http.get('/api/v1/analytics/report', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, report_type: 'weekly', report_json: {} }, { status: 200 })
+  }),
+
+  http.post('/api/v1/analytics/replan/approve/:recommendationId', ({ params }) => {
+    return HttpResponse.json({ recommendation_id: params.recommendationId, status: 'approved' })
+  }),
 ]
