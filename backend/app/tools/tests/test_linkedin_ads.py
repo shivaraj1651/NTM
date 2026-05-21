@@ -123,6 +123,7 @@ async def test_activate_linkedin_missing_token_returns_failed():
     assert result["campaign_id"] is None
     assert result["ad_id"] is None
     assert result["error"] is not None
+    assert "LINKEDIN_ACCESS_TOKEN" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -145,7 +146,7 @@ async def test_activate_linkedin_sends_auth_header():
 
         assert mock_client.post.call_count == 3
         for call in mock_client.post.call_args_list:
-            assert call[1]["headers"]["Authorization"] == "Bearer my-token"
+            assert call.kwargs["headers"]["Authorization"] == "Bearer my-token"
 
 
 @pytest.mark.asyncio
