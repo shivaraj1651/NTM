@@ -42,6 +42,8 @@ async def activate_google(
     developer_token = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
 
     try:
+        if not cid:
+            raise RuntimeError("GOOGLE_ADS_CUSTOMER_ID env var must be set or customer_id must be provided")
         token = _get_access_token()
         headers = {
             "Authorization": f"Bearer {token}",
@@ -50,6 +52,8 @@ async def activate_google(
         }
         base = _GOOGLE_ADS_BASE.format(customer_id=cid)
         campaign_name = activation.get("name", "Campaign")
+        if platform_config:
+            logger.debug("platform_config received: %s (targeting criteria require AdGroupCriterion mutations)", platform_config)
         budget_micros = int(activation.get("cost_estimated", 0) * 1_000_000)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
