@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.auth import current_user
 from backend.app.core.models import User, Tenant, Role
 from backend.app.models.approval_log import ApprovalLog
-from backend.app.db import get_async_session
+from backend.app.db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class AuditLogResponse(BaseModel):
 async def create_tenant(
     body: TenantCreate,
     _: User = Depends(require_platform_admin),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> TenantResponse:
     tenant = Tenant(name=body.name)
     db.add(tenant)
@@ -99,7 +99,7 @@ async def create_tenant(
 @router.get("/tenants", response_model=list[TenantResponse])
 async def list_tenants(
     _: User = Depends(require_platform_admin),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> list[TenantResponse]:
     result = await db.execute(select(Tenant).order_by(Tenant.created_at.desc()))
     tenants = result.scalars().all()
@@ -118,7 +118,7 @@ async def list_tenants(
 async def create_user(
     body: UserCreate,
     _: User = Depends(require_platform_admin),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     from passlib.context import CryptContext
     pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -155,7 +155,7 @@ async def update_user_role(
     user_id: str,
     body: RoleUpdate,
     _: User = Depends(require_platform_admin),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     role_result = await db.execute(select(Role).where(Role.name == body.role_name))
     role = role_result.scalar_one_or_none()
@@ -185,7 +185,7 @@ async def get_audit_log(
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     _: User = Depends(require_platform_admin),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> list[AuditLogResponse]:
     stmt = select(ApprovalLog).order_by(ApprovalLog.created_at.desc()).limit(limit).offset(offset)
     if tenant_id:

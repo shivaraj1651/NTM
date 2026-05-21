@@ -12,7 +12,7 @@ from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
 from backend.app.models.physical_activation_log import PhysicalActivationLog
-from backend.app.db import get_async_session
+from backend.app.db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ async def log_physical_activation(
     body: PhysicalLogCreate,
     user: User = Depends(current_user),
     tenant_id: str = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> PhysicalLogResponse:
     payload = {
         "actual_run_date": body.actual_run_date,
@@ -98,7 +98,7 @@ async def list_physical_logs(
     activation_id: str,
     _: User = Depends(current_user),
     tenant_id: str = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> list[PhysicalLogResponse]:
     result = await db.execute(
         select(PhysicalActivationLog)

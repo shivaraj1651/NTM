@@ -10,7 +10,7 @@ from backend.app.routers.physical_activation import router, PhysicalLogCreate
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
-from backend.app.db import get_async_session
+from backend.app.db import get_db
 
 
 def make_mock_user():
@@ -42,7 +42,7 @@ def make_app():
     mock_db = AsyncMock()
     app.dependency_overrides[current_user] = lambda: mock_user
     app.dependency_overrides[get_current_tenant] = lambda: "test-tenant"
-    app.dependency_overrides[get_async_session] = lambda: mock_db
+    app.dependency_overrides[get_db] = lambda: mock_db
     return app, mock_db
 
 

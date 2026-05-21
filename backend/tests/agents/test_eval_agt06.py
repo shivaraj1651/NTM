@@ -3,7 +3,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from backend.app.agents.creative_director_orchestrator import CreativeDirectorOrchestrator
+from backend.app.agents.creative_director_orchestrator import CreativeDirectorAgent
 from backend.tests.agents.conftest_evals import (
     ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
 )
