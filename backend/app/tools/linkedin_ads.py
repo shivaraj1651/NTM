@@ -1,115 +1,112 @@
 """LinkedIn Ads activation tool for B2B campaign deployment."""
 
 import logging
+import os
 from typing import Dict, Any, Optional
+
 import httpx
 
 logger = logging.getLogger(__name__)
 
-LINKEDIN_ADS_API_ENDPOINT = "https://api.linkedin.com/v2/sponsoredCampaigns"
+_LINKEDIN_BASE = "https://api.linkedin.com/rest"
+
+
+def _get_access_token(token: Optional[str] = None) -> str:
+    t = token or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+    if not t:
+        raise RuntimeError(
+            "LINKEDIN_ACCESS_TOKEN must be set or access_token must be provided"
+        )
+    return t
 
 
 async def activate_linkedin(
     activation: Dict[str, Any],
     platform_config: Dict[str, Any],
     creative_url: str,
-    access_token: Optional[str] = None
+    access_token: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Activate a campaign on LinkedIn.
-
-    Args:
-        activation: Activation record with budget and targeting
-        platform_config: LinkedIn-specific B2B targeting from PlatformConfigTemplate
-                         Keys: seniority, job_title, industries, locations
-        creative_url: URL to creative asset
-        access_token: LinkedIn API access token
-
-    Returns:
-        Dict with:
-        - campaign_id: LinkedIn campaign ID (urn:li:sponsoredCampaign:...) or None
-        - ad_id: LinkedIn ad ID (urn:li:sponsoredCreative:...) or None
-        - status: 'live' or 'failed'
-        - error: Error message or None
-    """
-    if not access_token:
-        access_token = "<linkedin-token>"  # Placeholder
+    account_id = os.getenv("LINKEDIN_ACCOUNT_ID", "")
 
     try:
-        # Create campaign payload with budget
-        campaign_payload = {
-            "name": activation.get("name", "Campaign"),
-            "status": "ACTIVE",
-            "costType": "CPM",
-            "unitCost": {"currencyCode": "USD", "amount": 5},
-            "dailyBudget": {
-                "currencyCode": "USD",
-                "amount": int(activation.get("cost_estimated", 0))
-            }
+        token = _get_access_token(access_token)
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "LinkedIn-Version": "202401",
+            "X-Restli-Protocol-Version": "2.0.0",
         }
+        campaign_name = activation.get("name", "Campaign")
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Create sponsored campaign
-            campaign_response = await client.post(
-                LINKEDIN_ADS_API_ENDPOINT,
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json",
-                    "LinkedIn-Version": "202401"
+            # Call 1: Create Campaign Group
+            r1 = await client.post(
+                f"{_LINKEDIN_BASE}/adCampaignGroups",
+                json={
+                    "name": f"{campaign_name} - Group",
+                    "status": "ACTIVE",
+                    "account": f"urn:li:sponsoredAccount:{account_id}",
                 },
-                json=campaign_payload
+                headers=headers,
             )
-            campaign_response.raise_for_status()
-            campaign_data = campaign_response.json()
-            campaign_id = campaign_data.get("id")
+            r1.raise_for_status()
+            campaign_group_id = r1.json()["id"]
 
-            # Create ad creative with B2B targeting
-            creative_payload = {
-                "campaignId": campaign_id,
-                "status": "ACTIVE",
-                "creativeContent": {
-                    "contentReference": creative_url,
-                    "contentTitle": activation.get("name", "Campaign"),
-                    "contentDescription": "Check out our latest campaign"
+            # Call 2: Create Campaign with B2B targeting from platform_config
+            r2 = await client.post(
+                f"{_LINKEDIN_BASE}/adCampaigns",
+                json={
+                    "name": campaign_name,
+                    "status": "ACTIVE",
+                    "type": "SPONSORED_UPDATE",
+                    "campaignGroup": f"urn:li:adCampaignGroup:{campaign_group_id}",
+                    "costType": "CPM",
+                    "dailyBudget": {
+                        "amount": str(activation.get("cost_estimated", 0)),
+                        "currencyCode": "USD",
+                    },
+                    "targetingCriteria": {
+                        "include": {
+                            "and": [
+                                {"seniorities": platform_config.get("seniority", [])},
+                                {"jobFunctions": platform_config.get("job_title", [])},
+                                {"industries": platform_config.get("industries", [])},
+                                {"locations": platform_config.get("locations", ["US"])},
+                            ]
+                        }
+                    },
                 },
-                "targetingCriteria": {
-                    "seniorities": platform_config.get("seniority", []),
-                    "jobTitles": platform_config.get("job_title", []),
-                    "industries": platform_config.get("industries", []),
-                    "locations": [
-                        {"country": loc}
-                        for loc in platform_config.get("locations", ["US"])
-                    ]
-                }
-            }
-
-            creative_response = await client.post(
-                "https://api.linkedin.com/v2/sponsoredCreatives",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json",
-                    "LinkedIn-Version": "202401"
-                },
-                json=creative_payload
+                headers=headers,
             )
-            creative_response.raise_for_status()
-            creative_data = creative_response.json()
-            ad_id = creative_data.get("id")
+            r2.raise_for_status()
+            campaign_id = str(r2.json()["id"])
 
-            logger.info(f"LinkedIn campaign {campaign_id} activated successfully")
+            # Call 3: Create Creative
+            r3 = await client.post(
+                f"{_LINKEDIN_BASE}/adCreatives",
+                json={
+                    "campaign": f"urn:li:adCampaign:{campaign_id}",
+                    "status": "ACTIVE",
+                    "content": {"contentReference": creative_url},
+                },
+                headers=headers,
+            )
+            r3.raise_for_status()
+            ad_id = str(r3.json()["id"])
 
+            logger.info("LinkedIn campaign %s activated successfully", campaign_id)
             return {
                 "campaign_id": campaign_id,
                 "ad_id": ad_id,
                 "status": "live",
-                "error": None
+                "error": None,
             }
 
     except Exception as e:
-        logger.error(f"LinkedIn activation failed: {e}")
+        logger.error("LinkedIn activation failed: %s: %s", type(e).__name__, str(e))
         return {
             "campaign_id": None,
             "ad_id": None,
             "status": "failed",
-            "error": str(e)
+            "error": str(e),
         }
