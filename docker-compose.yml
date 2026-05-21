@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  ntm-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ntm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ntm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ntm_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-ntm}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ntm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ntm-mongo:
+    image: mongo:7
+    container_name: ntm-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-ntm}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-ntm_dev}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ntm-redis:
+    image: redis:7-alpine
+    container_name: ntm-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ntm-minio:
+    image: minio/minio:latest
+    container_name: ntm-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ntm_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ntm_minio_dev}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ntm-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ntm-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
+      MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      REDIS_URL: redis://ntm-redis:6379/0
+      S3_ENDPOINT_URL: http://ntm-minio:9000
+    ports:
+      - "8000:8000"
+    depends_on:
+      ntm-postgres:
+        condition: service_healthy
+      ntm-mongo:
+        condition: service_healthy
+      ntm-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  ntm-agent-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ntm-agent-worker
+    restart: unless-stopped
+    command: celery -A backend.app.tasks worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
+      MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      REDIS_URL: redis://ntm-redis:6379/0
+      S3_ENDPOINT_URL: http://ntm-minio:9000
+    depends_on:
+      ntm-redis:
+        condition: service_healthy
+      ntm-postgres:
+        condition: service_healthy
+
+  ntm-frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: ntm-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - ntm-api
+
+volumes:
+  postgres-data:
+  mongo-data:
+  redis-data:
+  minio-data:
