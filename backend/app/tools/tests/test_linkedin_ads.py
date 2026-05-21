@@ -113,7 +113,8 @@ async def test_activate_linkedin_missing_token_returns_failed():
     activation = {"id": str(uuid4()), "name": "Test"}
 
     with patch("backend.app.tools.linkedin_ads._get_access_token",
-               side_effect=RuntimeError("LINKEDIN_ACCESS_TOKEN must be set or access_token must be provided")):
+               side_effect=RuntimeError("LINKEDIN_ACCESS_TOKEN must be set or access_token must be provided")), \
+         patch.dict(os.environ, {"LINKEDIN_ACCOUNT_ID": "999"}):
 
         result = await activate_linkedin(
             activation=activation, platform_config={}, creative_url="https://example.com/c.mp4"

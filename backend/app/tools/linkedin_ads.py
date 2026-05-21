@@ -29,6 +29,8 @@ async def activate_linkedin(
     account_id = os.getenv("LINKEDIN_ACCOUNT_ID", "")
 
     try:
+        if not account_id:
+            raise RuntimeError("LINKEDIN_ACCOUNT_ID must be set")
         token = _get_access_token(access_token)
         headers = {
             "Authorization": f"Bearer {token}",
@@ -50,7 +52,7 @@ async def activate_linkedin(
                 headers=headers,
             )
             r1.raise_for_status()
-            campaign_group_id = r1.json()["id"]
+            campaign_group_id = str(r1.json()["id"])
 
             # Call 2: Create Campaign with B2B targeting from platform_config
             r2 = await client.post(
