@@ -65,6 +65,7 @@ async def test_activate_google_api_failure():
     activation = {"id": str(uuid4()), "name": "Test"}
 
     with patch("backend.app.tools.google_ads._get_access_token", return_value="tok"), \
+         patch.dict(os.environ, {"GOOGLE_ADS_CUSTOMER_ID": "123", "GOOGLE_ADS_DEVELOPER_TOKEN": "dev"}), \
          patch("backend.app.tools.google_ads.httpx.AsyncClient") as mock_cls:
 
         mock_client = AsyncMock()
@@ -77,6 +78,8 @@ async def test_activate_google_api_failure():
 
     assert result["status"] == "failed"
     assert "API Error" in result["error"]
+    assert result["campaign_id"] is None
+    assert result["ad_id"] is None
 
 
 @pytest.mark.asyncio
@@ -135,6 +138,8 @@ async def test_activate_google_sends_developer_token_header():
             activation=activation, platform_config={}, creative_url="https://example.com/c.mp4"
         )
 
-        first_kwargs = mock_client.post.call_args_list[0][1]
-        assert first_kwargs["headers"]["developer-token"] == "my-dev-token"
-        assert first_kwargs["headers"]["Authorization"] == "Bearer test-tok"
+        assert mock_client.post.call_count == 3
+        for call in mock_client.post.call_args_list:
+            call_kwargs = call[1]
+            assert call_kwargs["headers"]["developer-token"] == "my-dev-token"
+            assert call_kwargs["headers"]["Authorization"] == "Bearer test-tok"
