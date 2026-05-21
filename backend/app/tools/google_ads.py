@@ -1,97 +1,136 @@
 import logging
+import os
 from typing import Dict, Any, Optional
+
 import httpx
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_ADS_API_ENDPOINT = "https://googleads.googleapis.com/v17/customers/{customer_id}/campaigns"
+_GOOGLE_ADS_BASE = "https://googleads.googleapis.com/v17/customers/{customer_id}"
+_TOKEN_URI = "https://oauth2.googleapis.com/token"
+
+
+def _get_access_token() -> str:
+    client_id = os.getenv("GOOGLE_ADS_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_ADS_CLIENT_SECRET", "")
+    refresh_token = os.getenv("GOOGLE_ADS_REFRESH_TOKEN", "")
+    if not all([client_id, client_secret, refresh_token]):
+        raise RuntimeError(
+            "GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, and GOOGLE_ADS_REFRESH_TOKEN must be set"
+        )
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+
+    creds = Credentials(
+        token=None,
+        refresh_token=refresh_token,
+        client_id=client_id,
+        client_secret=client_secret,
+        token_uri=_TOKEN_URI,
+    )
+    creds.refresh(Request())
+    return creds.token
 
 
 async def activate_google(
     activation: Dict[str, Any],
     platform_config: Dict[str, Any],
     creative_url: str,
-    customer_id: Optional[str] = None
+    customer_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Activate a campaign on Google Ads.
-
-    Args:
-        activation: Activation record with budget and targeting
-        platform_config: Google Ads-specific targeting from PlatformConfigTemplate
-        creative_url: URL to creative asset
-        customer_id: Google Ads customer ID
-
-    Returns:
-        Dict with:
-        - campaign_id: Google campaign ID or None
-        - ad_id: Google ad ID or None
-        - status: 'live' or 'failed'
-        - error: Error message or None
-    """
-    if not customer_id:
-        customer_id = "1234567890"  # Placeholder
+    cid = customer_id or os.getenv("GOOGLE_ADS_CUSTOMER_ID", "")
+    developer_token = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
 
     try:
-        # Build campaign payload with budget and targeting
-        payload = {
-            "campaign": {
-                "name": activation.get("name", "Campaign"),
-                "status": "ENABLED",
-                "budget_allocation_strategy": "OPTIMIZE_FOR_REACH",
-                "bidding_strategy": {
-                    "type_": "MAXIMIZE_CONVERSIONS",
-                    "maximize_conversions": {
-                        "target_cpa_micros": int(activation.get("cost_estimated", 0) * 1_000_000)
-                    }
-                }
-            },
-            "targeting": {
-                "age_range": platform_config.get("age_range"),
-                "interests": platform_config.get("interests", []),
-                "geographic": platform_config.get("geographic")
-            },
-            "creatives": [
-                {
-                    "url": creative_url,
-                    "type": "VIDEO"
-                }
-            ]
+        token = _get_access_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "developer-token": developer_token,
+            "Content-Type": "application/json",
         }
+        base = _GOOGLE_ADS_BASE.format(customer_id=cid)
+        campaign_name = activation.get("name", "Campaign")
+        budget_micros = int(activation.get("cost_estimated", 0) * 1_000_000)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Create campaign
-            response = await client.post(
-                f"{GOOGLE_ADS_API_ENDPOINT}",
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer <token>",
-                    "Content-Type": "application/json"
-                }
+            # Call 1: Create Campaign
+            r1 = await client.post(
+                f"{base}/campaigns:mutate",
+                json={
+                    "operations": [{
+                        "create": {
+                            "name": campaign_name,
+                            "status": "ENABLED",
+                            "advertisingChannelType": "VIDEO",
+                            "manualCpv": {},
+                            "campaignBudget": str(budget_micros),
+                            "networkSettings": {
+                                "targetYoutubeSearch": True,
+                                "targetYoutubeVideos": True,
+                            },
+                        }
+                    }]
+                },
+                headers=headers,
             )
-            response.raise_for_status()
+            r1.raise_for_status()
+            campaign_resource = r1.json()["results"][0]["resourceName"]
+            campaign_id = campaign_resource.split("/")[-1]
 
-            data = response.json()
-            campaign_id = data.get("id")
-
-            # Create ad under campaign
-            ad_payload = {"creative_url": creative_url}
-            ad_response = await client.post(
-                f"{GOOGLE_ADS_API_ENDPOINT}/{campaign_id}/ads",
-                json=ad_payload,
-                headers={"Authorization": f"Bearer <token>"}
+            # Call 2: Create Ad Group with platform_config targeting
+            r2 = await client.post(
+                f"{base}/adGroups:mutate",
+                json={
+                    "operations": [{
+                        "create": {
+                            "campaign": campaign_resource,
+                            "name": f"{campaign_name} - AdGroup",
+                            "status": "ENABLED",
+                            "type": "VIDEO_TRUE_VIEW_IN_STREAM",
+                            "targetingSettings": {
+                                "targetRestrictions": [
+                                    {"targetingDimension": "AGE_RANGE", "bidOnly": False},
+                                    {"targetingDimension": "INTEREST", "bidOnly": False},
+                                ]
+                            },
+                        }
+                    }]
+                },
+                headers=headers,
             )
-            ad_response.raise_for_status()
-            ad_data = ad_response.json()
-            ad_id = ad_data.get("id")
+            r2.raise_for_status()
+            ad_group_resource = r2.json()["results"][0]["resourceName"]
+
+            # Call 3: Create Ad Group Ad
+            r3 = await client.post(
+                f"{base}/adGroupAds:mutate",
+                json={
+                    "operations": [{
+                        "create": {
+                            "adGroup": ad_group_resource,
+                            "status": "ENABLED",
+                            "ad": {
+                                "videoAd": {
+                                    "video": {"resourceName": creative_url},
+                                    "inStream": {},
+                                },
+                                "finalUrls": [creative_url],
+                            },
+                        }
+                    }]
+                },
+                headers=headers,
+            )
+            r3.raise_for_status()
+            ad_resource = r3.json()["results"][0]["resourceName"]
+            ad_id = ad_resource.split("/")[-1]
 
             logger.info(f"Google Ads campaign {campaign_id} activated successfully")
-
             return {
                 "campaign_id": campaign_id,
                 "ad_id": ad_id,
                 "status": "live",
-                "error": None
+                "error": None,
             }
 
     except Exception as e:
@@ -100,5 +139,5 @@ async def activate_google(
             "campaign_id": None,
             "ad_id": None,
             "status": "failed",
-            "error": str(e)
+            "error": str(e),
         }
