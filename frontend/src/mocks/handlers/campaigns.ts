@@ -116,21 +116,59 @@ export const campaignHandlers = [
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
 
-  http.patch('/api/v1/campaigns/:id/creatives/:assetKind/:assetId', async ({ params, request }) => {
+  // POST /api/v1/campaigns/:id/creatives/stage — advance stage
+  http.post('/api/v1/campaigns/:id/creatives/stage', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign?.creative_assets) return new HttpResponse(null, { status: 404 })
-    const { approved } = (await request.json()) as { approved: boolean }
-    const { assetKind, assetId } = params as { assetKind: string; assetId: string }
-    let assets = campaign.creative_assets
-    if (assetKind === 'copy') {
-      assets = { ...assets, copy: assets.copy.map((a) => a.asset_type === assetId ? { ...a, approved } : a) }
-    } else if (assetKind === 'scripts') {
-      assets = { ...assets, scripts: assets.scripts.map((s) => s.id === assetId ? { ...s, approved } : s) }
-    } else if (assetKind === 'images') {
-      assets = { ...assets, images: assets.images.map((i) => i.id === assetId ? { ...i, approved } : i) }
-    } else if (assetKind === 'audio') {
-      assets = { ...assets, audio: assets.audio.map((a) => a.id === assetId ? { ...a, approved } : a) }
+    const current = campaign.creative_assets.stage
+    const next: Record<string, string> = {
+      internal_review: 'client_review',
+      client_review: 'locked',
     }
+    const nextStage = next[current]
+    if (!nextStage) return new HttpResponse(null, { status: 400 })
+    db.campaignStore[campaign.id] = {
+      ...campaign,
+      creative_assets: { ...campaign.creative_assets, stage: nextStage as any },
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(db.campaignStore[campaign.id])
+  }),
+
+  // POST /api/v1/campaigns/:id/creatives/:kind/:assetId/review
+  http.post('/api/v1/campaigns/:id/creatives/:kind/:assetId/review', async ({ params, request }) => {
+    const campaign = db.campaignStore[params.id as string]
+    if (!campaign?.creative_assets) return new HttpResponse(null, { status: 404 })
+    const { action } = (await request.json()) as { action: string; comment?: string }
+    const { kind, assetId } = params as { kind: string; assetId: string }
+    const approved = action === 'approve' ? true : action === 'reject' ? false : null
+
+    let assets = campaign.creative_assets
+    const patchAsset = (a: any) =>
+      a.asset_type === assetId || a.id === assetId
+        ? {
+            ...a,
+            approved,
+            revision_count: action === 'request_change' ? (a.revision_count ?? 0) + 1 : a.revision_count,
+          }
+        : a
+
+    if (kind === 'copy') assets = { ...assets, copy: assets.copy.map(patchAsset) }
+    else if (kind === 'scripts') assets = { ...assets, scripts: assets.scripts.map(patchAsset) }
+    else if (kind === 'images') assets = { ...assets, images: assets.images.map(patchAsset) }
+    else if (kind === 'audio') assets = { ...assets, audio: assets.audio.map(patchAsset) }
+
+    // Auto-lock: if client_review and every asset is approved, advance to locked
+    if (assets.stage === 'client_review') {
+      const allApproved = [
+        ...assets.copy.map((a: any) => a.approved),
+        ...assets.scripts.map((a: any) => a.approved),
+        ...assets.images.map((a: any) => a.approved),
+        ...assets.audio.map((a: any) => a.approved),
+      ].every(Boolean)
+      if (allApproved) assets = { ...assets, stage: 'locked' as any }
+    }
+
     db.campaignStore[campaign.id] = { ...campaign, creative_assets: assets, updated_at: new Date().toISOString() }
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
@@ -252,4 +290,140 @@ export const campaignHandlers = [
       return HttpResponse.json(db.campaignStore[campaign.id])
     }
   ),
+
+  // Physical Activation Log — M8
+  http.get('/api/v1/activations/:activationId/physical-logs', ({ params }) => {
+    const logs = (db.physicalLogStore[params.activationId as string] ?? [])
+    return HttpResponse.json(logs)
+  }),
+
+  http.post('/api/v1/activations/:activationId/log-physical', async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    const log = {
+      id: `pal-${Date.now()}`,
+      tenant_id: 'tenant-1',
+      campaign_id: body.campaign_id ?? '',
+      activation_id: params.activationId as string,
+      event_type: body.event_type ?? 'proof_of_execution',
+      channel: body.channel ?? '',
+      payload: {
+        actual_run_date: body.actual_run_date,
+        actual_cost: body.actual_cost,
+        vendor_name: body.vendor_name,
+        grp_circulation: body.grp_circulation,
+        proof_urls: body.proof_urls ?? [],
+        notes: body.notes,
+        logged_by: 'mock-user',
+      },
+      logged_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+    if (!db.physicalLogStore[params.activationId as string]) {
+      db.physicalLogStore[params.activationId as string] = []
+    }
+    db.physicalLogStore[params.activationId as string].push(log)
+    return HttpResponse.json(log, { status: 201 })
+  }),
+
+  // ── Activations resource (PRD Section 10) ──────────────────────────────────
+
+  http.get('/api/v1/activations', ({ request }) => {
+    const url = new URL(request.url)
+    const campaignId = url.searchParams.get('campaign_id')
+    const status = url.searchParams.get('status')
+    let activations = Object.values(db.activationStore ?? {})
+    if (campaignId) activations = activations.filter((a: any) => a.campaign_id === campaignId)
+    if (status) activations = activations.filter((a: any) => a.status === status)
+    return HttpResponse.json({ activations, total: activations.length })
+  }),
+
+  http.get('/api/v1/activations/:activationId/performance', ({ params }) => {
+    const metrics = db.performanceStore?.[params.activationId as string] ?? []
+    return HttpResponse.json({ activation_id: params.activationId, metrics, total: metrics.length })
+  }),
+
+  // ── Creatives resource (PRD Section 10) ────────────────────────────────────
+
+  http.get('/api/v1/creatives', ({ request }) => {
+    const url = new URL(request.url)
+    const campaignId = url.searchParams.get('campaign_id')
+    const activationId = url.searchParams.get('activation_id')
+    let creatives = Object.values(db.creativesStore ?? {})
+    if (campaignId) creatives = creatives.filter((c: any) => c.campaign_id === campaignId)
+    if (activationId) creatives = creatives.filter((c: any) => c.activation_id === activationId)
+    return HttpResponse.json({ creatives, total: creatives.length })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/internal-approve', ({ params }) => {
+    return HttpResponse.json({ id: params.creativeId, validation_status: 'internal_approved' })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/client-approve', ({ params }) => {
+    return HttpResponse.json({ id: params.creativeId, validation_status: 'client_approved' })
+  }),
+
+  http.post('/api/v1/creatives/:creativeId/request-revision', async ({ params, request }) => {
+    const body = (await request.json()) as { comment: string }
+    return HttpResponse.json({
+      id: params.creativeId,
+      validation_status: 'revision_requested',
+      refinement_attempts: 1,
+      comment: body.comment,
+    })
+  }),
+
+  http.get('/api/v1/creatives/:creativeId/download', ({ params }) => {
+    return HttpResponse.json({
+      id: params.creativeId,
+      asset_url: 'https://placehold.co/1024x1024/1a1a2e/ffffff?text=Creative+Asset',
+      creative_type: 'social_post',
+      platform: 'instagram',
+    })
+  }),
+
+  // ── Campaign deck (PRD Section 10) ─────────────────────────────────────────
+
+  http.get('/api/v1/campaigns/:campaignId/deck', ({ params }) => {
+    return HttpResponse.json({
+      campaign_id: params.campaignId,
+      deck_url: null,
+      sections: {
+        executive_summary: 'Bold campaign strategy for market expansion',
+        campaign_name_options: ['Rise Together', 'Forward India', 'The Next Chapter'],
+        tagline_options: ['Where ambition meets scale', 'Built for tomorrow'],
+        narrative: 'A story of growth, trust, and bold market moves.',
+        channel_mix: { digital: 60, ooh: 20, print: 15, radio: 5 },
+        tone_board: ['Bold', 'Aspirational', 'Authentic', 'Modern'],
+      },
+    })
+  }),
+
+  // ── Analytics mandate-scoped (PRD Section 10) ──────────────────────────────
+
+  http.get('/api/v1/analytics/dashboard', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, summary: {} })
+  }),
+
+  http.get('/api/v1/analytics/channel-performance', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({
+      mandate_id: mandateId,
+      channels: { google_ads: { total: 2, green: 1, amber: 1, red: 0 }, meta_ads: { total: 1, green: 1, amber: 0, red: 0 } },
+    })
+  }),
+
+  http.get('/api/v1/analytics/kpi-status', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, kpis: [], summary: { total: 0, red: 0, amber: 0, green: 0 } })
+  }),
+
+  http.get('/api/v1/analytics/report', ({ request }) => {
+    const mandateId = new URL(request.url).searchParams.get('mandate_id')
+    return HttpResponse.json({ mandate_id: mandateId, report_type: 'weekly', report_json: {} }, { status: 200 })
+  }),
+
+  http.post('/api/v1/analytics/replan/approve/:recommendationId', ({ params }) => {
+    return HttpResponse.json({ recommendation_id: params.recommendationId, status: 'approved' })
+  }),
 ]

@@ -16,6 +16,9 @@ import { BudgetPage } from '@/pages/Admin/Campaigns/BudgetPage'
 import { CreativesPage } from '@/pages/Admin/Campaigns/CreativesPage'
 import { GoLivePage } from '@/pages/Admin/Campaigns/GoLivePage'
 import { KpisPage } from '@/pages/Admin/Campaigns/KpisPage'
+import { PhysicalLogPage } from '@/pages/Admin/Campaigns/PhysicalLogPage'
+import { CIReportPage } from '@/pages/Admin/Campaigns/CIReportPage'
+import { KPIDashboardPage } from '@/pages/KPIDashboard/KPIDashboardPage'
 import { OnboardingPage } from '@/pages/Onboarding/OnboardingPage'
 import { MandatesPage } from '@/pages/Mandate/MandatesPage'
 import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
@@ -54,8 +57,11 @@ export const router = createBrowserRouter([
               { path: 'creatives', element: <CreativesPage /> },
               { path: 'golive', element: <GoLivePage /> },
               { path: 'kpis', element: <KpisPage /> },
+              { path: 'physical-log', element: <PhysicalLogPage /> },
+              { path: 'ci-report', element: <CIReportPage /> },
             ],
           },
+          { path: 'kpi-dashboard', element: <KPIDashboardPage /> },
         ],
       },
     ],
