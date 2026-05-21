@@ -208,6 +208,9 @@ export type CampaignStatus =
   | 'creative_ready'
   | 'live'
 
+export type CreativeStage = 'internal_review' | 'client_review' | 'locked'
+export type ReviewAction = 'approve' | 'request_change' | 'reject'
+
 export interface Campaign {
   id: string
   mandate_id: string
@@ -265,6 +268,7 @@ export interface CopyAsset {
   asset_type: CopyAssetType
   variants: CopyVariant[]
   approved: boolean | null
+  revision_count: number
 }
 
 export interface ScriptAsset {
@@ -273,6 +277,7 @@ export interface ScriptAsset {
   content: string
   duration_estimate: string
   approved: boolean | null
+  revision_count: number
 }
 
 export interface ImageAsset {
@@ -280,6 +285,7 @@ export interface ImageAsset {
   format: 'square' | 'landscape' | 'portrait'
   url: string
   approved: boolean | null
+  revision_count: number
 }
 
 export interface AudioAsset {
@@ -289,10 +295,12 @@ export interface AudioAsset {
   url: string
   duration_seconds: number
   approved: boolean | null
+  revision_count: number
 }
 
 export interface CreativeAssets {
   campaign_id: string
+  stage: CreativeStage
   copy: CopyAsset[]
   scripts: ScriptAsset[]
   images: ImageAsset[]
