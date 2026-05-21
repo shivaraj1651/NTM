@@ -67,7 +67,7 @@ async def activate_google(
                             "status": "ENABLED",
                             "advertisingChannelType": "VIDEO",
                             "manualCpv": {},
-                            "campaignBudget": str(budget_micros),
+                            "campaignBudget": str(budget_micros),  # production: use campaignBudgets:mutate resource name
                             "networkSettings": {
                                 "targetYoutubeSearch": True,
                                 "targetYoutubeVideos": True,
@@ -115,7 +115,7 @@ async def activate_google(
                             "status": "ENABLED",
                             "ad": {
                                 "videoAd": {
-                                    "video": {"resourceName": creative_url},
+                                    "video": {"resourceName": creative_url},  # production: requires YouTube video resource name
                                     "inStream": {},
                                 },
                                 "finalUrls": [creative_url],
@@ -138,7 +138,7 @@ async def activate_google(
             }
 
     except Exception as e:
-        logger.error(f"Google Ads activation failed: {e}")
+        logger.error("Google Ads activation failed: %s: %s", type(e).__name__, str(e))
         return {
             "campaign_id": None,
             "ad_id": None,

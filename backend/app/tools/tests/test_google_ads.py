@@ -143,3 +143,21 @@ async def test_activate_google_sends_developer_token_header():
             call_kwargs = call[1]
             assert call_kwargs["headers"]["developer-token"] == "my-dev-token"
             assert call_kwargs["headers"]["Authorization"] == "Bearer test-tok"
+
+
+@pytest.mark.asyncio
+async def test_activate_google_missing_customer_id_returns_failed():
+    activation = {"id": str(uuid4()), "name": "Test"}
+
+    with patch("backend.app.tools.google_ads._get_access_token", return_value="tok"), \
+         patch.dict(os.environ, {"GOOGLE_ADS_CUSTOMER_ID": "", "GOOGLE_ADS_DEVELOPER_TOKEN": "dev"}):
+
+        result = await activate_google(
+            activation=activation,
+            platform_config={},
+            creative_url="https://example.com/c.mp4",
+        )
+
+    assert result["status"] == "failed"
+    assert result["campaign_id"] is None
+    assert "GOOGLE_ADS_CUSTOMER_ID" in result["error"]
