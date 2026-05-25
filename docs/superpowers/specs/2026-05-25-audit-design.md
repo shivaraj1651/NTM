@@ -99,8 +99,9 @@ class AuditService:
 ```
 
 - Reads actor context from `_audit_ctx` ContextVar
-- Inserts `AuditTrail` row via `db.add` + `await db.flush()` (same transaction as caller)
-- On any exception: logs at WARNING level, does not propagate
+- **Happy path** (`status="success"`): inserts `AuditTrail` row in the caller's transaction via `db.add` + `await db.flush()`
+- **Error path** (`status="error"`): uses a **separate** `AsyncSession` (obtained from `async_sessionmaker` directly) so the audit row commits even if the caller's transaction rolled back
+- On any exception inside `emit()`: logs at WARNING level, does not propagate
 
 ### Dependency
 
