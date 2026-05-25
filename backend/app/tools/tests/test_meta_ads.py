@@ -1,8 +1,16 @@
 import pytest
 import os
+import httpx
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token
+from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign
+
+
+def _mock_post_response(response_id: str):
+    m = AsyncMock()
+    m.json = lambda: {"id": response_id}
+    m.raise_for_status = lambda: None
+    return m
 
 
 @pytest.mark.asyncio
@@ -117,3 +125,44 @@ async def test_missing_token_raises():
     with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(RuntimeError, match="META_SYSTEM_USER_TOKEN must be set"):
             _get_access_token()
+
+
+@pytest.mark.asyncio
+async def test_create_campaign_success():
+    with patch.dict(os.environ, {"META_SYSTEM_USER_TOKEN": "test-token"}), \
+         patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=_mock_post_response("camp_001"))
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await create_campaign(
+            ad_account_id="123456789",
+            name="Test Campaign",
+            objective="LINK_CLICKS",
+            budget=100.0,
+            schedule={"start_time": 1700000000},
+        )
+
+    assert result == "camp_001"
+
+
+@pytest.mark.asyncio
+async def test_create_campaign_raises_on_http_error():
+    with patch.dict(os.environ, {"META_SYSTEM_USER_TOKEN": "test-token"}), \
+         patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.HTTPStatusError(
+            "400 Bad Request", request=AsyncMock(), response=AsyncMock()
+        )
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await create_campaign(
+                ad_account_id="123456789",
+                name="Bad Campaign",
+                objective="LINK_CLICKS",
+                budget=100.0,
+                schedule={},
+            )

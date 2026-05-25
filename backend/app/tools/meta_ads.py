@@ -95,6 +95,48 @@ def _extract_primary_audiences(ad_data: Dict[str, Any]) -> List[str]:
     return audiences[:5]  # Return top 5
 
 
+async def create_campaign(
+    ad_account_id: str,
+    name: str,
+    objective: str,
+    budget: float,
+    schedule: Dict[str, Any],
+) -> str:
+    """Create a Meta campaign. Returns campaign_id string.
+
+    Args:
+        ad_account_id: Ad account ID without 'act_' prefix (e.g. "123456789")
+        name: Campaign name
+        objective: e.g. "LINK_CLICKS", "REACH", "VIDEO_VIEWS", "BRAND_AWARENESS"
+        budget: Daily budget in USD (converted to cents internally)
+        schedule: Dict with "start_time" (unix timestamp). Optional "stop_time".
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    payload: Dict[str, Any] = {
+        "name": name,
+        "objective": objective,
+        "status": "PAUSED",
+        "daily_budget": str(int(budget * 100)),
+        "access_token": token,
+    }
+    if schedule.get("start_time"):
+        payload["start_time"] = schedule["start_time"]
+    if schedule.get("stop_time"):
+        payload["stop_time"] = schedule["stop_time"]
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(
+            f"{META_BASE}/act_{ad_account_id}/campaigns",
+            json=payload,
+        )
+        r.raise_for_status()
+        return r.json()["id"]
+
+
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90
