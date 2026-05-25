@@ -288,6 +288,53 @@ async def get_ad_insights(
     }
 
 
+async def pause_ad(ad_id: str) -> bool:
+    """Pause a running Meta ad.
+
+    Args:
+        ad_id: Ad ID to pause
+
+    Returns:
+        True on success
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(
+            f"{META_BASE}/{ad_id}",
+            json={"status": "PAUSED", "access_token": token},
+        )
+        r.raise_for_status()
+        return True
+
+
+async def update_ad_budget(ad_set_id: str, daily_budget: float) -> bool:
+    """Update the daily budget of an ad set.
+
+    Args:
+        ad_set_id: Ad set ID to update
+        daily_budget: New daily budget in USD (converted to cents internally)
+
+    Returns:
+        True on success
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(
+            f"{META_BASE}/{ad_set_id}",
+            json={"daily_budget": str(int(daily_budget * 100)), "access_token": token},
+        )
+        r.raise_for_status()
+        return True
+
+
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90

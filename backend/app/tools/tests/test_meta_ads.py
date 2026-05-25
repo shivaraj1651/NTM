@@ -3,7 +3,7 @@ import os
 import httpx
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad, get_ad_insights
+from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad, get_ad_insights, pause_ad, update_ad_budget
 
 
 def _mock_post_response(response_id: str):
@@ -243,3 +243,38 @@ async def test_get_ad_insights_success():
     assert "metrics" in result
     assert result["metrics"]["impressions"] == "5000"
     assert result["metrics"]["clicks"] == "120"
+
+
+def _mock_bool_response():
+    m = AsyncMock()
+    m.json = lambda: {"success": True}
+    m.raise_for_status = lambda: None
+    return m
+
+
+@pytest.mark.asyncio
+async def test_pause_ad_returns_true():
+    with patch.dict(os.environ, {"META_SYSTEM_USER_TOKEN": "test-token"}), \
+         patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=_mock_bool_response())
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await pause_ad(ad_id="ad_007")
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_update_ad_budget_returns_true():
+    with patch.dict(os.environ, {"META_SYSTEM_USER_TOKEN": "test-token"}), \
+         patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=_mock_bool_response())
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await update_ad_budget(ad_set_id="adset_042", daily_budget=75.0)
+
+    assert result is True
