@@ -34,7 +34,10 @@ async def test_activate_meta_success():
 
     creative_url = "https://example.com/image.jpg"
 
-    with patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client_class:
+    with patch.dict(os.environ, {
+        "META_SYSTEM_USER_TOKEN": "test-token",
+        "META_AD_ACCOUNT_ID": "999888777",
+    }), patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client_class:
         # Mock three responses for campaign, adset, and ad creation
         mock_campaign_response = AsyncMock()
         mock_campaign_response.json = lambda: {"id": "123456789"}
@@ -72,7 +75,10 @@ async def test_activate_meta_api_failure():
     platform_config = {}
     creative_url = "https://example.com/image.jpg"
 
-    with patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client:
+    with patch.dict(os.environ, {
+        "META_SYSTEM_USER_TOKEN": "test-token",
+        "META_AD_ACCOUNT_ID": "999888777",
+    }), patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client:
         mock_client.return_value.__aenter__.return_value.post.side_effect = Exception("Network error")
 
         result = await activate_meta(
@@ -92,7 +98,10 @@ async def test_activate_meta_returns_required_fields():
     platform_config = {}
     creative_url = "https://example.com/image.jpg"
 
-    with patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client_class:
+    with patch.dict(os.environ, {
+        "META_SYSTEM_USER_TOKEN": "test-token",
+        "META_AD_ACCOUNT_ID": "999888777",
+    }), patch('backend.app.tools.meta_ads.httpx.AsyncClient') as mock_client_class:
         # Mock three responses for campaign, adset, and ad creation
         mock_campaign_response = AsyncMock()
         mock_campaign_response.json = lambda: {"id": "123"}

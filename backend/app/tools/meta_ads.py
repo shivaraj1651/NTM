@@ -483,110 +483,62 @@ async def activate_meta(
     activation: Dict[str, Any],
     platform_config: Dict[str, Any],
     creative_url: str,
-    access_token: Optional[str] = None
+    access_token: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Activate a campaign on Meta (Facebook/Instagram).
+    """Activate a campaign on Meta (Facebook/Instagram).
+
+    Orchestrates create_campaign → create_ad_set → create_ad.
+    The access_token param is accepted for signature compatibility but ignored;
+    token always comes from META_SYSTEM_USER_TOKEN env var.
 
     Args:
-        activation: Activation record with budget and targeting
-        platform_config: Meta-specific targeting from PlatformConfigTemplate
-        creative_url: URL to creative asset (image or video)
-        access_token: Meta API access token
+        activation: Activation record with name, cost_estimated
+        platform_config: Meta targeting: age_min, age_max, geo_locations, interests
+        creative_url: URL used as ad link; image_hash left empty (upload separately)
+        access_token: Ignored — kept for API compatibility
 
     Returns:
-        Dict with:
-        - campaign_id: Meta campaign ID or None
-        - ad_id: Meta ad ID or None
-        - status: 'live' or 'failed'
-        - error: Error message or None
+        {campaign_id, ad_id, status: "live"|"failed", error: str|None}
     """
-    if not access_token:
-        access_token = "<meta-token>"  # Placeholder
+    account_id = os.getenv("META_AD_ACCOUNT_ID", "")
+    campaign_name = activation.get("name", "Campaign")
+    daily_budget = float(activation.get("cost_estimated", 0))
 
     try:
-        # Build campaign payload
-        campaign_payload = {
-            "name": activation.get("name", "Campaign"),
-            "objective": "LINK_CLICKS",
-            "status": "ACTIVE",
-            "daily_budget": int(activation.get("cost_estimated", 0) * 100)  # in cents
+        if not account_id:
+            raise RuntimeError("META_AD_ACCOUNT_ID must be set")
+
+        campaign_id = await create_campaign(
+            ad_account_id=account_id,
+            name=campaign_name,
+            objective="LINK_CLICKS",
+            budget=daily_budget,
+            schedule={},
+        )
+
+        audience_spec = {
+            "age_min": platform_config.get("age_min", 18),
+            "age_max": platform_config.get("age_max", 65),
+            "geo_locations": {"countries": ["US"]},
+            "interests": platform_config.get("interests", []),
         }
+        ad_set_id = await create_ad_set(
+            campaign_id=campaign_id,
+            name=f"{campaign_name} - AdSet",
+            audience_spec=audience_spec,
+            placements=["facebook", "instagram"],
+            budget=daily_budget,
+        )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Create campaign
-            campaign_response = await client.post(
-                f"{META_BASE}/campaigns",
-                params={"access_token": access_token},
-                json=campaign_payload
-            )
-            campaign_response.raise_for_status()
-            campaign_data = campaign_response.json()
-            campaign_id = campaign_data.get("id")
+        ad_id = await create_ad(
+            ad_set_id=ad_set_id,
+            creative_spec={"link": creative_url, "message": campaign_name},
+            name=f"{campaign_name} - Ad",
+        )
 
-            # Create ad set with targeting
-            adset_payload = {
-                "name": f"{activation.get('name')} - Adset",
-                "campaign_id": campaign_id,
-                "status": "ACTIVE",
-                "daily_budget": int(activation.get("cost_estimated", 0) * 100),
-                "targeting": {
-                    "age_min": platform_config.get("age_min", 18),
-                    "age_max": platform_config.get("age_max", 65),
-                    "geo_locations": {"regions": [{"key": "US"}]},
-                    "device_platforms": ["mobile", "desktop"]
-                }
-            }
-
-            adset_response = await client.post(
-                f"{META_BASE}/adsets",
-                params={"access_token": access_token},
-                json=adset_payload
-            )
-            adset_response.raise_for_status()
-            adset_data = adset_response.json()
-            adset_id = adset_data.get("id")
-
-            # Create ad (creative)
-            ad_payload = {
-                "name": f"{activation.get('name')} - Ad",
-                "adset_id": adset_id,
-                "status": "ACTIVE",
-                "creative": {
-                    "object_story_spec": {
-                        "page_id": "1234567890",
-                        "link_data": {
-                            "image_hash": "image_hash_from_url",
-                            "link": creative_url,
-                            "message": "Check this out!"
-                        }
-                    }
-                }
-            }
-
-            ad_response = await client.post(
-                f"{META_BASE}/ads",
-                params={"access_token": access_token},
-                json=ad_payload
-            )
-            ad_response.raise_for_status()
-            ad_data = ad_response.json()
-            ad_id = ad_data.get("id")
-
-            logger.info(f"Meta campaign {campaign_id} activated successfully")
-
-            return {
-                "campaign_id": campaign_id,
-                "ad_id": ad_id,
-                "status": "live",
-                "error": None
-            }
+        logger.info("Meta campaign %s activated successfully", campaign_id)
+        return {"campaign_id": campaign_id, "ad_id": ad_id, "status": "live", "error": None}
 
     except Exception as e:
-        logger.error(f"Meta activation failed: {e}")
-        return {
-            "campaign_id": None,
-            "ad_id": None,
-            "status": "failed",
-            "error": str(e)
-        }
+        logger.error("Meta activation failed: %s: %s", type(e).__name__, str(e))
+        return {"campaign_id": None, "ad_id": None, "status": "failed", "error": str(e)}
