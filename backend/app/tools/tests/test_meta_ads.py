@@ -3,7 +3,7 @@ import os
 import httpx
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad
+from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad, get_ad_insights
 
 
 def _mock_post_response(response_id: str):
@@ -213,3 +213,33 @@ async def test_create_ad_success():
         )
 
     assert result == "ad_007"
+
+
+@pytest.mark.asyncio
+async def test_get_ad_insights_success():
+    mock_insights_data = {
+        "data": [{"impressions": "5000", "clicks": "120", "spend": "45.50"}],
+        "paging": {}
+    }
+
+    with patch.dict(os.environ, {"META_SYSTEM_USER_TOKEN": "test-token"}), \
+         patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_get_response = AsyncMock()
+        mock_get_response.json = lambda: mock_insights_data
+        mock_get_response.raise_for_status = lambda: None
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_get_response)
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await get_ad_insights(
+            ad_id="ad_007",
+            date_range={"since": "2026-05-01", "until": "2026-05-25"},
+            metrics_list=["impressions", "clicks", "spend"],
+        )
+
+    assert result["ad_id"] == "ad_007"
+    assert "metrics" in result
+    assert result["metrics"]["impressions"] == "5000"
+    assert result["metrics"]["clicks"] == "120"

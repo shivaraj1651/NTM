@@ -239,6 +239,55 @@ async def create_ad(
         return r.json()["id"]
 
 
+async def get_ad_insights(
+    ad_id: str,
+    date_range: Dict[str, str],
+    metrics_list: List[str],
+) -> Dict[str, Any]:
+    """Fetch performance insights for a Meta ad.
+
+    Args:
+        ad_id: Ad ID returned by create_ad
+        date_range: {"since": "YYYY-MM-DD", "until": "YYYY-MM-DD"}
+        metrics_list: e.g. ["impressions", "clicks", "spend", "reach", "ctr"]
+
+    Returns:
+        {
+            "ad_id": str,
+            "date_range": {"since": ..., "until": ...},
+            "metrics": {metric: value, ...},
+            "raw": [...]
+        }
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    params = {
+        "fields": ",".join(metrics_list),
+        "time_range": f'{{"since":"{date_range.get("since")}","until":"{date_range.get("until")}"}}',
+        "access_token": token,
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(f"{META_BASE}/{ad_id}/insights", params=params)
+        r.raise_for_status()
+        data = r.json()
+
+    rows = data.get("data", [])
+    merged: Dict[str, Any] = {}
+    for row in rows:
+        merged.update(row)
+
+    return {
+        "ad_id": ad_id,
+        "date_range": date_range,
+        "metrics": {k: merged.get(k) for k in metrics_list},
+        "raw": rows,
+    }
+
+
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90
