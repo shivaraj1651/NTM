@@ -191,6 +191,54 @@ async def create_ad_set(
         return r.json()["id"]
 
 
+async def create_ad(
+    ad_set_id: str,
+    creative_spec: Dict[str, Any],
+    name: str,
+) -> str:
+    """Create a Meta ad under an existing ad set. Returns ad_id string.
+
+    Args:
+        ad_set_id: Ad set ID returned by create_ad_set
+        creative_spec: Dict with image_hash, link, message, and optionally page_id
+        name: Ad name
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN or META_AD_ACCOUNT_ID not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    account_id = os.getenv("META_AD_ACCOUNT_ID", "")
+    if not account_id:
+        raise RuntimeError("META_AD_ACCOUNT_ID must be set")
+    page_id = creative_spec.get("page_id") or os.getenv("META_PAGE_ID", "")
+
+    payload: Dict[str, Any] = {
+        "name": name,
+        "adset_id": ad_set_id,
+        "status": "PAUSED",
+        "creative": {
+            "object_story_spec": {
+                "page_id": page_id,
+                "link_data": {
+                    "image_hash": creative_spec.get("image_hash", ""),
+                    "link": creative_spec.get("link", ""),
+                    "message": creative_spec.get("message", ""),
+                },
+            }
+        },
+        "access_token": token,
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(
+            f"{META_BASE}/act_{account_id}/ads",
+            json=payload,
+        )
+        r.raise_for_status()
+        return r.json()["id"]
+
+
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90

@@ -3,7 +3,7 @@ import os
 import httpx
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set
+from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad
 
 
 def _mock_post_response(response_id: str):
@@ -188,3 +188,28 @@ async def test_create_ad_set_success():
         )
 
     assert result == "adset_042"
+
+
+@pytest.mark.asyncio
+async def test_create_ad_success():
+    with patch.dict(os.environ, {
+        "META_SYSTEM_USER_TOKEN": "test-token",
+        "META_AD_ACCOUNT_ID": "999888777",
+        "META_PAGE_ID": "111000222",
+    }), patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=_mock_post_response("ad_007"))
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await create_ad(
+            ad_set_id="adset_042",
+            creative_spec={
+                "image_hash": "abc123",
+                "link": "https://example.com",
+                "message": "Check this out!",
+            },
+            name="Test Ad",
+        )
+
+    assert result == "ad_007"
