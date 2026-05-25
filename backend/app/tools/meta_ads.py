@@ -519,7 +519,7 @@ async def activate_meta(
         audience_spec = {
             "age_min": platform_config.get("age_min", 18),
             "age_max": platform_config.get("age_max", 65),
-            "geo_locations": {"countries": ["US"]},
+            "geo_locations": platform_config.get("geo_locations", {"countries": ["US"]}),
             "interests": platform_config.get("interests", []),
         }
         ad_set_id = await create_ad_set(
