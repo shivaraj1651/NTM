@@ -137,6 +137,60 @@ async def create_campaign(
         return r.json()["id"]
 
 
+async def create_ad_set(
+    campaign_id: str,
+    name: str,
+    audience_spec: Dict[str, Any],
+    placements: List[str],
+    budget: float,
+) -> str:
+    """Create a Meta ad set under an existing campaign. Returns ad_set_id string.
+
+    Args:
+        campaign_id: Campaign ID returned by create_campaign
+        name: Ad set name
+        audience_spec: Dict with age_min, age_max, geo_locations, interests (all optional)
+        placements: List of placement strings e.g. ["FACEBOOK_FEED", "INSTAGRAM_FEED"]
+        budget: Daily budget in USD (converted to cents internally)
+
+    Raises:
+        RuntimeError: if META_SYSTEM_USER_TOKEN or META_AD_ACCOUNT_ID not set
+        httpx.HTTPStatusError: on API 4xx/5xx
+    """
+    token = _get_access_token()
+    account_id = os.getenv("META_AD_ACCOUNT_ID", "")
+    if not account_id:
+        raise RuntimeError("META_AD_ACCOUNT_ID must be set")
+
+    targeting: Dict[str, Any] = {
+        "age_min": audience_spec.get("age_min", 18),
+        "age_max": audience_spec.get("age_max", 65),
+        "geo_locations": audience_spec.get("geo_locations", {"countries": ["US"]}),
+        "publisher_platforms": placements or ["facebook", "instagram"],
+    }
+    if audience_spec.get("interests"):
+        targeting["interests"] = audience_spec["interests"]
+
+    payload: Dict[str, Any] = {
+        "name": name,
+        "campaign_id": campaign_id,
+        "status": "PAUSED",
+        "daily_budget": str(int(budget * 100)),
+        "billing_event": "IMPRESSIONS",
+        "optimization_goal": "REACH",
+        "targeting": targeting,
+        "access_token": token,
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(
+            f"{META_BASE}/act_{account_id}/adsets",
+            json=payload,
+        )
+        r.raise_for_status()
+        return r.json()["id"]
+
+
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90

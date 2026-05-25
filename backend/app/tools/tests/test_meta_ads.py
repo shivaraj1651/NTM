@@ -3,7 +3,7 @@ import os
 import httpx
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign
+from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set
 
 
 def _mock_post_response(response_id: str):
@@ -166,3 +166,25 @@ async def test_create_campaign_raises_on_http_error():
                 budget=100.0,
                 schedule={},
             )
+
+
+@pytest.mark.asyncio
+async def test_create_ad_set_success():
+    with patch.dict(os.environ, {
+        "META_SYSTEM_USER_TOKEN": "test-token",
+        "META_AD_ACCOUNT_ID": "999888777",
+    }), patch("backend.app.tools.meta_ads.httpx.AsyncClient") as mock_cls:
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=_mock_post_response("adset_042"))
+        mock_cls.return_value.__aenter__.return_value = mock_client
+
+        result = await create_ad_set(
+            campaign_id="camp_001",
+            name="Test AdSet",
+            audience_spec={"age_min": 25, "age_max": 54, "geo_locations": {"countries": ["US"]}},
+            placements=["FACEBOOK_FEED", "INSTAGRAM_FEED"],
+            budget=50.0,
+        )
+
+    assert result == "adset_042"
