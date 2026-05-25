@@ -114,7 +114,6 @@ async def test_activate_meta_returns_required_fields():
 
 @pytest.mark.asyncio
 async def test_missing_token_raises():
-    env = {k: v for k, v in os.environ.items() if k != "META_SYSTEM_USER_TOKEN"}
-    with patch.dict(os.environ, env, clear=True):
+    with patch.dict(os.environ, {}, clear=True):
         with pytest.raises(RuntimeError, match="META_SYSTEM_USER_TOKEN must be set"):
             _get_access_token()
