@@ -1,11 +1,19 @@
 import httpx
 import logging
+import os
 from typing import Dict, Any, List, Optional
 import re
 
 logger = logging.getLogger(__name__)
 
-META_ADS_API_ENDPOINT = "https://graph.instagram.com/v19.0/act_1234"
+META_BASE = "https://graph.facebook.com/v21.0"
+
+
+def _get_access_token() -> str:
+    token = os.getenv("META_SYSTEM_USER_TOKEN", "")
+    if not token:
+        raise RuntimeError("META_SYSTEM_USER_TOKEN must be set")
+    return token
 
 
 def _parse_spend_range(spend_str: str) -> Optional[float]:
@@ -268,7 +276,7 @@ async def activate_meta(
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Create campaign
             campaign_response = await client.post(
-                f"{META_ADS_API_ENDPOINT}/campaigns",
+                f"{META_BASE}/campaigns",
                 params={"access_token": access_token},
                 json=campaign_payload
             )
@@ -291,7 +299,7 @@ async def activate_meta(
             }
 
             adset_response = await client.post(
-                f"{META_ADS_API_ENDPOINT}/adsets",
+                f"{META_BASE}/adsets",
                 params={"access_token": access_token},
                 json=adset_payload
             )
@@ -317,7 +325,7 @@ async def activate_meta(
             }
 
             ad_response = await client.post(
-                f"{META_ADS_API_ENDPOINT}/ads",
+                f"{META_BASE}/ads",
                 params={"access_token": access_token},
                 json=ad_payload
             )

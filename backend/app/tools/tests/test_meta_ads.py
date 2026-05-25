@@ -1,7 +1,8 @@
 import pytest
+import os
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta
+from backend.app.tools.meta_ads import activate_meta, _get_access_token
 
 
 @pytest.mark.asyncio
@@ -109,3 +110,11 @@ async def test_activate_meta_returns_required_fields():
         assert "ad_id" in result
         assert "status" in result
         assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_missing_token_raises():
+    env = {k: v for k, v in os.environ.items() if k != "META_SYSTEM_USER_TOKEN"}
+    with patch.dict(os.environ, env, clear=True):
+        with pytest.raises(RuntimeError, match="META_SYSTEM_USER_TOKEN must be set"):
+            _get_access_token()
