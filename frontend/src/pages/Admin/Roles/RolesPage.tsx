@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { PageHeader } from '@/components/PageHeader'
 import { DataTable } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
+import { RoleBadge } from '@/components/RoleBadge'
 import { useRoles } from '@/hooks/useRoles'
 import type { Role } from '@/types/admin'
 
@@ -9,7 +10,11 @@ export function RolesPage() {
   const { data: roles = [], isLoading } = useRoles()
 
   const columns: ColumnDef<Role>[] = [
-    { accessorKey: 'name', header: 'Role' },
+    {
+      accessorKey: 'name',
+      header: 'Role',
+      cell: ({ row }) => <RoleBadge role={row.original.name} />,
+    },
     {
       accessorKey: 'permissions',
       header: 'Permissions',

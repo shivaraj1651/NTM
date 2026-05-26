@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { DataTable } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { RoleBadge } from '@/components/RoleBadge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,7 +38,7 @@ export function UsersPage() {
     {
       accessorKey: 'role',
       header: 'Role',
-      cell: ({ row }) => <Badge variant="outline">{row.original.role}</Badge>,
+      cell: ({ row }) => <RoleBadge role={row.original.role} />,
     },
     {
       accessorKey: 'is_active',
