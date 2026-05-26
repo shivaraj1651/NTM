@@ -20,6 +20,7 @@ export interface WizardData {
 export function OnboardingPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [data, setData] = useState<WizardData>({
     org_name: '',
     industry: '',
@@ -50,19 +51,25 @@ export function OnboardingPage() {
   }
 
   const handleSubmit = async () => {
-    const formData = new FormData()
-    formData.append('org_name', data.org_name)
-    formData.append('industry', data.industry)
-    if (data.logo) formData.append('logo', data.logo)
-    if (data.brand_guidelines) formData.append('brand_guidelines', data.brand_guidelines)
-    formData.append('competitors', JSON.stringify(data.competitors))
-    const client = await createClient.mutateAsync(formData)
-    navigate('/admin/mandates/new', { state: { client_id: client.id } })
+    setSubmitError(null)
+    try {
+      const formData = new FormData()
+      formData.append('org_name', data.org_name)
+      formData.append('industry', data.industry)
+      if (data.logo) formData.append('logo', data.logo)
+      if (data.brand_guidelines) formData.append('brand_guidelines', data.brand_guidelines)
+      formData.append('competitors', JSON.stringify(data.competitors))
+      const client = await createClient.mutateAsync(formData)
+      navigate('/admin/mandates/new', { state: { client_id: client.id } })
+    } catch {
+      setSubmitError('Failed to create client. Please try again.')
+    }
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <div className="w-full max-w-xl px-4">
+        {/* Step progress bar */}
         <div className="flex items-center justify-between mb-8">
           {STEP_LABELS.map((label, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
@@ -104,6 +111,7 @@ export function OnboardingPage() {
             onSubmit={handleSubmit}
             onBack={() => setStep(3)}
             isPending={createClient.isPending}
+            submitError={submitError}
           />
         )}
       </div>

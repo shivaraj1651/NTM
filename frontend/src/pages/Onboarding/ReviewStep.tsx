@@ -6,9 +6,10 @@ interface Props {
   onSubmit: () => void
   onBack: () => void
   isPending: boolean
+  submitError?: string | null
 }
 
-export function ReviewStep({ data, onSubmit, onBack, isPending }: Props) {
+export function ReviewStep({ data, onSubmit, onBack, isPending, submitError }: Props) {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Review & Submit</h2>
@@ -25,6 +26,11 @@ export function ReviewStep({ data, onSubmit, onBack, isPending }: Props) {
           {data.competitors.length ? data.competitors.join(', ') : '—'}
         </div>
       </div>
+
+      {submitError && (
+        <p className="text-sm text-destructive">{submitError}</p>
+      )}
+
       <div className="flex gap-2">
         <Button variant="outline" onClick={onBack} className="flex-1" disabled={isPending}>
           ← Back

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { OnboardingPage } from '@/pages/Onboarding/OnboardingPage'
 import { renderWithProviders } from './utils'
@@ -41,6 +41,29 @@ describe('OnboardingPage — LogoStep in isolation', () => {
       expect(screen.getByText(/logo is required/i)).toBeInTheDocument()
     )
   })
+
+  it('has a styled Browse button instead of raw file input', async () => {
+    const { LogoStep } = await import('@/pages/Onboarding/LogoStep')
+    renderWithProviders(
+      <LogoStep onNext={() => {}} onBack={() => {}} />,
+      { route: '/onboarding', path: '/onboarding' }
+    )
+    expect(screen.getByRole('button', { name: /browse/i })).toBeInTheDocument()
+  })
+
+  it('shows selected filename after file is chosen', async () => {
+    const { LogoStep } = await import('@/pages/Onboarding/LogoStep')
+    renderWithProviders(
+      <LogoStep onNext={() => {}} onBack={() => {}} />,
+      { route: '/onboarding', path: '/onboarding' }
+    )
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['img'], 'logo.png', { type: 'image/png' })
+    fireEvent.change(input, { target: { files: [file] } })
+    await waitFor(() =>
+      expect(screen.getByText('logo.png')).toBeInTheDocument()
+    )
+  })
 })
 
 describe('OnboardingPage — BrandGuidelinesStep in isolation', () => {
@@ -53,6 +76,29 @@ describe('OnboardingPage — BrandGuidelinesStep in isolation', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }))
     await waitFor(() =>
       expect(screen.getByText(/brand guidelines pdf is required/i)).toBeInTheDocument()
+    )
+  })
+
+  it('has a styled Browse button instead of raw file input', async () => {
+    const { BrandGuidelinesStep } = await import('@/pages/Onboarding/BrandGuidelinesStep')
+    renderWithProviders(
+      <BrandGuidelinesStep onNext={() => {}} onBack={() => {}} />,
+      { route: '/onboarding', path: '/onboarding' }
+    )
+    expect(screen.getByRole('button', { name: /browse/i })).toBeInTheDocument()
+  })
+
+  it('shows selected filename after file is chosen', async () => {
+    const { BrandGuidelinesStep } = await import('@/pages/Onboarding/BrandGuidelinesStep')
+    renderWithProviders(
+      <BrandGuidelinesStep onNext={() => {}} onBack={() => {}} />,
+      { route: '/onboarding', path: '/onboarding' }
+    )
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['pdf'], 'brand.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    await waitFor(() =>
+      expect(screen.getByText('brand.pdf')).toBeInTheDocument()
     )
   })
 })
@@ -104,5 +150,29 @@ describe('OnboardingPage — ReviewStep in isolation', () => {
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()
     expect(screen.getByText('Technology')).toBeInTheDocument()
     expect(screen.getByText(/CompA, CompB/)).toBeInTheDocument()
+  })
+})
+
+describe('OnboardingPage — submit error handling', () => {
+  it('shows error message when onSubmit callback throws', async () => {
+    const { ReviewStep } = await import('@/pages/Onboarding/ReviewStep')
+    const failingSubmit = vi.fn().mockRejectedValue(new Error('Network error'))
+    renderWithProviders(
+      <ReviewStep
+        data={{
+          org_name: 'Acme Corp',
+          industry: 'Technology',
+          logo: null,
+          brand_guidelines: null,
+          competitors: ['CompA'],
+        }}
+        onSubmit={failingSubmit}
+        onBack={() => {}}
+        isPending={false}
+        submitError="Failed to create client. Please try again."
+      />,
+      { route: '/onboarding', path: '/onboarding' }
+    )
+    expect(screen.getByText(/failed to create client/i)).toBeInTheDocument()
   })
 })
