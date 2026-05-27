@@ -6,7 +6,6 @@ import os
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
-from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.schemas.campaign import (

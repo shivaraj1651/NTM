@@ -15,7 +15,6 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.agents.competitive_intel import competitive_intel_agent
-from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.db import get_db as _get_sql_db
