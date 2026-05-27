@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.agents.competitive_intel import competitive_intel_agent
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.db import get_db as _get_sql_db
 from backend.app.schemas.competitive_intel import CIReportInitial, CIReport
 from backend.app.schemas.mandate import CreateMandateRequest, UpdateMandateRequest
@@ -29,6 +29,13 @@ from backend.app.tasks.campaign_tasks import run_campaign_strategy
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["mandates"])
+
+MANDATE_ROLES = [
+    UserRole.BRAND_MANAGER,
+    UserRole.CMO,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 
 async def get_sql_db():
@@ -63,7 +70,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 )
 async def analyze_competitors(
     mandate_id: UUID,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CIReportInitial:
@@ -212,7 +219,7 @@ async def analyze_competitors(
 )
 async def get_job_status(
     job_id: UUID,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> Union[CIReportInitial, CIReport]:
@@ -269,7 +276,7 @@ async def get_job_status(
 @router.post("/mandates", status_code=201)
 async def create_mandate(
     body: CreateMandateRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
 ) -> dict:
@@ -282,7 +289,7 @@ async def create_mandate(
 @router.get("/mandates/{mandate_id}", status_code=200)
 async def get_mandate(
     mandate_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
 ) -> dict:
@@ -294,7 +301,7 @@ async def get_mandate(
 async def update_mandate(
     mandate_id: str,
     body: UpdateMandateRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
 ) -> dict:
@@ -305,7 +312,7 @@ async def update_mandate(
 @router.post("/mandates/{mandate_id}/confirm", status_code=200)
 async def confirm_mandate(
     mandate_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
 ) -> dict:
@@ -318,7 +325,7 @@ async def confirm_mandate(
 @router.get("/mandates/{mandate_id}/summary-card", status_code=200)
 async def get_mandate_summary_card(
     mandate_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
     mongo_db: AsyncIOMotorDatabase = Depends(get_db),

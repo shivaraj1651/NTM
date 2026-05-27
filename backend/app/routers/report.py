@@ -9,8 +9,8 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.db import get_db
 from backend.app.schemas.jobs import JobQueuedResponse
 from backend.app.services.campaign_service import CampaignService
@@ -19,6 +19,12 @@ from backend.app.tasks.report_tasks import generate_daily_report_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["report"])
+
+REPORT_ROLES = [
+    UserRole.CMO,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 
 async def get_mongo_db() -> AsyncIOMotorDatabase:
@@ -33,7 +39,7 @@ async def get_mongo_db() -> AsyncIOMotorDatabase:
 )
 async def generate_report(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(REPORT_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> JobQueuedResponse:
@@ -48,7 +54,7 @@ async def generate_report(
 @router.get("/campaigns/{campaign_id}/report", status_code=200)
 async def get_report(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(REPORT_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db),
     sql_db: AsyncSession = Depends(get_db),

@@ -13,8 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.db import get_db
 from backend.app.models.activation import Activation
 from backend.app.models.performance_metric import PerformanceMetric
@@ -22,12 +22,20 @@ from backend.app.models.performance_metric import PerformanceMetric
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["activations"])
 
+ACTIVATION_ROLES = [
+    UserRole.CAMPAIGN_MANAGER,
+    UserRole.BRAND_MANAGER,
+    UserRole.CMO,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
+
 
 @router.get("/activations", status_code=200)
 async def list_activations(
     campaign_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -45,7 +53,7 @@ async def list_activations(
 @router.get("/activations/{activation_id}", status_code=200)
 async def get_activation(
     activation_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -57,7 +65,7 @@ async def get_activation(
 @router.get("/activations/{activation_id}/performance", status_code=200)
 async def get_activation_performance(
     activation_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:

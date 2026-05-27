@@ -1,7 +1,7 @@
 """FastAPI router for Creative Director Agent (AGT-06) endpoints."""
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from backend.app.agents.creative_director_orchestrator import (
@@ -12,6 +12,8 @@ from backend.app.agents.creative_director.models import (
     CampaignInput,
     CreativeDirectorOutput,
 )
+from backend.app.core.dependencies import require_role
+from backend.app.core.models import User, UserRole
 
 router = APIRouter(
     prefix="/api/agents/creative-director",
@@ -21,6 +23,13 @@ router = APIRouter(
         500: {"description": "Generation error"},
     }
 )
+
+CREATIVE_DIR_ROLES = [
+    UserRole.CREATIVE_LEAD,
+    UserRole.BRAND_MANAGER,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 
 class HealthResponse(BaseModel):
@@ -40,7 +49,10 @@ class HealthResponse(BaseModel):
         500: {"description": "Generation failed"},
     }
 )
-async def generate_creatives(campaign_input: CampaignInput) -> CreativeDirectorOutput:
+async def generate_creatives(
+    campaign_input: CampaignInput,
+    _: User = Depends(require_role(CREATIVE_DIR_ROLES)),
+) -> CreativeDirectorOutput:
     """Generate platform-specific marketing creatives.
 
     Orchestrates the full creative generation pipeline:

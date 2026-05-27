@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.schemas.jobs import JobQueuedResponse
 from backend.app.services.campaign_service import CampaignService
 from backend.app.tasks.activation_tasks import (
@@ -19,6 +19,12 @@ from backend.app.tasks.activation_tasks import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["digital-activator"])
+
+DIGITAL_ROLES = [
+    UserRole.CAMPAIGN_MANAGER,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 _PLATFORM_TASK_MAP = {
     "google_ads": platform_activate_google,
@@ -35,7 +41,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 @router.post("/campaigns/{campaign_id}/activate", response_model=JobQueuedResponse, status_code=202)
 async def activate_campaign(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(DIGITAL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JobQueuedResponse:

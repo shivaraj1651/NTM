@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.db import get_db
 from backend.app.models.kpi import KPI
 from backend.app.schemas.jobs import JobQueuedResponse
@@ -19,6 +19,16 @@ from backend.app.tasks.analytics_tasks import run_daily_analytics_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["analytics"])
+
+ALL_ROLES = [
+    UserRole.PLATFORM_ADMIN,
+    UserRole.TENANT_ADMIN,
+    UserRole.BRAND_MANAGER,
+    UserRole.CMO,
+    UserRole.CREATIVE_LEAD,
+    UserRole.CAMPAIGN_MANAGER,
+    UserRole.VIEWER,
+]
 
 
 async def get_db() -> AsyncIOMotorDatabase:
@@ -29,7 +39,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 @router.post("/campaigns/{campaign_id}/analytics/run", response_model=JobQueuedResponse, status_code=202)
 async def run_analytics(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JobQueuedResponse:
@@ -44,7 +54,7 @@ async def run_analytics(
 @router.get("/campaigns/{campaign_id}/analytics", status_code=200)
 async def get_analytics(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:
@@ -67,7 +77,7 @@ async def get_analytics(
 @router.get("/analytics/dashboard", status_code=200)
 async def analytics_dashboard(
     mandate_id: str = Query(...),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:
@@ -87,7 +97,7 @@ async def analytics_dashboard(
 @router.get("/analytics/channel-performance", status_code=200)
 async def channel_performance(
     mandate_id: str = Query(...),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:
@@ -106,7 +116,7 @@ async def channel_performance(
 async def kpi_status(
     mandate_id: Optional[str] = Query(None),
     campaign_id: Optional[str] = Query(None),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     sql_db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -132,7 +142,7 @@ async def kpi_status(
 async def analytics_report(
     mandate_id: str = Query(...),
     week: Optional[int] = Query(None),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:
@@ -150,7 +160,7 @@ async def analytics_report(
 @router.post("/analytics/replan/approve/{recommendation_id}", status_code=200)
 async def approve_replan_recommendation(
     recommendation_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:

@@ -7,22 +7,14 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.auth import current_user
-from backend.app.core.models import User, Tenant, Role
+from backend.app.core.dependencies import require_role
+from backend.app.core.models import User, Tenant, Role, UserRole
 from backend.app.models.approval_log import ApprovalLog
 from backend.app.db import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
-
-
-# ── Dependency ────────────────────────────────────────────────────────────────
-
-async def require_platform_admin(user: User = Depends(current_user)) -> User:
-    if user.role.name != "platform_admin":
-        raise HTTPException(status_code=403, detail="Platform admin access required")
-    return user
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -81,7 +73,7 @@ class AuditLogResponse(BaseModel):
 @router.post("/tenants", response_model=TenantResponse, status_code=201)
 async def create_tenant(
     body: TenantCreate,
-    _: User = Depends(require_platform_admin),
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> TenantResponse:
     tenant = Tenant(name=body.name)
@@ -98,7 +90,7 @@ async def create_tenant(
 
 @router.get("/tenants", response_model=list[TenantResponse])
 async def list_tenants(
-    _: User = Depends(require_platform_admin),
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> list[TenantResponse]:
     result = await db.execute(select(Tenant).order_by(Tenant.created_at.desc()))
@@ -117,7 +109,7 @@ async def list_tenants(
 @router.post("/users", response_model=UserResponse, status_code=201)
 async def create_user(
     body: UserCreate,
-    _: User = Depends(require_platform_admin),
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     from passlib.context import CryptContext
@@ -154,7 +146,7 @@ async def create_user(
 async def update_user_role(
     user_id: str,
     body: RoleUpdate,
-    _: User = Depends(require_platform_admin),
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     role_result = await db.execute(select(Role).where(Role.name == body.role_name))
@@ -184,7 +176,7 @@ async def get_audit_log(
     tenant_id: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
-    _: User = Depends(require_platform_admin),
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> list[AuditLogResponse]:
     stmt = select(ApprovalLog).order_by(ApprovalLog.created_at.desc()).limit(limit).offset(offset)

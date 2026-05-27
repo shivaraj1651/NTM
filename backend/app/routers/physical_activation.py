@@ -9,14 +9,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.models.physical_activation_log import PhysicalActivationLog
 from backend.app.db import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/activations", tags=["physical-activation"])
+
+PHYSICAL_ROLES = [
+    UserRole.CAMPAIGN_MANAGER,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -65,7 +71,7 @@ def _to_response(log: PhysicalActivationLog) -> PhysicalLogResponse:
 async def log_physical_activation(
     activation_id: str,
     body: PhysicalLogCreate,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(PHYSICAL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> PhysicalLogResponse:
@@ -96,7 +102,7 @@ async def log_physical_activation(
 @router.get("/{activation_id}/physical-logs", response_model=list[PhysicalLogResponse])
 async def list_physical_logs(
     activation_id: str,
-    _: User = Depends(current_user),
+    _: User = Depends(require_role(PHYSICAL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> list[PhysicalLogResponse]:

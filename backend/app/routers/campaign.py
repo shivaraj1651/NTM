@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.schemas.campaign import (
     CampaignCreateRequest,
     CampaignUpdateRequest,
@@ -20,6 +20,14 @@ from backend.app.services.campaign_service import CampaignService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["campaigns"])
+
+CAMPAIGN_ROLES = [
+    UserRole.CAMPAIGN_MANAGER,
+    UserRole.BRAND_MANAGER,
+    UserRole.CMO,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +48,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 @router.post("/campaigns", response_model=CampaignResponse, status_code=201)
 async def create_campaign(
     body: CampaignCreateRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -51,7 +59,7 @@ async def create_campaign(
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse, status_code=200)
 async def get_campaign(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -63,7 +71,7 @@ async def get_campaign(
 async def update_campaign(
     campaign_id: str,
     body: CampaignUpdateRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -75,7 +83,7 @@ async def update_campaign(
 async def confirm_campaign(
     campaign_id: str,
     body: CampaignConfirmRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -86,7 +94,7 @@ async def confirm_campaign(
 @router.get("/campaigns/{campaign_id}/activation-plan", response_model=CampaignResponse, status_code=200)
 async def get_activation_plan(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -97,7 +105,7 @@ async def get_activation_plan(
 @router.post("/campaigns/{campaign_id}/approve-budget", response_model=CampaignResponse, status_code=200)
 async def propose_budget(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -108,7 +116,7 @@ async def propose_budget(
 @router.post("/campaigns/{campaign_id}/confirm-budget", response_model=CampaignResponse, status_code=200)
 async def confirm_budget(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -123,7 +131,7 @@ async def confirm_budget(
 @router.post("/campaigns/{campaign_id}/approve-concept", response_model=CampaignResponse, status_code=200)
 async def approve_concept(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -138,7 +146,7 @@ async def approve_concept(
 @router.post("/campaigns/{campaign_id}/approve-plan", response_model=CampaignResponse, status_code=200)
 async def approve_plan(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
@@ -151,7 +159,7 @@ async def approve_plan(
 @router.get("/campaigns/{campaign_id}/deck", status_code=200)
 async def get_campaign_deck(
     campaign_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CAMPAIGN_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:

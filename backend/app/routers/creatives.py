@@ -16,8 +16,8 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import current_user
-from backend.app.core.dependencies import get_current_tenant
-from backend.app.core.models import User
+from backend.app.core.dependencies import get_current_tenant, require_role
+from backend.app.core.models import User, UserRole
 from backend.app.db import get_db
 from backend.app.models.creative import GeneratedCreative
 from backend.app.schemas.creatives import RevisionRequest
@@ -25,12 +25,20 @@ from backend.app.schemas.creatives import RevisionRequest
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["creatives"])
 
+CREATIVE_ROLES = [
+    UserRole.CREATIVE_LEAD,
+    UserRole.BRAND_MANAGER,
+    UserRole.CMO,
+    UserRole.TENANT_ADMIN,
+    UserRole.PLATFORM_ADMIN,
+]
+
 
 @router.get("/creatives", status_code=200)
 async def list_creatives(
     activation_id: Optional[str] = Query(None),
     campaign_id: Optional[str] = Query(None),
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -50,7 +58,7 @@ async def list_creatives(
 @router.post("/creatives/{creative_id}/internal-approve", status_code=200)
 async def internal_approve_creative(
     creative_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -75,7 +83,7 @@ async def internal_approve_creative(
 @router.post("/creatives/{creative_id}/client-approve", status_code=200)
 async def client_approve_creative(
     creative_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -101,7 +109,7 @@ async def client_approve_creative(
 async def request_revision(
     creative_id: str,
     body: RevisionRequest,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -142,7 +150,7 @@ async def request_revision(
 @router.get("/creatives/{creative_id}/download", status_code=200)
 async def download_creative(
     creative_id: str,
-    user: User = Depends(current_user),
+    user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
