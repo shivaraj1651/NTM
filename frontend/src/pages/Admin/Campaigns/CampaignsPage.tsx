@@ -55,7 +55,7 @@ export function CampaignsPage() {
     const campaign = await createCampaign.mutateAsync(selectedMandateId)
     setSelectedMandateId(null)
     setDialogOpen(false)
-    navigate(`/admin/campaigns/${campaign.id}`)
+    navigate(`/campaigns/${campaign.id}`)
   }
 
   const columns: ColumnDef<Campaign>[] = [
@@ -91,7 +91,7 @@ export function CampaignsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(`/admin/campaigns/${row.original.id}`)}
+          onClick={() => navigate(`/campaigns/${row.original.id}`)}
         >
           View
         </Button>

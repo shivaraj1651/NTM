@@ -133,7 +133,7 @@ export function CIReportPage() {
       <div className="flex gap-3 pt-2">
         <Button
           className="flex-1"
-          onClick={() => navigate(`/admin/campaigns/${id}/concepts`)}
+          onClick={() => navigate(`/campaigns/${id}/concepts`)}
         >
           Approve & Proceed to Campaign Strategy
         </Button>

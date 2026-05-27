@@ -20,7 +20,7 @@ export function MandateSummaryPage() {
   const handleConfirm = async () => {
     try {
       const campaign = await confirm.mutateAsync()
-      navigate(`/admin/campaigns/${campaign.id}`)
+      navigate(`/campaigns/${campaign.id}`)
     } catch {
       // mutation error handled via React Query's isError state
     }
@@ -71,7 +71,7 @@ export function MandateSummaryPage() {
           <div className="flex gap-2 pt-2">
             <Button
               variant="outline"
-              onClick={() => navigate(`/admin/mandates/${id}/edit`)}
+              onClick={() => navigate(`/mandates/new`)}
               disabled={isConfirmed || confirm.isPending}
             >
               Reject

@@ -60,7 +60,7 @@ export function OnboardingPage() {
       if (data.brand_guidelines) formData.append('brand_guidelines', data.brand_guidelines)
       formData.append('competitors', JSON.stringify(data.competitors))
       const client = await createClient.mutateAsync(formData)
-      navigate('/admin/mandates/new', { state: { client_id: client.id } })
+      navigate('/mandates/new', { state: { client_id: client.id } })
     } catch {
       setSubmitError('Failed to create client. Please try again.')
     }

@@ -93,8 +93,9 @@ export function AssetDetailPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Request Revision</label>
+            <label htmlFor="revision-note" className="text-sm font-medium">Request Revision</label>
             <textarea
+              id="revision-note"
               value={revisionNote}
               onChange={(e) => setRevisionNote(e.target.value)}
               placeholder="Describe the revision needed…"

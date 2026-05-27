@@ -134,7 +134,7 @@ export function AnalyticsPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/admin/campaigns/${alert.campaign_id}/kpis`)}
+              onClick={() => navigate(`/campaigns/${alert.campaign_id}/kpis`)}
             >
               View KPIs
             </Button>

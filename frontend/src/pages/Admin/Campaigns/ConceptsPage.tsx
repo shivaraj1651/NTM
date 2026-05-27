@@ -20,7 +20,7 @@ export function ConceptsPage() {
   const handleConfirm = async () => {
     if (!selectedId) return
     await confirmConcept.mutateAsync(selectedId)
-    navigate(`/admin/campaigns/${id}/plan`)
+    navigate(`/campaigns/${id}/plan`)
   }
 
   return (

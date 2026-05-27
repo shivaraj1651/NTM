@@ -31,7 +31,7 @@ export function GoLivePage() {
   const handleLaunch = async () => {
     try {
       await goLive.mutateAsync()
-      navigate(`/admin/campaigns/${id}/kpis`)
+      navigate(`/campaigns/${id}/kpis`)
     } catch {
       // Error stored in goLive.isError, displayed in UI
     }

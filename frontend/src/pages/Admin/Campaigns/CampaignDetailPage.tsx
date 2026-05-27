@@ -24,7 +24,7 @@ const STATUS_TO_STEP: Record<CampaignStatus, number> = {
 
 const STEP_PATHS = [
   null, 'concepts', 'plan', 'plan',
-  'budget', 'budget', 'creatives', 'golive', 'kpis',
+  'budget', 'budget', 'creatives', 'go-live', 'kpis',
 ]
 
 export function CampaignDetailPage() {
@@ -35,14 +35,14 @@ export function CampaignDetailPage() {
 
   useEffect(() => {
     if (!campaign) return
-    const base = `/admin/campaigns/${id}`
+    const base = `/campaigns/${id}`
     if (location.pathname !== base && location.pathname !== `${base}/`) return
     const { status } = campaign
     if (status === 'concepts_ready') navigate(`${base}/concepts`, { replace: true })
     else if (status === 'confirmed' || status === 'planned') navigate(`${base}/plan`, { replace: true })
     else if (status === 'budget_proposed') navigate(`${base}/budget`, { replace: true })
     else if (status === 'approved' || status === 'creative_generating') navigate(`${base}/creatives`, { replace: true })
-    else if (status === 'creative_ready') navigate(`${base}/golive`, { replace: true })
+    else if (status === 'creative_ready') navigate(`${base}/go-live`, { replace: true })
     else if (status === 'live') navigate(`${base}/kpis`, { replace: true })
   }, [campaign, id, navigate, location.pathname])
 
@@ -50,12 +50,12 @@ export function CampaignDetailPage() {
   if (!campaign) return null
 
   const currentStep = STATUS_TO_STEP[campaign.status]
-  const base = `/admin/campaigns/${id}`
+  const base = `/campaigns/${id}`
 
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <Button variant="outline" size="sm" onClick={() => navigate('/admin/campaigns')}>
+        <Button variant="outline" size="sm" onClick={() => navigate('/campaigns')}>
           ← Back
         </Button>
         <h1 className="text-xl font-semibold">Campaign {id}</h1>

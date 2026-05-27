@@ -36,7 +36,7 @@ export function PlanPage() {
 
   const handleApprove = async () => {
     await approveBudget.mutateAsync()
-    navigate(`/admin/campaigns/${id}/budget`)
+    navigate(`/campaigns/${id}/budget`)
   }
 
   const columns: ColumnDef<Activation>[] = [

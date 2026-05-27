@@ -114,11 +114,11 @@ export function MandateFormPage() {
     try {
       if (isEdit) {
         await updateMandate.mutateAsync(values)
-        navigate(`/admin/mandates/${id}/summary`)
+        navigate(`/mandates/${id}/summary`)
       } else {
         if (!clientId) return
         const mandate = await createMandate.mutateAsync({ ...values, client_id: clientId })
-        navigate(`/admin/mandates/${mandate.id}/summary`)
+        navigate(`/mandates/${mandate.id}/summary`)
       }
     } catch {
       // mutation error handled via React Query's isError state

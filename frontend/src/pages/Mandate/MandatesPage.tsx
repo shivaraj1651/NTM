@@ -49,7 +49,7 @@ export function MandatesPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(`/admin/mandates/${row.original.id}/summary`)}
+          onClick={() => navigate(`/mandates/${row.original.id}/summary`)}
         >
           View
         </Button>
