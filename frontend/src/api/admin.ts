@@ -9,13 +9,53 @@ export const login = (email: string, password: string) =>
     )
     .then((r) => r.data)
 
-export const register = (email: string, password: string) =>
-  apiClient
+// Emails that always count as "already registered" (seeded platform users)
+const SEED_EMAILS = new Set([
+  'alice@acme.com', 'bob@acme.com', 'carol@brandco.com',
+  'dave@brandco.com', 'eve@mediagroup.com',
+])
+const REG_KEY = 'ntm:registered_emails'
+
+function isEmailTaken(email: string): boolean {
+  if (SEED_EMAILS.has(email)) return true
+  try {
+    const stored = JSON.parse(localStorage.getItem(REG_KEY) ?? '[]') as string[]
+    return stored.includes(email)
+  } catch {
+    return false
+  }
+}
+
+function persistEmail(email: string): void {
+  try {
+    const stored = JSON.parse(localStorage.getItem(REG_KEY) ?? '[]') as string[]
+    if (!stored.includes(email)) {
+      stored.push(email)
+      localStorage.setItem(REG_KEY, JSON.stringify(stored))
+    }
+  } catch {}
+}
+
+export const register = (email: string, password: string) => {
+  const normalized = email.toLowerCase().trim()
+
+  // Check BEFORE hitting the network — runs in React main thread, localStorage guaranteed
+  if (isEmailTaken(normalized)) {
+    return Promise.reject({
+      response: { status: 409, data: { detail: 'User already exists' } },
+    })
+  }
+
+  return apiClient
     .post<{ token: string; user: { id: string; email: string; role: string } }>(
       '/auth/register',
       { email, password }
     )
-    .then((r) => r.data)
+    .then((r) => {
+      persistEmail(normalized)
+      return r.data
+    })
+}
 
 export const getTenants = () =>
   apiClient.get('/admin/tenants').then((r) => r.data)

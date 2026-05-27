@@ -13,6 +13,40 @@ import type {
 } from '@/types/admin'
 import { mandateStore } from './mandates'
 
+// ── localStorage-persisted store ─────────────────────────────────────────────
+
+function createPersistedStore<V>(
+  storageKey: string,
+  seed: Record<string, V>,
+): Record<string, V> {
+  let initial: Record<string, V>
+  try {
+    const raw = localStorage.getItem(storageKey)
+    initial = raw ? { ...seed, ...(JSON.parse(raw) as Record<string, V>) } : { ...seed }
+  } catch {
+    initial = { ...seed }
+  }
+
+  const persist = (target: Record<string, V>) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(target))
+    } catch {}
+  }
+
+  return new Proxy(initial, {
+    set(target, prop, value) {
+      const ok = Reflect.set(target, prop, value)
+      persist(target)
+      return ok
+    },
+    deleteProperty(target, prop) {
+      const ok = Reflect.deleteProperty(target, prop)
+      persist(target)
+      return ok
+    },
+  })
+}
+
 export const physicalLogStore: Record<string, any[]> = {}
 export const activationStore: Record<string, any> = {}
 export const performanceStore: Record<string, any[]> = {}
@@ -288,7 +322,7 @@ const initialCampaigns: Record<string, Campaign> = {
   },
 }
 
-export const campaignStore: Record<string, Campaign> = { ...initialCampaigns }
+export const campaignStore = createPersistedStore<Campaign>('ntm:campaigns', initialCampaigns)
 
 export function generateConcepts(mandateId: string): CampaignConcept[] {
   return [
