@@ -1,8 +1,34 @@
 import { http, HttpResponse } from 'msw'
 import { users } from '../db'
 
-// Runtime registry — starts with seed user emails, grows as new accounts are registered
-const registeredEmails = new Set<string>(users.map((u) => u.email))
+const STORAGE_KEY = 'ntm:registered_emails'
+
+// Seed user emails — always treated as already registered
+const SEED_EMAILS = new Set(users.map((u) => u.email.toLowerCase()))
+
+/** Read persisted registrations from localStorage (survives page reload). */
+function isRegistered(email: string): boolean {
+  if (SEED_EMAILS.has(email)) return true
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[]
+    return stored.includes(email)
+  } catch {
+    return false
+  }
+}
+
+/** Persist a newly registered email to localStorage. */
+function saveRegistered(email: string): void {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[]
+    if (!stored.includes(email)) {
+      stored.push(email)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+    }
+  } catch {
+    // localStorage unavailable — skip persistence
+  }
+}
 
 export const authHandlers = [
   // Login — always succeeds, always returns admin role
@@ -18,20 +44,19 @@ export const authHandlers = [
     })
   }),
 
-  // Register — checks for duplicate email, creates user on success
+  // Register — checks localStorage + seed emails for duplicates
   http.post('/api/v1/auth/register', async ({ request }) => {
     const body = await request.json() as { email: string; password: string }
     const email = body.email.toLowerCase().trim()
 
-    if (registeredEmails.has(email)) {
+    if (isRegistered(email)) {
       return HttpResponse.json(
         { detail: 'User already exists' },
         { status: 409 },
       )
     }
 
-    // Persist for this session
-    registeredEmails.add(email)
+    saveRegistered(email)
 
     return HttpResponse.json({
       token: 'mock-jwt-token',
