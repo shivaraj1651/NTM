@@ -1,23 +1,86 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Building2, Users, Shield, ClipboardList, Activity,
-  BarChart2, Megaphone, FileText, LogOut, Target,
+  BarChart2, Megaphone, FileText, LogOut, Target, Palette,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/store/useAuthStore'
 
-const NAV_ITEMS = [
-  { label: 'Tenants',       to: '/admin/tenants',      icon: Building2  },
-  { label: 'Users',         to: '/admin/users',         icon: Users      },
-  { label: 'Roles',         to: '/admin/roles',         icon: Shield     },
-  { label: 'Audit Log',     to: '/admin/audit',         icon: ClipboardList },
-  { label: 'Health',        to: '/admin/health',        icon: Activity   },
-  { label: 'Analytics',     to: '/admin/analytics',     icon: BarChart2  },
-  { label: 'Mandates',      to: '/admin/mandates',      icon: FileText   },
-  { label: 'Campaigns',     to: '/admin/campaigns',     icon: Megaphone  },
-  { label: 'KPI Dashboard', to: '/admin/kpi-dashboard', icon: Target     },
+interface NavItem {
+  label: string
+  to: string
+  icon: React.ElementType
+  allowedRoles: string[]
+}
+
+const ALL_ROLES = [
+  'platform_admin', 'tenant_admin', 'brand_manager',
+  'cmo', 'creative_lead', 'campaign_manager', 'viewer',
+]
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Mandates',
+    to: '/mandates',
+    icon: FileText,
+    allowedRoles: ['brand_manager', 'cmo', 'tenant_admin', 'platform_admin'],
+  },
+  {
+    label: 'Campaigns',
+    to: '/campaigns',
+    icon: Megaphone,
+    allowedRoles: ['campaign_manager', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin'],
+  },
+  {
+    label: 'Creative Studio',
+    to: '/creative-studio',
+    icon: Palette,
+    allowedRoles: ['creative_lead', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin'],
+  },
+  {
+    label: 'Analytics',
+    to: '/analytics',
+    icon: BarChart2,
+    allowedRoles: ALL_ROLES,
+  },
+  {
+    label: 'KPI Dashboard',
+    to: '/kpi-dashboard',
+    icon: Target,
+    allowedRoles: ['cmo', 'campaign_manager', 'tenant_admin', 'platform_admin'],
+  },
+  {
+    label: 'Tenants',
+    to: '/admin/tenants',
+    icon: Building2,
+    allowedRoles: ['platform_admin'],
+  },
+  {
+    label: 'Users',
+    to: '/admin/users',
+    icon: Users,
+    allowedRoles: ['platform_admin'],
+  },
+  {
+    label: 'Roles',
+    to: '/admin/roles',
+    icon: Shield,
+    allowedRoles: ['platform_admin'],
+  },
+  {
+    label: 'Audit Log',
+    to: '/admin/audit',
+    icon: ClipboardList,
+    allowedRoles: ['platform_admin'],
+  },
+  {
+    label: 'Health',
+    to: '/admin/health',
+    icon: Activity,
+    allowedRoles: ['platform_admin'],
+  },
 ]
 
 export function Sidebar() {
@@ -29,6 +92,10 @@ export function Sidebar() {
     navigate('/login')
   }
 
+  const visibleItems = NAV_ITEMS.filter(item =>
+    item.allowedRoles.includes(user?.role ?? '')
+  )
+
   return (
     <aside className="w-60 shrink-0 flex flex-col border-r bg-card">
       <div className="px-4 py-5">
@@ -36,7 +103,7 @@ export function Sidebar() {
       </div>
       <Separator />
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {NAV_ITEMS.map(({ label, to, icon: Icon }) => (
+        {visibleItems.map(({ label, to, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -57,8 +124,8 @@ export function Sidebar() {
       <Separator />
       <div className="px-4 py-4 space-y-2">
         <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800 border-red-200">
-          Admin
+        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 border-blue-200 capitalize">
+          {user?.role?.replace(/_/g, ' ') ?? 'Unknown'}
         </span>
         <Button
           variant="ghost"
