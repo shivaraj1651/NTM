@@ -356,6 +356,15 @@ export const campaignHandlers = [
     return HttpResponse.json({ creatives, total: creatives.length })
   }),
 
+  http.patch('/api/v1/creatives/:id/status', async ({ params, request }) => {
+    const body = (await request.json()) as { status: string; notes?: string }
+    const id = params.id as string
+    const existing = db.creativesStore[id]
+    if (!existing) return new HttpResponse(null, { status: 404 })
+    db.creativesStore[id] = { ...existing, status: body.status, notes: body.notes ?? existing.notes }
+    return HttpResponse.json(db.creativesStore[id])
+  }),
+
   http.post('/api/v1/creatives/:creativeId/internal-approve', ({ params }) => {
     return HttpResponse.json({ id: params.creativeId, validation_status: 'internal_approved' })
   }),

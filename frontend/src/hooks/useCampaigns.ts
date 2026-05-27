@@ -81,6 +81,13 @@ export function useMandates(tenantId: string | null) {
   })
 }
 
+export function useAllMandates() {
+  return useQuery<Mandate[]>({
+    queryKey: ['mandates-all'],
+    queryFn: () => getMandates(),
+  })
+}
+
 export type AssetKind = 'copy' | 'scripts' | 'images' | 'audio'
 
 export interface ApproveAssetPayload {

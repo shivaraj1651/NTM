@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTenants } from '@/hooks/useTenants'
-import { useCampaigns, useCreateCampaign, useMandates } from '@/hooks/useCampaigns'
+import { useCampaigns, useCreateCampaign, useMandates, useAllMandates } from '@/hooks/useCampaigns'
 import type { Campaign, CampaignStatus } from '@/types/admin'
 
 function statusBadge(status: CampaignStatus) {
@@ -48,6 +48,7 @@ export function CampaignsPage() {
 
   const { data: campaigns = [], isLoading } = useCampaigns(selectedTenantId)
   const { data: mandates = [] } = useMandates(selectedTenantId)
+  const { data: allMandates = [] } = useAllMandates()
   const createCampaign = useCreateCampaign()
 
   const handleCreate = async () => {
@@ -142,7 +143,7 @@ export function CampaignsPage() {
                 <SelectValue placeholder="Select mandate…" />
               </SelectTrigger>
               <SelectContent>
-                {mandates.map((m) => (
+                {allMandates.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     {m.name} — {m.budget.currency} {m.budget.total_budget.toLocaleString()}
                   </SelectItem>

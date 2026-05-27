@@ -21,7 +21,8 @@ export function useCreatives(campaignId?: string) {
         ? `/creatives?campaign_id=${campaignId}`
         : '/creatives'
       const { data } = await apiClient.get(url)
-      return data
+      // Handler returns { creatives: [...], total: N } — extract the array
+      return Array.isArray(data) ? data : (data.creatives ?? [])
     },
     enabled: true,
   })

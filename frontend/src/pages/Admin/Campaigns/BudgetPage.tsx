@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/data-table'
@@ -8,6 +8,7 @@ import type { BudgetAllocation } from '@/types/admin'
 
 export function BudgetPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { data: campaign, isLoading } = useCampaign(id!)
   const confirmBudget = useConfirmBudget(id!)
 
@@ -65,7 +66,14 @@ export function BudgetPage() {
       )}
 
       {status !== 'approved' && (
-        <Button onClick={() => confirmBudget.mutate()} disabled={confirmBudget.isPending}>
+        <Button
+          onClick={() =>
+            confirmBudget.mutate(undefined, {
+              onSuccess: () => navigate(`/campaigns/${id}/creatives`),
+            })
+          }
+          disabled={confirmBudget.isPending}
+        >
           {confirmBudget.isPending ? 'Confirming…' : 'Confirm Budget'}
         </Button>
       )}

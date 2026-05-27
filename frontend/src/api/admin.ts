@@ -137,8 +137,10 @@ export const approveBudget = (id: string) =>
 export const confirmBudget = (id: string) =>
   apiClient.post(`/campaigns/${id}/confirm-budget`).then((r) => r.data)
 
-export const getMandates = (tenantId: string) =>
-  apiClient.get<MandateSummaryCard[]>(`/mandates?tenant_id=${tenantId}`).then((r) => r.data)
+export const getMandates = (tenantId?: string | null) =>
+  apiClient
+    .get<MandateSummaryCard[]>(tenantId ? `/mandates?tenant_id=${tenantId}` : '/mandates')
+    .then((r) => r.data)
 
 export const generateCreatives = (id: string) =>
   apiClient.post(`/campaigns/${id}/generate-creatives`).then((r) => r.data)
