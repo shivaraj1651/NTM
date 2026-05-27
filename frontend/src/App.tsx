@@ -1,13 +1,21 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { RoleGuard } from '@/components/RoleGuard'
 import { AdminLayout } from '@/components/AdminLayout'
+import { RoleHomePage } from '@/pages/RoleHome/RoleHomePage'
+
+// Auth
 import { LoginPage } from '@/pages/Login/LoginPage'
-import { TenantsPage } from '@/pages/Admin/Tenants/TenantsPage'
-import { UsersPage } from '@/pages/Admin/Users/UsersPage'
-import { RolesPage } from '@/pages/Admin/Roles/RolesPage'
-import { AuditLogPage } from '@/pages/Admin/AuditLog/AuditLogPage'
-import { HealthPage } from '@/pages/Admin/Health/HealthPage'
-import { AnalyticsPage } from '@/pages/Admin/Analytics/AnalyticsPage'
+
+// Onboarding
+import { OnboardingPage } from '@/pages/Onboarding/OnboardingPage'
+
+// Mandate
+import { MandatesPage } from '@/pages/Mandate/MandatesPage'
+import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
+import { MandateSummaryPage } from '@/pages/Mandate/MandateSummaryPage'
+
+// Campaign
 import { CampaignsPage } from '@/pages/Admin/Campaigns/CampaignsPage'
 import { CampaignDetailPage } from '@/pages/Admin/Campaigns/CampaignDetailPage'
 import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
@@ -18,20 +26,137 @@ import { GoLivePage } from '@/pages/Admin/Campaigns/GoLivePage'
 import { KpisPage } from '@/pages/Admin/Campaigns/KpisPage'
 import { PhysicalLogPage } from '@/pages/Admin/Campaigns/PhysicalLogPage'
 import { CIReportPage } from '@/pages/Admin/Campaigns/CIReportPage'
+
+// Creative Studio
+import { CreativeStudioPage } from '@/pages/CreativeStudio/CreativeStudioPage'
+import { AssetDetailPage } from '@/pages/CreativeStudio/AssetDetailPage'
+
+// Analytics
+import { AnalyticsPage } from '@/pages/Admin/Analytics/AnalyticsPage'
+
+// KPI Dashboard
 import { KPIDashboardPage } from '@/pages/KPIDashboard/KPIDashboardPage'
-import { OnboardingPage } from '@/pages/Onboarding/OnboardingPage'
-import { MandatesPage } from '@/pages/Mandate/MandatesPage'
-import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
-import { MandateSummaryPage } from '@/pages/Mandate/MandateSummaryPage'
+
+// Admin
+import { TenantsPage } from '@/pages/Admin/Tenants/TenantsPage'
+import { UsersPage } from '@/pages/Admin/Users/UsersPage'
+import { RolesPage } from '@/pages/Admin/Roles/RolesPage'
+import { AuditLogPage } from '@/pages/Admin/AuditLog/AuditLogPage'
+import { HealthPage } from '@/pages/Admin/Health/HealthPage'
+
+const MANDATE_ROLES = ['brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
+const CAMPAIGN_ROLES = ['campaign_manager', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
+const CREATIVE_ROLES = ['creative_lead', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
+const KPI_ROLES = ['cmo', 'campaign_manager', 'tenant_admin', 'platform_admin']
+const ADMIN_ROLES = ['platform_admin']
+const ALL_ROLES = [
+  'platform_admin', 'tenant_admin', 'brand_manager',
+  'cmo', 'creative_lead', 'campaign_manager', 'viewer',
+]
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
+  // Smart home redirect
+  { path: '/', element: <RoleHomePage /> },
+
+  // Public
   { path: '/login', element: <LoginPage /> },
+
+  // Onboarding — any authenticated user
   {
-    path: '/admin',
     element: <ProtectedRoute />,
     children: [
-      { path: 'onboarding', element: <OnboardingPage /> },
+      { path: '/onboarding', element: <OnboardingPage /> },
+    ],
+  },
+
+  // Mandates
+  {
+    path: '/mandates',
+    element: <RoleGuard allowedRoles={MANDATE_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <MandatesPage /> },
+          { path: 'new', element: <MandateFormPage /> },
+          { path: ':id/summary', element: <MandateSummaryPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Campaigns
+  {
+    path: '/campaigns',
+    element: <RoleGuard allowedRoles={CAMPAIGN_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <CampaignsPage /> },
+          { path: ':id', element: <CampaignDetailPage /> },
+          { path: ':id/concepts', element: <ConceptsPage /> },
+          { path: ':id/plan', element: <PlanPage /> },
+          { path: ':id/budget', element: <BudgetPage /> },
+          { path: ':id/creatives', element: <CreativesPage /> },
+          { path: ':id/go-live', element: <GoLivePage /> },
+          { path: ':id/kpis', element: <KpisPage /> },
+          { path: ':id/physical-log', element: <PhysicalLogPage /> },
+          { path: ':id/ci-report', element: <CIReportPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Creative Studio
+  {
+    path: '/creative-studio',
+    element: <RoleGuard allowedRoles={CREATIVE_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <CreativeStudioPage /> },
+          { path: ':assetId', element: <AssetDetailPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Analytics — all authenticated roles
+  {
+    path: '/analytics',
+    element: <RoleGuard allowedRoles={ALL_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <AnalyticsPage /> },
+          { path: ':mandateId', element: <AnalyticsPage /> },
+        ],
+      },
+    ],
+  },
+
+  // KPI Dashboard
+  {
+    path: '/kpi-dashboard',
+    element: <RoleGuard allowedRoles={KPI_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <KPIDashboardPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Admin — platform_admin ONLY
+  {
+    path: '/admin',
+    element: <RoleGuard allowedRoles={ADMIN_ROLES} />,
+    children: [
       {
         element: <AdminLayout />,
         children: [
@@ -41,29 +166,11 @@ export const router = createBrowserRouter([
           { path: 'roles', element: <RolesPage /> },
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'health', element: <HealthPage /> },
-          { path: 'analytics', element: <AnalyticsPage /> },
-          { path: 'mandates', element: <MandatesPage /> },
-          { path: 'mandates/new', element: <MandateFormPage /> },
-          { path: 'mandates/:id/edit', element: <MandateFormPage /> },
-          { path: 'mandates/:id/summary', element: <MandateSummaryPage /> },
-          { path: 'campaigns', element: <CampaignsPage /> },
-          {
-            path: 'campaigns/:id',
-            element: <CampaignDetailPage />,
-            children: [
-              { path: 'concepts', element: <ConceptsPage /> },
-              { path: 'plan', element: <PlanPage /> },
-              { path: 'budget', element: <BudgetPage /> },
-              { path: 'creatives', element: <CreativesPage /> },
-              { path: 'golive', element: <GoLivePage /> },
-              { path: 'kpis', element: <KpisPage /> },
-              { path: 'physical-log', element: <PhysicalLogPage /> },
-              { path: 'ci-report', element: <CIReportPage /> },
-            ],
-          },
-          { path: 'kpi-dashboard', element: <KPIDashboardPage /> },
         ],
       },
     ],
   },
+
+  // Catch-all
+  { path: '*', element: <RoleHomePage /> },
 ])
