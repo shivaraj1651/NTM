@@ -40,7 +40,7 @@ async def get_db() -> AsyncIOMotorDatabase:
 @router.post("/campaigns/{campaign_id}/activate", response_model=JobQueuedResponse, status_code=202)
 async def activate_campaign(
     campaign_id: str,
-    user: User = Depends(require_role(DIGITAL_ROLES)),
+    _: User = Depends(require_role(DIGITAL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JobQueuedResponse:

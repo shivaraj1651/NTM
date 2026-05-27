@@ -30,17 +30,20 @@ ALL_ROLES = [
 ]
 
 
-async def get_db() -> AsyncIOMotorDatabase:
+async def get_mongo_db() -> AsyncIOMotorDatabase:
     client = AsyncIOMotorClient(os.getenv("MONGO_DB_URL", "mongodb://localhost:27017"))
-    return client[os.getenv("MONGO_DB_NAME", "ntm")]
+    try:
+        yield client[os.getenv("MONGO_DB_NAME", "ntm")]
+    finally:
+        client.close()
 
 
 @router.post("/campaigns/{campaign_id}/analytics/run", response_model=JobQueuedResponse, status_code=202)
 async def run_analytics(
     campaign_id: str,
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> JobQueuedResponse:
     svc = CampaignService(db)
     campaign = await svc.get(campaign_id, tenant_id)
@@ -53,9 +56,9 @@ async def run_analytics(
 @router.get("/campaigns/{campaign_id}/analytics", status_code=200)
 async def get_analytics(
     campaign_id: str,
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> dict:
     svc = CampaignService(db)
     campaign = await svc.get(campaign_id, tenant_id)
@@ -76,9 +79,9 @@ async def get_analytics(
 @router.get("/analytics/dashboard", status_code=200)
 async def analytics_dashboard(
     mandate_id: str = Query(...),
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    mongo: AsyncIOMotorDatabase = Depends(get_db),
+    mongo: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> dict:
     """GET /analytics/dashboard?mandate_id= — unified campaign dashboard data."""
     summary = await mongo["analytics_summaries"].find_one(
@@ -96,9 +99,9 @@ async def analytics_dashboard(
 @router.get("/analytics/channel-performance", status_code=200)
 async def channel_performance(
     mandate_id: str = Query(...),
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    mongo: AsyncIOMotorDatabase = Depends(get_db),
+    mongo: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> dict:
     """GET /analytics/channel-performance?mandate_id= — per-channel breakdown."""
     summary = await mongo["analytics_summaries"].find_one(
@@ -115,7 +118,7 @@ async def channel_performance(
 async def kpi_status(
     mandate_id: Optional[str] = Query(None),
     campaign_id: Optional[str] = Query(None),
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     sql_db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -141,9 +144,9 @@ async def kpi_status(
 async def analytics_report(
     mandate_id: str = Query(...),
     week: Optional[int] = Query(None),
-    user: User = Depends(require_role(ALL_ROLES)),
+    _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    mongo: AsyncIOMotorDatabase = Depends(get_db),
+    mongo: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> dict:
     """GET /analytics/report?mandate_id=&week= — weekly intelligence report."""
     query: dict = {"mandate_id": mandate_id, "tenant_id": tenant_id}
@@ -161,7 +164,7 @@ async def approve_replan_recommendation(
     recommendation_id: str,
     user: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
-    mongo: AsyncIOMotorDatabase = Depends(get_db),
+    mongo: AsyncIOMotorDatabase = Depends(get_mongo_db),
 ) -> dict:
     """POST /analytics/replan/approve/{id} — campaign manager approves a replan recommendation."""
     result = await mongo["replan_recommendations"].find_one_and_update(

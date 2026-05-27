@@ -132,7 +132,9 @@ async def generate_creatives(
         200: {"description": "Service is healthy"},
     }
 )
-async def health_check() -> HealthResponse:
+async def health_check(
+    _: User = Depends(require_role(CREATIVE_DIR_ROLES)),
+) -> HealthResponse:
     """Health check endpoint for Creative Director Agent.
 
     Returns:

@@ -34,7 +34,7 @@ ACTIVATION_ROLES = [
 async def list_activations(
     campaign_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    user: User = Depends(require_role(ACTIVATION_ROLES)),
+    _: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -52,7 +52,7 @@ async def list_activations(
 @router.get("/activations/{activation_id}", status_code=200)
 async def get_activation(
     activation_id: str,
-    user: User = Depends(require_role(ACTIVATION_ROLES)),
+    _: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -64,7 +64,7 @@ async def get_activation(
 @router.get("/activations/{activation_id}/performance", status_code=200)
 async def get_activation_performance(
     activation_id: str,
-    user: User = Depends(require_role(ACTIVATION_ROLES)),
+    _: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
