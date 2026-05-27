@@ -1,6 +1,9 @@
 import pytest
 from contextvars import ContextVar
-from backend.app.core.dependencies import get_current_tenant, tenant_context
+from unittest.mock import MagicMock
+from fastapi import HTTPException
+from backend.app.core.dependencies import get_current_tenant, tenant_context, require_role
+from backend.app.core.models import UserRole
 
 
 def test_tenant_context_is_context_var():
@@ -24,3 +27,45 @@ async def test_get_current_tenant_empty_context():
     """get_current_tenant should return None if context not set"""
     tenant_id = await get_current_tenant()
     assert tenant_id is None
+
+
+def make_user(role_name: str):
+    user = MagicMock()
+    user.role = MagicMock()
+    user.role.name = role_name
+    return user
+
+
+@pytest.mark.asyncio
+async def test_require_role_allows_matching_role():
+    user = make_user("brand_manager")
+    dep = require_role([UserRole.BRAND_MANAGER, UserRole.CMO])
+    result = await dep(user=user)
+    assert result is user
+
+
+@pytest.mark.asyncio
+async def test_require_role_blocks_non_matching_role():
+    user = make_user("viewer")
+    dep = require_role([UserRole.BRAND_MANAGER, UserRole.CMO])
+    with pytest.raises(HTTPException) as exc_info:
+        await dep(user=user)
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_require_role_allows_platform_admin_when_listed():
+    user = make_user("platform_admin")
+    dep = require_role([UserRole.PLATFORM_ADMIN])
+    result = await dep(user=user)
+    assert result is user
+
+
+@pytest.mark.asyncio
+async def test_require_role_blocks_when_role_is_none():
+    user = make_user("viewer")
+    user.role = None
+    dep = require_role([UserRole.BRAND_MANAGER])
+    with pytest.raises(HTTPException) as exc_info:
+        await dep(user=user)
+    assert exc_info.value.status_code == 403
