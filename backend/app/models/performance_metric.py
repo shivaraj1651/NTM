@@ -7,12 +7,9 @@ One row per activation per day with aggregated platform metrics.
 from uuid import uuid4
 from datetime import date, datetime
 from sqlalchemy import Column, Date, DateTime, String, Index
-from sqlalchemy.orm import declarative_base
+from backend.app.models.base import Base
+
 from sqlalchemy.dialects.postgresql import UUID, JSON
-
-Base = declarative_base()
-
-
 class PerformanceMetric(Base):
     """
     PerformanceMetric (daily platform activation metrics).

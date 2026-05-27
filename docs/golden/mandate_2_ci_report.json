@@ -1,0 +1,77 @@
+{
+  "mandate_id": "mandate_2",
+  "report_type": "competitive_intelligence",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "version": "1.0",
+  "market_context": {
+    "category": "Enterprise AI / SaaS",
+    "geography": ["US", "CA"],
+    "analysis_window_days": 90
+  },
+  "competitors": [
+    {
+      "name": "Salesforce",
+      "confidence": 85,
+      "digital_spend_estimate_monthly_usd": 4200000,
+      "primary_channels": ["LinkedIn", "Google Search", "Programmatic", "Events"],
+      "creative_approach": "Customer success stories with ROI proof points",
+      "share_of_voice_pct": 35,
+      "key_messages": ["CRM + AI unified", "Trusted by 150,000 companies", "Einstein AI"],
+      "weaknesses": ["Premium price perception", "Complex onboarding for SME", "Slow to innovate on LLM features"]
+    },
+    {
+      "name": "Microsoft Azure AI",
+      "confidence": 82,
+      "digital_spend_estimate_monthly_usd": 3800000,
+      "primary_channels": ["LinkedIn", "Google Search", "YouTube", "Events"],
+      "creative_approach": "Enterprise scale and security messaging",
+      "share_of_voice_pct": 30,
+      "key_messages": ["Responsible AI", "Azure integration", "Enterprise security"],
+      "weaknesses": ["Generic AI messaging", "Developer-focused, not business-buyer focused", "High perceived complexity"]
+    },
+    {
+      "name": "Google Cloud AI",
+      "confidence": 80,
+      "digital_spend_estimate_monthly_usd": 3200000,
+      "primary_channels": ["Google Search", "YouTube", "LinkedIn", "Webinars"],
+      "creative_approach": "Innovation and research leadership",
+      "share_of_voice_pct": 22,
+      "key_messages": ["Gemini-powered", "Data analytics integration", "Research-to-production"],
+      "weaknesses": ["Consumer brand spillover dilutes enterprise trust", "Poor enterprise sales motion", "Gaps in compliance messaging"]
+    },
+    {
+      "name": "IBM Watson",
+      "confidence": 72,
+      "digital_spend_estimate_monthly_usd": 980000,
+      "primary_channels": ["LinkedIn", "Events", "Print Trade"],
+      "creative_approach": "Legacy trust and industry-specific AI",
+      "share_of_voice_pct": 8,
+      "key_messages": ["Watsonx", "Regulated industries", "Hybrid cloud"],
+      "weaknesses": ["Brand fatigue after years of overpromising", "Declining share of voice", "Limited developer ecosystem"]
+    },
+    {
+      "name": "ServiceNow",
+      "confidence": 68,
+      "digital_spend_estimate_monthly_usd": 760000,
+      "primary_channels": ["LinkedIn", "Google Search", "Events"],
+      "creative_approach": "Workflow automation + AI efficiency",
+      "share_of_voice_pct": 5,
+      "key_messages": ["Now Intelligence", "ITSM automation", "Enterprise workflow"],
+      "weaknesses": ["Narrow ITSM positioning", "Not perceived as AI-first", "Limited creative diversity"]
+    }
+  ],
+  "market_gaps": [
+    "Mid-market enterprise (500-2000 employees) underserved by hyperscalers",
+    "Hands-on demo and proof-of-value content largely absent from competitors",
+    "Webinar-to-pipeline conversion path ignored by top 3 players",
+    "Long-tail search terms for specific AI use-cases underbid by Salesforce and Azure"
+  ],
+  "strategic_recommendations": [
+    "Target 'mid-enterprise' specifically — not SME, not Fortune 500",
+    "Lead with proof-of-value: free 30-day pilot with white-glove onboarding",
+    "Build a webinar series around specific enterprise pain points (not generic AI demos)",
+    "Bid aggressively on long-tail search: 'AI for [industry] compliance', 'enterprise LLM data security'"
+  ],
+  "overall_competitive_intensity": "VERY HIGH",
+  "opportunity_score": 65
+}

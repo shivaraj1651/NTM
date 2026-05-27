@@ -4,10 +4,7 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import Column, DateTime, String, Index, JSON
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
+from backend.app.models.base import Base
 
 class PhysicalActivationLog(Base):
     __tablename__ = "physical_activation_logs"

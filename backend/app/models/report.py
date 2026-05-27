@@ -3,12 +3,9 @@
 from uuid import uuid4
 from datetime import datetime, date
 from sqlalchemy import Column, Date, DateTime, String, Index
-from sqlalchemy.orm import declarative_base
+from backend.app.models.base import Base
+
 from sqlalchemy.dialects.postgresql import JSON
-
-Base = declarative_base()
-
-
 class Report(Base):
     """
     Report (output from AGT-15 ReportAgent).

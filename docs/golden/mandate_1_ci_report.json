@@ -1,0 +1,77 @@
+{
+  "mandate_id": "mandate_1",
+  "report_type": "competitive_intelligence",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "version": "1.0",
+  "market_context": {
+    "category": "FMCG / Personal Care",
+    "geography": ["SG", "MY", "TH"],
+    "analysis_window_days": 90
+  },
+  "competitors": [
+    {
+      "name": "Unilever",
+      "confidence": 90,
+      "digital_spend_estimate_monthly_usd": 850000,
+      "primary_channels": ["Instagram", "TikTok", "YouTube"],
+      "creative_approach": "Lifestyle aspirational with celebrity endorsement",
+      "share_of_voice_pct": 32,
+      "key_messages": ["Natural ingredients", "Sustainable beauty", "Affordable premium"],
+      "weaknesses": ["Generic creative templates", "Low engagement rate on TikTok", "No localised SEA content"]
+    },
+    {
+      "name": "P&G",
+      "confidence": 88,
+      "digital_spend_estimate_monthly_usd": 720000,
+      "primary_channels": ["Facebook", "Instagram", "Google Display"],
+      "creative_approach": "Problem-solution format with product demos",
+      "share_of_voice_pct": 28,
+      "key_messages": ["Science-backed", "Trusted by families", "Value for money"],
+      "weaknesses": ["Ageing audience skew", "Minimal TikTok presence", "Repetitive messaging cycles"]
+    },
+    {
+      "name": "Nestle",
+      "confidence": 75,
+      "digital_spend_estimate_monthly_usd": 430000,
+      "primary_channels": ["YouTube", "Facebook", "Programmatic"],
+      "creative_approach": "Family moments and health narratives",
+      "share_of_voice_pct": 17,
+      "key_messages": ["Nourishment", "Family wellness", "Trusted brand heritage"],
+      "weaknesses": ["Broad targeting, low relevance", "No influencer programme", "Weak CTA strategy"]
+    },
+    {
+      "name": "Colgate-Palmolive",
+      "confidence": 70,
+      "digital_spend_estimate_monthly_usd": 280000,
+      "primary_channels": ["Instagram", "Search"],
+      "creative_approach": "Clinical credibility and expert endorsement",
+      "share_of_voice_pct": 11,
+      "key_messages": ["Dentist recommended", "Clinical proof", "Daily care"],
+      "weaknesses": ["Limited category diversity", "Low social engagement", "Formulaic creative"]
+    },
+    {
+      "name": "Reckitt",
+      "confidence": 65,
+      "digital_spend_estimate_monthly_usd": 190000,
+      "primary_channels": ["Facebook", "Search", "OOH"],
+      "creative_approach": "Urgency and efficacy messaging",
+      "share_of_voice_pct": 8,
+      "key_messages": ["Fast action", "Proven results", "Trust and safety"],
+      "weaknesses": ["Largely offline focus", "Minimal content marketing", "No UGC strategy"]
+    }
+  ],
+  "market_gaps": [
+    "Urban health-vitality positioning largely unclaimed",
+    "TikTok SEA category absent — first-mover opportunity",
+    "Authentic localised content underserved vs. generic pan-Asian creative",
+    "Commuter OOH not used by any digital-first competitor"
+  ],
+  "strategic_recommendations": [
+    "Own TikTok SEA with challenge format before Unilever enters",
+    "Build localised creative for SG, MY, TH independently (not one SEA asset)",
+    "Pair digital launch with subway/MRT OOH in Singapore and KL",
+    "Seed 15-20 mid-tier influencers (100K-500K followers) rather than one celebrity"
+  ],
+  "overall_competitive_intensity": "HIGH",
+  "opportunity_score": 78
+}

@@ -4,12 +4,9 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import Column, Date, DateTime, Float, String, Text, Index
+from backend.app.models.base import Base
+
 from sqlalchemy import JSON
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
-
 class Mandate(Base):
     __tablename__ = "mandates"
 

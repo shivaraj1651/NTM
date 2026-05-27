@@ -6,10 +6,13 @@ Multi-tenant access is handled via the user_tenant_access junction table.
 """
 
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Table, JSON, func
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import uuid
 from enum import Enum
+
+from backend.app.models.base import Base
+
 
 class UserRole(str, Enum):
     PLATFORM_ADMIN = "platform_admin"
@@ -19,8 +22,6 @@ class UserRole(str, Enum):
     CREATIVE_LEAD = "creative_lead"
     CAMPAIGN_MANAGER = "campaign_manager"
     VIEWER = "viewer"
-
-Base = declarative_base()
 
 
 class Role(Base):

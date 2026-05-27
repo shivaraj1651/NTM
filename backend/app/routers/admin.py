@@ -3,7 +3,6 @@
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,61 +10,18 @@ from backend.app.core.dependencies import require_role
 from backend.app.core.models import User, Tenant, Role, UserRole
 from backend.app.models.approval_log import ApprovalLog
 from backend.app.db import get_db
+from backend.app.schemas.admin import (  # noqa: F401 — re-exported for router use
+    TenantCreate,
+    TenantResponse,
+    UserCreate,
+    UserResponse,
+    RoleUpdate,
+    AuditLogResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
-
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
-class TenantCreate(BaseModel):
-    name: str
-
-
-class TenantResponse(BaseModel):
-    id: str
-    name: str
-    is_active: bool
-    created_at: str
-
-    model_config = {"from_attributes": True}
-
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    tenant_id: str
-    role_name: str = "viewer"
-
-
-class UserResponse(BaseModel):
-    id: str
-    email: str
-    tenant_id: str
-    is_active: bool
-    created_at: str
-
-    model_config = {"from_attributes": True}
-
-
-class RoleUpdate(BaseModel):
-    role_name: str
-
-
-class AuditLogResponse(BaseModel):
-    id: str
-    tenant_id: str
-    entity_type: str
-    entity_id: str
-    action: str
-    actor_id: str
-    notes: Optional[str]
-    status_before: Optional[str]
-    status_after: Optional[str]
-    created_at: str
-
-    model_config = {"from_attributes": True}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

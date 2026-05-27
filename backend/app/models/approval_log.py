@@ -4,10 +4,7 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import Column, DateTime, String, Text, Index
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
+from backend.app.models.base import Base
 
 class ApprovalLog(Base):
     __tablename__ = "approval_logs"

@@ -4,10 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Float, Index, String
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
+from backend.app.models.base import Base
 
 class GeneratedAudio(Base):
     """Generated audio record. Multi-tenant isolated, one row per generation."""

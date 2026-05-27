@@ -1,11 +1,16 @@
 """
 Celery tasks for NTM application.
 
-Async background tasks for competitive intelligence, metrics gathering, activation,
-and long-running operations.
+Async background tasks for mandate analysis, campaign strategy, media planning,
+competitive intelligence, activation, analytics, replanning, and reporting.
 """
 
+from backend.app.tasks.mandate_tasks import run_mandate_analysis
+from backend.app.tasks.campaign_tasks import run_campaign_strategy, run_media_planning
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics
+from backend.app.tasks.analytics_tasks import run_daily_analytics_task
+from backend.app.tasks.replanning_tasks import run_weekly_replan_task
+from backend.app.tasks.report_tasks import generate_daily_report_task, generate_weekly_report_task
 from backend.app.tasks.activation_tasks import (
     platform_activate_google,
     platform_activate_meta,
@@ -14,7 +19,21 @@ from backend.app.tasks.activation_tasks import (
 )
 
 __all__ = [
+    # Mandate pipeline
+    "run_mandate_analysis",
+    # Campaign pipeline
+    "run_campaign_strategy",
+    "run_media_planning",
+    # Competitive intelligence
     "fetch_competitor_metrics",
+    # Analytics (Celery Beat — daily)
+    "run_daily_analytics_task",
+    # Replanning (Celery Beat — weekly)
+    "run_weekly_replan_task",
+    # Reporting (Celery Beat — daily + weekly)
+    "generate_daily_report_task",
+    "generate_weekly_report_task",
+    # Platform activation
     "platform_activate_google",
     "platform_activate_meta",
     "platform_activate_linkedin",

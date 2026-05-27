@@ -8,6 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.services.platform_config import PlatformConfigService
 from backend.app.services.activation_notifications import ActivationNotificationService
+from backend.app.models.campaign import Campaign
+from backend.app.tasks.activation_tasks import (
+    platform_activate_google,
+    platform_activate_meta,
+    platform_activate_linkedin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +130,10 @@ class DigitalActivatorAgent:
         Returns:
             Campaign record if found, None otherwise
         """
-        # TODO: Implement campaign lookup from Campaign model
-        # For now, stub returns None (tests mock this)
-        return None
+        result = await self.db.execute(
+            select(Campaign).where(Campaign.id == str(campaign_id))
+        )
+        return result.scalar_one_or_none()
 
     def _map_channel_to_platforms(self, channel_enum: str) -> List[str]:
         """
@@ -175,12 +182,22 @@ class DigitalActivatorAgent:
             subtasks (activate_google, activate_meta, activate_linkedin) will
             be implemented in Task 9 when Celery tasks are registered.
         """
-        # TODO: Route to platform-specific Celery tasks
-        # For Task 9:
-        # if platform == "google_ads":
-        #     return activate_google.apply_async(...)
-        # elif platform == "meta_ads":
-        #     return activate_meta.apply_async(...)
-        # elif platform == "linkedin_ads":
-        #     return activate_linkedin.apply_async(...)
+        activation_dict = (
+            activation.to_dict()
+            if hasattr(activation, "to_dict")
+            else {k: v for k, v in vars(activation).items() if not k.startswith("_")}
+        )
+        if platform == "google_ads":
+            return platform_activate_google.apply_async(
+                args=[activation_dict, platform_config, creative_url]
+            )
+        elif platform == "meta_ads":
+            return platform_activate_meta.apply_async(
+                args=[activation_dict, platform_config, creative_url]
+            )
+        elif platform == "linkedin_ads":
+            return platform_activate_linkedin.apply_async(
+                args=[activation_dict, platform_config, creative_url]
+            )
+        logger.warning(f"[DigitalActivatorAgent] unknown platform: {platform}")
         return None

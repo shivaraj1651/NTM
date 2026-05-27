@@ -89,16 +89,20 @@ def test_get_campaign_not_found_returns_404():
 # ── POST /api/v1/campaigns/{campaign_id}/confirm ─────────────────────────────
 
 def test_confirm_campaign_returns_200():
-    from unittest.mock import patch
+    from unittest.mock import patch, MagicMock as MM
     app = make_app()
     svc = make_svc_mock(confirm={"id": "c-001", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "confirmed"})
-    with patch("backend.app.routers.campaign.CampaignService", return_value=svc):
+    mock_task = MM()
+    mock_task.delay = MM()
+    with patch("backend.app.routers.campaign.CampaignService", return_value=svc), \
+         patch("backend.app.routers.campaign.run_media_planning", mock_task):
         client = TestClient(app)
         response = client.post(
             "/api/v1/campaigns/c-001/confirm",
             json={"selected_concept_id": "cc-001"},
         )
     assert response.status_code == 200
+    mock_task.delay.assert_called_once_with("c-001", "test-tenant")
 
 
 def test_confirm_missing_concept_id_returns_422():

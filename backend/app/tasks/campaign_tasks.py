@@ -1,14 +1,163 @@
-"""Celery tasks for campaign pipeline (stubs — full implementation in campaign phase)."""
+"""Celery tasks for campaign strategy pipeline (AGT-03)."""
 
 import asyncio
 import logging
+import os
+from datetime import datetime, timezone
 
 from celery import shared_task
+from motor.motor_asyncio import AsyncIOMotorClient
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import select
+
+from backend.app.models.mandate import Mandate
+from backend.app.agents.campaign_strategist import campaign_strategist_agent
 
 logger = logging.getLogger(__name__)
+
+MONGO_DB_URL = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ntm")
+
+
+def _make_session_factory() -> async_sessionmaker:
+    db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(db_url, echo=False)
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+_SESSION_FACTORY: async_sessionmaker | None = None
+
+
+def _get_session_factory() -> async_sessionmaker:
+    global _SESSION_FACTORY
+    if _SESSION_FACTORY is None:
+        _SESSION_FACTORY = _make_session_factory()
+    return _SESSION_FACTORY
+
+
+async def _run_campaign_strategy(mandate_id: str, tenant_id: str) -> None:
+    """Async implementation: fetch mandate + CI report, run AGT-03, store output."""
+    factory = _get_session_factory()
+
+    # Fetch mandate from PostgreSQL
+    async with factory() as session:
+        result = await session.execute(
+            select(Mandate).where(
+                Mandate.id == mandate_id,
+                Mandate.tenant_id == tenant_id,
+            )
+        )
+        mandate = result.scalar_one_or_none()
+        if not mandate:
+            logger.error(f"[run_campaign_strategy] mandate not found: {mandate_id}")
+            return
+        mandate_dict = mandate.to_dict()
+
+    # Fetch CI report from MongoDB (may be empty if competitive intel hasn't run)
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        ci_doc = await db["mandate_analyses"].find_one(
+            {"mandate_id": mandate_id, "tenant_id": tenant_id}
+        )
+        ci_report = ci_doc.get("analysis", {}) if ci_doc else {}
+    finally:
+        mongo_client.close()
+
+    # Run AGT-03 campaign strategist
+    logger.info(f"[run_campaign_strategy] running AGT-03 for mandate_id={mandate_id}")
+    output = await campaign_strategist_agent(mandate=mandate_dict, ci_report=ci_report)
+
+    # Store concepts to MongoDB
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        await db["campaign_concepts"].update_one(
+            {"mandate_id": mandate_id, "tenant_id": tenant_id},
+            {"$set": {
+                "mandate_id": mandate_id,
+                "tenant_id": tenant_id,
+                "concepts": output.get("campaigns", []),
+                "validation_errors": output.get("validation_errors", []),
+                "regeneration_log": output.get("regeneration_log", []),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+            upsert=True,
+        )
+        logger.info(f"[run_campaign_strategy] stored {len(output.get('campaigns', []))} concepts for mandate {mandate_id}")
+    finally:
+        mongo_client.close()
 
 
 @shared_task(bind=True, max_retries=3)
 def run_campaign_strategy(self, mandate_id: str, tenant_id: str) -> None:
-    """Celery task: run AGT-02 campaign strategy for a confirmed mandate."""
-    logger.info(f"[run_campaign_strategy] mandate_id={mandate_id} tenant_id={tenant_id}")
+    """Celery task: run AGT-03 campaign strategist for a confirmed mandate."""
+    logger.info(f"[run_campaign_strategy] start mandate_id={mandate_id} tenant_id={tenant_id}")
+    try:
+        asyncio.run(_run_campaign_strategy(mandate_id, tenant_id))
+        logger.info(f"[run_campaign_strategy] complete mandate_id={mandate_id}")
+    except Exception as exc:
+        logger.error(f"[run_campaign_strategy] error for {mandate_id}: {exc}")
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+
+async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
+    """Async implementation: fetch campaign concept, run AGT-04, store media plan."""
+    from backend.app.agents.media_planner import media_planner_agent
+
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        campaign_doc = await db["campaigns"].find_one(
+            {"_id": campaign_id, "tenant_id": tenant_id}
+        )
+        if not campaign_doc:
+            logger.error(f"[run_media_planning] campaign not found: {campaign_id}")
+            return
+
+        concepts = campaign_doc.get("concepts", [])
+        selected_concept_id = campaign_doc.get("selected_concept_id")
+        if selected_concept_id:
+            concept = next((c for c in concepts if c.get("id") == selected_concept_id), concepts[0] if concepts else {})
+        else:
+            concept = concepts[0] if concepts else {}
+
+        budget_envelope = campaign_doc.get("budget_envelope", {
+            "total_budget": campaign_doc.get("total_budget", 10000),
+            "currency": "USD",
+            "contingency_pct": 10,
+        })
+        mandate_geography = campaign_doc.get("geography", {"regions": [], "markets": [], "countries": []})
+
+        logger.info(f"[run_media_planning] running AGT-04 for campaign_id={campaign_id}")
+        output = await media_planner_agent(
+            campaign_concept=concept,
+            budget_envelope=budget_envelope,
+            mandate_geography=mandate_geography,
+            mandate_context=campaign_doc.get("mandate_context"),
+        )
+
+        await db["campaigns"].update_one(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "activation_plan": output.get("activations", []),
+                "budget_summary": output.get("budget_summary", {}),
+                "media_plan_status": output.get("status", "generated"),
+                "media_plan_generated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+        logger.info(f"[run_media_planning] stored media plan for campaign {campaign_id}")
+    finally:
+        mongo_client.close()
+
+
+@shared_task(bind=True, max_retries=3)
+def run_media_planning(self, campaign_id: str, tenant_id: str) -> None:
+    """Celery task: run AGT-04 media planner after campaign concept is confirmed."""
+    logger.info(f"[run_media_planning] start campaign_id={campaign_id} tenant_id={tenant_id}")
+    try:
+        asyncio.run(_run_media_planning(campaign_id, tenant_id))
+        logger.info(f"[run_media_planning] complete campaign_id={campaign_id}")
+    except Exception as exc:
+        logger.error(f"[run_media_planning] error for {campaign_id}: {exc}")
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)

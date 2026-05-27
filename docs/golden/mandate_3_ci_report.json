@@ -1,0 +1,77 @@
+{
+  "mandate_id": "mandate_3",
+  "report_type": "competitive_intelligence",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "version": "1.0",
+  "market_context": {
+    "category": "Luxury Fashion",
+    "geography": ["FR", "IT", "GB"],
+    "analysis_window_days": 90
+  },
+  "competitors": [
+    {
+      "name": "LVMH",
+      "confidence": 92,
+      "digital_spend_estimate_monthly_usd": 9500000,
+      "primary_channels": ["Instagram", "Print (Vogue/Harper's)", "Events", "YouTube"],
+      "creative_approach": "Heritage storytelling with celebrity face of brand",
+      "share_of_voice_pct": 38,
+      "key_messages": ["Timeless craftsmanship", "Parisian elegance", "Exclusive access"],
+      "weaknesses": ["Overexposed celebrities dilute exclusivity", "Instagram over-posting reduces scarcity perception", "Formulaic seasonal campaign structure"]
+    },
+    {
+      "name": "Kering",
+      "confidence": 88,
+      "digital_spend_estimate_monthly_usd": 7200000,
+      "primary_channels": ["Instagram", "TikTok", "Print", "Events"],
+      "creative_approach": "Cultural provocateur and fashion-forward identity",
+      "share_of_voice_pct": 28,
+      "key_messages": ["Bold creativity", "Cultural conversation", "Youthful luxury"],
+      "weaknesses": ["Younger positioning alienates 40+ HNW buyers", "TikTok presence undermines luxury perception", "Controversial creative creates brand risk"]
+    },
+    {
+      "name": "Richemont",
+      "confidence": 82,
+      "digital_spend_estimate_monthly_usd": 4800000,
+      "primary_channels": ["Print", "Events", "Instagram"],
+      "creative_approach": "Ultra-premium product focus with technical craftsmanship",
+      "share_of_voice_pct": 18,
+      "key_messages": ["Swiss excellence", "Maison heritage", "Collector's pieces"],
+      "weaknesses": ["Minimal digital content strategy", "Low social engagement", "Invisible in under-40 segment"]
+    },
+    {
+      "name": "Burberry",
+      "confidence": 78,
+      "digital_spend_estimate_monthly_usd": 3100000,
+      "primary_channels": ["Instagram", "TikTok", "Print"],
+      "creative_approach": "British identity with youth cultural references",
+      "share_of_voice_pct": 10,
+      "key_messages": ["British heritage", "Modern London", "Street-to-runway"],
+      "weaknesses": ["Caught between luxury and accessible positioning", "Inconsistent brand message last 3 years", "Lower price perception vs. LVMH peers"]
+    },
+    {
+      "name": "Prada Group",
+      "confidence": 75,
+      "digital_spend_estimate_monthly_usd": 2600000,
+      "primary_channels": ["Instagram", "Print", "Film/Video"],
+      "creative_approach": "Intellectual fashion with artistic direction",
+      "share_of_voice_pct": 6,
+      "key_messages": ["Conceptual fashion", "Anti-fashion fashion", "Intellectual luxury"],
+      "weaknesses": ["Niche appeal limits audience breadth", "Limited digital interactivity", "Complex brand codes require high brand literacy"]
+    }
+  ],
+  "market_gaps": [
+    "Premium print dominance being vacated as all majors shift to digital",
+    "Genuine editorial scarcity — competitors over-post reducing luxury premium",
+    "Invitation-only private events as direct conversion channel largely unused",
+    "HNW 40-55 women underserved by Kering's youth-pivot and LVMH's over-exposure"
+  ],
+  "strategic_recommendations": [
+    "Reclaim print: own Vogue Paris, IT, UK full-page placements exclusively for autumn season",
+    "Cap Instagram posting at 3 editorial images per week maximum — enforce scarcity",
+    "Private preview events in Paris and London with <100 guests: controlled exclusivity",
+    "Target HNW 40-55 segment explicitly — gap vacated by Kering's youth-pivot"
+  ],
+  "overall_competitive_intensity": "HIGH",
+  "opportunity_score": 82
+}

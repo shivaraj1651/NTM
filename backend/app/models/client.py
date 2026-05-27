@@ -4,17 +4,13 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import Column, DateTime, String, Index, JSON
-from sqlalchemy.orm import declarative_base
+from backend.app.models.base import Base
 
 try:
     from pgvector.sqlalchemy import Vector
     HAS_PGVECTOR = True
 except ImportError:
     HAS_PGVECTOR = False
-
-Base = declarative_base()
-
-
 class Client(Base):
     __tablename__ = "clients"
 

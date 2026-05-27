@@ -5,14 +5,11 @@ validation status, and refinement attempts.
 """
 
 from sqlalchemy import Column, String, Integer, DateTime, JSON, UniqueConstraint, Index, ForeignKey
+from backend.app.models.base import Base
+
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import declarative_base
 from datetime import datetime, timezone
 import uuid
-
-Base = declarative_base()
-
-
 class GeneratedCreative(Base):
     """
     Generated creative content from Creative Director Agent.

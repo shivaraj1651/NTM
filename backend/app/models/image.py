@@ -4,12 +4,9 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Index, String, Text
+from backend.app.models.base import Base
+
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
-
 class GeneratedImage(Base):
     """Generated image record. Multi-tenant isolated, one row per generation."""
 

@@ -7,10 +7,7 @@ Used for tracking performance metrics against defined targets.
 from uuid import uuid4
 from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, UniqueConstraint, Index
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
-
+from backend.app.models.base import Base
 
 class KPI(Base):
     """

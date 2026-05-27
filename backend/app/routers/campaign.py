@@ -15,6 +15,7 @@ from backend.app.schemas.campaign import (
     CampaignResponse,
 )
 from backend.app.services.campaign_service import CampaignService
+from backend.app.tasks.campaign_tasks import run_media_planning
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,10 @@ async def confirm_campaign(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
     svc = CampaignService(db)
-    return await svc.confirm(campaign_id, body.selected_concept_id, tenant_id)
+    result = await svc.confirm(campaign_id, body.selected_concept_id, tenant_id)
+    # Trigger AGT-04 media planner asynchronously after concept confirmation
+    run_media_planning.delay(campaign_id, tenant_id)
+    return result
 
 
 @router.get("/campaigns/{campaign_id}/activation-plan", response_model=CampaignResponse, status_code=200)
