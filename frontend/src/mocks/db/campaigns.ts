@@ -47,10 +47,10 @@ function createPersistedStore<V>(
   })
 }
 
-export const physicalLogStore: Record<string, any[]> = {}
-export const activationStore: Record<string, any> = {}
-export const performanceStore: Record<string, any[]> = {}
-export const creativesStore: Record<string, any> = {}
+export const physicalLogStore = createPersistedStore<any[]>('ntm:physical-logs', {})
+export const activationStore  = createPersistedStore<any>('ntm:activations', {})
+export const performanceStore = createPersistedStore<any[]>('ntm:performance', {})
+export const creativesStore   = createPersistedStore<any>('ntm:creatives', {})
 
 const baseConcepts: CampaignConcept[] = [
   {

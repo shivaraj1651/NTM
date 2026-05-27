@@ -318,10 +318,12 @@ export const campaignHandlers = [
       logged_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
     }
-    if (!db.physicalLogStore[params.activationId as string]) {
-      db.physicalLogStore[params.activationId as string] = []
-    }
-    db.physicalLogStore[params.activationId as string].push(log)
+    // Spread + reassign on the Proxy key triggers localStorage persist.
+    // Direct .push() on a nested array bypasses the Proxy trap and loses data on reload.
+    db.physicalLogStore[params.activationId as string] = [
+      ...(db.physicalLogStore[params.activationId as string] ?? []),
+      log,
+    ]
     return HttpResponse.json(log, { status: 201 })
   }),
 

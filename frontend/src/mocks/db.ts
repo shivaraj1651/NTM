@@ -1,18 +1,69 @@
 import type { Tenant, User, AuditEntry } from '@/types/admin'
 
-export const tenants: Tenant[] = [
-  { id: 't1', name: 'Acme Corp', is_active: true, created_at: '2026-01-10T09:00:00Z' },
-  { id: 't2', name: 'BrandCo', is_active: true, created_at: '2026-02-15T14:30:00Z' },
-  { id: 't3', name: 'MediaGroup', is_active: false, created_at: '2026-03-01T11:00:00Z' },
-]
+// ── localStorage-persisted store ─────────────────────────────────────────────
+// Same pattern as db/mandates.ts and db/campaigns.ts — Proxy traps top-level
+// property assignments and flushes the whole store to localStorage.
 
-export const users: User[] = [
-  { id: 'u1', email: 'alice@acme.com', role: 'tenant_admin', is_active: true, tenant_id: 't1', created_at: '2026-01-11T09:00:00Z' },
-  { id: 'u2', email: 'bob@acme.com', role: 'brand_manager', is_active: true, tenant_id: 't1', created_at: '2026-01-12T10:00:00Z' },
-  { id: 'u3', email: 'carol@brandco.com', role: 'cmo', is_active: true, tenant_id: 't2', created_at: '2026-02-16T09:00:00Z' },
-  { id: 'u4', email: 'dave@brandco.com', role: 'campaign_manager', is_active: false, tenant_id: 't2', created_at: '2026-02-20T14:00:00Z' },
-  { id: 'u5', email: 'eve@mediagroup.com', role: 'viewer', is_active: true, tenant_id: 't3', created_at: '2026-03-02T11:00:00Z' },
-]
+function createPersistedStore<V>(
+  storageKey: string,
+  seed: Record<string, V>,
+): Record<string, V> {
+  let initial: Record<string, V>
+  try {
+    const raw = localStorage.getItem(storageKey)
+    // Merge: seed provides defaults; stored data overrides (keeps user changes)
+    initial = raw ? { ...seed, ...(JSON.parse(raw) as Record<string, V>) } : { ...seed }
+  } catch {
+    initial = { ...seed }
+  }
+
+  const persist = (target: Record<string, V>) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(target))
+    } catch {}
+  }
+
+  return new Proxy(initial, {
+    set(target, prop, value) {
+      const ok = Reflect.set(target, prop, value)
+      persist(target)
+      return ok
+    },
+    deleteProperty(target, prop) {
+      const ok = Reflect.deleteProperty(target, prop)
+      persist(target)
+      return ok
+    },
+  })
+}
+
+// ── Seed data ─────────────────────────────────────────────────────────────────
+
+const SEED_TENANTS: Record<string, Tenant> = {
+  't1': { id: 't1', name: 'Acme Corp',    is_active: true,  created_at: '2026-01-10T09:00:00Z' },
+  't2': { id: 't2', name: 'BrandCo',      is_active: true,  created_at: '2026-02-15T14:30:00Z' },
+  't3': { id: 't3', name: 'MediaGroup',   is_active: false, created_at: '2026-03-01T11:00:00Z' },
+}
+
+const SEED_USERS: Record<string, User> = {
+  'u1': { id: 'u1', email: 'alice@acme.com',      role: 'tenant_admin',    is_active: true,  tenant_id: 't1', created_at: '2026-01-11T09:00:00Z' },
+  'u2': { id: 'u2', email: 'bob@acme.com',         role: 'brand_manager',   is_active: true,  tenant_id: 't1', created_at: '2026-01-12T10:00:00Z' },
+  'u3': { id: 'u3', email: 'carol@brandco.com',    role: 'cmo',             is_active: true,  tenant_id: 't2', created_at: '2026-02-16T09:00:00Z' },
+  'u4': { id: 'u4', email: 'dave@brandco.com',     role: 'campaign_manager',is_active: false, tenant_id: 't2', created_at: '2026-02-20T14:00:00Z' },
+  'u5': { id: 'u5', email: 'eve@mediagroup.com',   role: 'viewer',          is_active: true,  tenant_id: 't3', created_at: '2026-03-02T11:00:00Z' },
+}
+
+// ── Persisted stores (survive page reload via localStorage) ───────────────────
+
+export const tenantsStore = createPersistedStore<Tenant>('ntm:tenants', SEED_TENANTS)
+export const usersStore   = createPersistedStore<User>('ntm:users', SEED_USERS)
+
+// ── Backward-compat seed arrays (auth handler uses users.map() for SEED_EMAILS)
+// These are read-only references to the original seed — do NOT mutate them.
+export const users:   User[]   = Object.values(SEED_USERS)
+export const tenants: Tenant[] = Object.values(SEED_TENANTS)
+
+// ── Audit entries (append-only log, plain array acceptable) ───────────────────
 
 export const auditEntries: AuditEntry[] = [
   { id: 'a1',  timestamp: '2026-05-14T08:00:00Z', actor: 'admin@ntm.com', action: 'CREATE',      entity_type: 'tenant', entity_id: 't1', detail: 'Created tenant Acme Corp' },
