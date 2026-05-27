@@ -6,11 +6,25 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.app.routers.creative_director import router
+from backend.app.core.auth import current_user
+from backend.app.core.models import User
+
+
+def make_mock_user():
+    _role = MagicMock()
+    _role.name = "creative_lead"
+    user = MagicMock(spec=User)
+    user.id = "test-user-id"
+    user.email = "creative@ntm.io"
+    user.is_active = True
+    user.role = _role
+    return user
 
 
 def make_app():
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[current_user] = lambda: make_mock_user()
     return app
 
 

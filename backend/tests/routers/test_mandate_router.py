@@ -17,6 +17,9 @@ def make_mock_user():
     user.id = "test-user-id"
     user.email = "test@example.com"
     user.is_active = True
+    role = MagicMock()
+    role.name = "platform_admin"
+    user.role = role
     return user
 
 

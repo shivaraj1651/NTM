@@ -5,18 +5,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.analytics import router, get_db
+from backend.app.routers.analytics import router, get_mongo_db
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
 
 
 def make_mock_user():
+    _role = MagicMock()
+    _role.name = "platform_admin"
     user = MagicMock(spec=User)
     user.id = "test-user-id"
     user.email = "test@example.com"
     user.is_active = True
     user.tenant_id = "test-tenant"
+    user.role = _role
     return user
 
 
@@ -26,7 +29,7 @@ def make_app():
     mock_user = make_mock_user()
     app.dependency_overrides[current_user] = lambda: mock_user
     app.dependency_overrides[get_current_tenant] = lambda: "test-tenant"
-    app.dependency_overrides[get_db] = lambda: MagicMock()
+    app.dependency_overrides[get_mongo_db] = lambda: MagicMock()
     return app
 
 
@@ -71,7 +74,7 @@ def test_get_analytics_returns_404_when_missing():
     mock_collection = MagicMock()
     mock_collection.find_one = AsyncMock(return_value=None)
     mock_db.__getitem__ = MagicMock(return_value=mock_collection)
-    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_mongo_db] = lambda: mock_db
 
     with patch("backend.app.routers.analytics.CampaignService", return_value=svc):
         client = TestClient(app)

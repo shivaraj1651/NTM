@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.admin import router, require_platform_admin
+from backend.app.routers.admin import router
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
@@ -45,8 +45,8 @@ def make_app(admin: bool = True):
     app.dependency_overrides[current_user] = lambda: mock_user
     app.dependency_overrides[get_current_tenant] = lambda: "test-tenant"
     app.dependency_overrides[get_db] = lambda: mock_db
-    if admin:
-        app.dependency_overrides[require_platform_admin] = lambda: mock_user
+    # current_user override is sufficient — require_role wraps current_user,
+    # so returning a platform_admin user via current_user passes the role check.
     return app, mock_db
 
 
