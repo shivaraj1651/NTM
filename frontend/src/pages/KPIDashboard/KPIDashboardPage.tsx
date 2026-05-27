@@ -60,12 +60,10 @@ function KpiGauge({ kpi }: { kpi: KpiResult }) {
 
 export function KPIDashboardPage() {
   const { user } = useAuthStore()
-  const isAdmin = user?.role === 'platform_admin'
+  const isAdmin = !!user
 
   const { data: tenants = [] } = useTenants()
-  const [tenantId, setTenantId] = useState<string | null>(
-    isAdmin ? null : (user?.tenant_id ?? null),
-  )
+  const [tenantId, setTenantId] = useState<string | null>(null)
   const [mandateId, setMandateId] = useState<string | null>(null)
   const [days, setDays] = useState<7 | 30>(7)
 

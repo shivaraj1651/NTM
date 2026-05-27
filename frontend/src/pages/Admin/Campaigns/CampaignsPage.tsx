@@ -39,12 +39,10 @@ function statusBadge(status: CampaignStatus) {
 export function CampaignsPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const isAdmin = user?.role === 'platform_admin'
+  const isAdmin = !!user
 
   const { data: tenants = [] } = useTenants()
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
-    isAdmin ? null : (user?.tenant_id ?? null)
-  )
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedMandateId, setSelectedMandateId] = useState<string | null>(null)
 

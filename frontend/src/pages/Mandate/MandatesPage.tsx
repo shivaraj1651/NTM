@@ -16,11 +16,9 @@ import type { MandateSummaryCard } from '@/types/admin'
 export function MandatesPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const isAdmin = user?.role === 'platform_admin'
+  const isAdmin = !!user
   const { data: tenants = [] } = useTenants()
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
-    isAdmin ? null : (user?.tenant_id ?? null)
-  )
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
 
   const { data: mandates = [], isLoading } = useMandateList(selectedTenantId)
 

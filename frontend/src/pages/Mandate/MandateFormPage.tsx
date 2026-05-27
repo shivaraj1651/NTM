@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,13 +17,26 @@ import { Slider } from '@/components/ui/slider'
 import { REGIONS } from '@/lib/geography'
 import { useCreateMandate, useUpdateMandate } from '@/hooks/useMandates'
 import { getMandateSummaryCard } from '@/api/admin'
-import type { MandateObjective } from '@/types/admin'
 
 const OBJECTIVE_VALUES = [
   'awareness', 'consideration', 'conversion', 'loyalty', 'engagement',
 ] as const
 
 const CURRENCY_VALUES = ['USD', 'EUR', 'GBP', 'INR', 'AED'] as const
+
+// Returns today as YYYY-MM-DD in local time
+const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Returns the day after a YYYY-MM-DD string
+const nextDayISO = (iso: string) => {
+  if (!iso) return todayISO()
+  const d = new Date(iso + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const schema = z
   .object({
@@ -33,7 +46,9 @@ const schema = z
     countries: z.array(z.string()).min(1, 'Select at least one country'),
     total_budget: z.number().min(10000, 'Budget must be at least 10,000'),
     currency: z.enum(CURRENCY_VALUES),
-    start_date: z.string().min(1, 'Start date is required'),
+    start_date: z.string()
+      .min(1, 'Start date is required')
+      .refine((v) => !v || v >= todayISO(), { message: 'Start date cannot be in the past' }),
     end_date: z.string().min(1, 'End date is required'),
   })
   .refine((d) => !d.start_date || !d.end_date || d.end_date > d.start_date, {
@@ -91,6 +106,9 @@ export function MandateFormPage() {
 
   const watchRegion = form.watch('region')
   const watchCurrency = form.watch('currency')
+  const watchStartDate = form.watch('start_date')
+  const today = useMemo(() => todayISO(), [])
+  const minEndDate = useMemo(() => nextDayISO(watchStartDate), [watchStartDate])
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -290,7 +308,19 @@ export function MandateFormPage() {
                 <FormItem>
                   <FormLabel>Start Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input
+                      type="date"
+                      min={today}
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e)
+                        // Reset end_date if it's now invalid
+                        const current = form.getValues('end_date')
+                        if (current && current <= e.target.value) {
+                          form.setValue('end_date', '', { shouldValidate: true })
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -303,7 +333,11 @@ export function MandateFormPage() {
                 <FormItem>
                   <FormLabel>End Date</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input
+                      type="date"
+                      min={minEndDate}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

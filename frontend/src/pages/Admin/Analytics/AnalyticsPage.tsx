@@ -45,13 +45,11 @@ function aggregateChannels(summaries: AnalyticsSummary[]) {
 
 export function AnalyticsPage() {
   const { user } = useAuthStore()
-  const isAdmin = user?.role === 'platform_admin'
+  const isAdmin = !!user
   const navigate = useNavigate()
 
   const { data: tenants = [] } = useTenants()
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
-    isAdmin ? null : (user?.tenant_id ?? null)
-  )
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<7 | 30>(7)
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
   const [replanStates, setReplanStates] = useState<Record<string, ReplanState>>({})

@@ -9,6 +9,14 @@ export const login = (email: string, password: string) =>
     )
     .then((r) => r.data)
 
+export const register = (email: string, password: string) =>
+  apiClient
+    .post<{ token: string; user: { id: string; email: string; role: string } }>(
+      '/auth/register',
+      { email, password }
+    )
+    .then((r) => r.data)
+
 export const getTenants = () =>
   apiClient.get('/admin/tenants').then((r) => r.data)
 

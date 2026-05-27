@@ -25,13 +25,13 @@ import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
 import { MandateSummaryPage } from '@/pages/Mandate/MandateSummaryPage'
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/admin/tenants" replace /> },
+  { path: '/', element: <Navigate to="/login" replace /> },
   { path: '/login', element: <LoginPage /> },
-  { path: '/onboarding', element: <OnboardingPage /> },
   {
     path: '/admin',
     element: <ProtectedRoute />,
     children: [
+      { path: 'onboarding', element: <OnboardingPage /> },
       {
         element: <AdminLayout />,
         children: [
@@ -65,18 +65,5 @@ export const router = createBrowserRouter([
         ],
       },
     ],
-  },
-  {
-    path: '/403',
-    element: (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Access Denied</h1>
-          <p className="text-muted-foreground mt-2">
-            You don't have permission to view this page.
-          </p>
-        </div>
-      </div>
-    ),
   },
 ])

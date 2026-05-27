@@ -1,46 +1,44 @@
 import { http, HttpResponse } from 'msw'
 import { users } from '../db'
 
-/**
- * Maps email → role for unknown (non-seed) addresses.
- * Checked in order — first match wins.
- */
-const KEYWORD_ROLE: Array<{ keyword: string; role: string; tenant_id?: string }> = [
-  { keyword: 'admin',    role: 'platform_admin' },
-  { keyword: 'super',    role: 'platform_admin' },
-  { keyword: 'tenant',   role: 'tenant_admin',     tenant_id: 't1' },
-  { keyword: 'cmo',      role: 'cmo',              tenant_id: 't1' },
-  { keyword: 'brand',    role: 'brand_manager',    tenant_id: 't1' },
-  { keyword: 'creative', role: 'creative_lead',    tenant_id: 't1' },
-  { keyword: 'manager',  role: 'campaign_manager', tenant_id: 't1' },
-]
-
-function resolveRole(email: string): { role: string; tenant_id?: string } {
-  // 1. Look up known seed users first
-  const seed = users.find((u) => u.email === email)
-  if (seed) return { role: seed.role, tenant_id: seed.tenant_id }
-
-  // 2. Keyword match
-  const lower = email.toLowerCase()
-  for (const { keyword, role, tenant_id } of KEYWORD_ROLE) {
-    if (lower.includes(keyword)) return { role, tenant_id }
-  }
-
-  // 3. Default
-  return { role: 'viewer', tenant_id: 't1' }
-}
+// Runtime registry — starts with seed user emails, grows as new accounts are registered
+const registeredEmails = new Set<string>(users.map((u) => u.email))
 
 export const authHandlers = [
+  // Login — always succeeds, always returns admin role
   http.post('/api/v1/auth/login', async ({ request }) => {
     const body = await request.json() as { email: string; password: string }
-    const { role, tenant_id } = resolveRole(body.email)
     return HttpResponse.json({
       token: 'mock-jwt-token',
       user: {
-        id: `user-${role}`,
+        id: `user-${body.email}`,
         email: body.email,
-        role,
-        tenant_id,
+        role: 'admin',
+      },
+    })
+  }),
+
+  // Register — checks for duplicate email, creates user on success
+  http.post('/api/v1/auth/register', async ({ request }) => {
+    const body = await request.json() as { email: string; password: string }
+    const email = body.email.toLowerCase().trim()
+
+    if (registeredEmails.has(email)) {
+      return HttpResponse.json(
+        { detail: 'User already exists' },
+        { status: 409 },
+      )
+    }
+
+    // Persist for this session
+    registeredEmails.add(email)
+
+    return HttpResponse.json({
+      token: 'mock-jwt-token',
+      user: {
+        id: `user-${email}`,
+        email: body.email,
+        role: 'admin',
       },
     })
   }),

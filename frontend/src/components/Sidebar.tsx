@@ -6,32 +6,23 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { RoleBadge } from '@/components/RoleBadge'
 import { useAuthStore } from '@/store/useAuthStore'
 
-// ── Nav item definitions ──────────────────────────────────────────────────────
-
-const ALL_NAV = [
-  { label: 'Tenants',       to: '/admin/tenants',       icon: Building2,  roles: ['platform_admin'] },
-  { label: 'Users',         to: '/admin/users',          icon: Users,      roles: ['platform_admin'] },
-  { label: 'Roles',         to: '/admin/roles',          icon: Shield,     roles: ['platform_admin'] },
-  { label: 'Audit Log',     to: '/admin/audit',          icon: ClipboardList, roles: ['platform_admin'] },
-  { label: 'Health',        to: '/admin/health',         icon: Activity,   roles: ['platform_admin'] },
-  { label: 'Analytics',     to: '/admin/analytics',      icon: BarChart2,  roles: ['platform_admin', 'tenant_admin', 'brand_manager', 'cmo', 'viewer'] },
-  { label: 'Mandates',      to: '/admin/mandates',       icon: FileText,   roles: ['platform_admin', 'tenant_admin', 'brand_manager', 'cmo'] },
-  { label: 'Campaigns',     to: '/admin/campaigns',      icon: Megaphone,  roles: ['platform_admin', 'tenant_admin', 'brand_manager', 'cmo', 'creative_lead', 'campaign_manager'] },
-  { label: 'KPI Dashboard', to: '/admin/kpi-dashboard',  icon: Target,     roles: ['platform_admin', 'tenant_admin', 'brand_manager', 'cmo', 'creative_lead', 'campaign_manager', 'viewer'] },
+const NAV_ITEMS = [
+  { label: 'Tenants',       to: '/admin/tenants',      icon: Building2  },
+  { label: 'Users',         to: '/admin/users',         icon: Users      },
+  { label: 'Roles',         to: '/admin/roles',         icon: Shield     },
+  { label: 'Audit Log',     to: '/admin/audit',         icon: ClipboardList },
+  { label: 'Health',        to: '/admin/health',        icon: Activity   },
+  { label: 'Analytics',     to: '/admin/analytics',     icon: BarChart2  },
+  { label: 'Mandates',      to: '/admin/mandates',      icon: FileText   },
+  { label: 'Campaigns',     to: '/admin/campaigns',     icon: Megaphone  },
+  { label: 'KPI Dashboard', to: '/admin/kpi-dashboard', icon: Target     },
 ]
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
-
-  const visibleNav = ALL_NAV.filter(
-    (item) => !user?.role || item.roles.includes(user.role)
-  )
 
   const handleLogout = () => {
     logout()
@@ -45,7 +36,7 @@ export function Sidebar() {
       </div>
       <Separator />
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {visibleNav.map(({ label, to, icon: Icon }) => (
+        {NAV_ITEMS.map(({ label, to, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -66,7 +57,9 @@ export function Sidebar() {
       <Separator />
       <div className="px-4 py-4 space-y-2">
         <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-        {user?.role && <RoleBadge role={user.role} />}
+        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800 border-red-200">
+          Admin
+        </span>
         <Button
           variant="ghost"
           size="sm"
