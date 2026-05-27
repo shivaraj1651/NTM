@@ -9,6 +9,16 @@ from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Table, JSO
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timezone
 import uuid
+from enum import Enum
+
+class UserRole(str, Enum):
+    PLATFORM_ADMIN = "platform_admin"
+    TENANT_ADMIN = "tenant_admin"
+    BRAND_MANAGER = "brand_manager"
+    CMO = "cmo"
+    CREATIVE_LEAD = "creative_lead"
+    CAMPAIGN_MANAGER = "campaign_manager"
+    VIEWER = "viewer"
 
 Base = declarative_base()
 
