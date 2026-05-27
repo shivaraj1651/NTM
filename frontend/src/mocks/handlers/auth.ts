@@ -6,6 +6,24 @@ const STORAGE_KEY = 'ntm:registered_emails'
 // Seed user emails — always treated as already registered
 const SEED_EMAILS = new Set(users.map((u) => u.email.toLowerCase()))
 
+// Email prefix to role mapping for RBAC testing
+const EMAIL_ROLE_MAP: Record<string, string> = {
+  admin:    'platform_admin',
+  platform: 'platform_admin',
+  tenant:   'tenant_admin',
+  brand:    'brand_manager',
+  cmo:      'cmo',
+  creative: 'creative_lead',
+  campaign: 'campaign_manager',
+  viewer:   'viewer',
+}
+
+// Derive role from email prefix using EMAIL_ROLE_MAP
+function getRoleFromEmail(email: string): string {
+  const prefix = email.split('@')[0].split('.')[0].toLowerCase()
+  return EMAIL_ROLE_MAP[prefix] ?? 'brand_manager'
+}
+
 /** Read persisted registrations from localStorage (survives page reload). */
 function isRegistered(email: string): boolean {
   if (SEED_EMAILS.has(email)) return true
@@ -31,7 +49,7 @@ function saveRegistered(email: string): void {
 }
 
 export const authHandlers = [
-  // Login — always succeeds, always returns admin role
+  // Login — derives role from email prefix
   http.post('/api/v1/auth/login', async ({ request }) => {
     const body = await request.json() as { email: string; password: string }
     return HttpResponse.json({
@@ -39,12 +57,12 @@ export const authHandlers = [
       user: {
         id: `user-${body.email}`,
         email: body.email,
-        role: 'admin',
+        role: getRoleFromEmail(body.email),
       },
     })
   }),
 
-  // Register — checks localStorage + seed emails for duplicates
+  // Register — checks localStorage + seed emails for duplicates; derives role from email prefix
   http.post('/api/v1/auth/register', async ({ request }) => {
     const body = await request.json() as { email: string; password: string }
     const email = body.email.toLowerCase().trim()
@@ -63,7 +81,7 @@ export const authHandlers = [
       user: {
         id: `user-${email}`,
         email: body.email,
-        role: 'admin',
+        role: getRoleFromEmail(email),
       },
     })
   }),
