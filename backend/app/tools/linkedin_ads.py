@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 _LINKEDIN_BASE = "https://api.linkedin.com/rest"
 
 
+def is_available() -> bool:
+    """Return True if LinkedIn credentials are fully configured."""
+    return bool(
+        os.getenv("LINKEDIN_ACCESS_TOKEN") and os.getenv("LINKEDIN_ACCOUNT_ID")
+    )
+
+
 def _get_access_token(token: Optional[str] = None) -> str:
     t = token or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
     if not t:
@@ -27,10 +34,24 @@ async def activate_linkedin(
     access_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     account_id = os.getenv("LINKEDIN_ACCOUNT_ID", "")
+    provided_token = access_token or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+
+    if not provided_token or not account_id:
+        logger.warning(
+            "LinkedIn Ads not configured (LINKEDIN_ACCESS_TOKEN / LINKEDIN_ACCOUNT_ID missing) "
+            "— returning placeholder response"
+        )
+        return {
+            "campaign_id": "not_configured",
+            "ad_id": "not_configured",
+            "status": "not_configured",
+            "error": (
+                "LinkedIn API credentials not set. "
+                "Configure LINKEDIN_ACCESS_TOKEN and LINKEDIN_ACCOUNT_ID to enable real activation."
+            ),
+        }
 
     try:
-        if not account_id:
-            raise RuntimeError("LINKEDIN_ACCOUNT_ID must be set")
         token = _get_access_token(access_token)
         headers = {
             "Authorization": f"Bearer {token}",

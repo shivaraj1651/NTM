@@ -6,7 +6,7 @@ competitive intelligence, activation, analytics, replanning, and reporting.
 """
 
 from backend.app.tasks.mandate_tasks import run_mandate_analysis
-from backend.app.tasks.campaign_tasks import run_campaign_strategy, run_media_planning
+from backend.app.tasks.campaign_tasks import run_campaign_strategy, run_media_planning, run_video_generation
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics
 from backend.app.tasks.analytics_tasks import run_daily_analytics_task
 from backend.app.tasks.replanning_tasks import run_weekly_replan_task
@@ -24,6 +24,7 @@ __all__ = [
     # Campaign pipeline
     "run_campaign_strategy",
     "run_media_planning",
+    "run_video_generation",
     # Competitive intelligence
     "fetch_competitor_metrics",
     # Analytics (Celery Beat — daily)

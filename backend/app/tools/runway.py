@@ -4,6 +4,11 @@ import os
 
 import httpx
 
+
+def is_available() -> bool:
+    """Return True if Runway ML API key is configured."""
+    return bool(os.getenv("RUNWAY_API_KEY"))
+
 RUNWAY_IMAGE_TO_VIDEO_URL = "https://api.dev.runwayml.com/v1/image_to_video"
 RUNWAY_TEXT_TO_VIDEO_URL  = "https://api.dev.runwayml.com/v1/text_to_video"
 RUNWAY_TASK_URL           = "https://api.dev.runwayml.com/v1/tasks/{job_id}"

@@ -161,3 +161,91 @@ def run_media_planning(self, campaign_id: str, tenant_id: str) -> None:
     except Exception as exc:
         logger.error(f"[run_media_planning] error for {campaign_id}: {exc}")
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+
+async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
+    """Async implementation: build brief from campaign creative assets, run AGT-11."""
+    from backend.app.agents.video_generator import VideoGeneratorAgent, VideoGenerationBrief
+    from backend.app.tools import runway as runway_tool
+
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        campaign_doc = await db["campaigns"].find_one(
+            {"_id": campaign_id, "tenant_id": tenant_id}
+        )
+        if not campaign_doc:
+            logger.error(f"[run_video_generation] campaign not found: {campaign_id}")
+            return
+
+        creative_assets = campaign_doc.get("creative_assets") or {}
+        scripts = creative_assets.get("scripts") or []
+        images = creative_assets.get("images") or []
+
+        script_text = scripts[0].get("content", "") if scripts else ""
+        reference_image_url = images[0].get("url") if images else None
+
+        concept = (campaign_doc.get("concepts") or [{}])[0]
+        prompt = (
+            f"{concept.get('theme', '')} — {concept.get('narrative', '')} "
+            f"Visual style: {concept.get('visual_direction', '')}".strip()
+            or "Brand campaign social video"
+        )
+
+        brief = VideoGenerationBrief(
+            campaign_id=campaign_id,
+            tenant_id=tenant_id,
+            prompt=prompt,
+            script_text=script_text,
+            reference_image_url=reference_image_url or None,
+            duration_seconds=5,
+            script_format="social_video",
+            campaign_theme=concept.get("theme", ""),
+        )
+
+        agent = VideoGeneratorAgent()
+        if not runway_tool.is_available():
+            logger.warning(
+                "[run_video_generation] RUNWAY_API_KEY not set — video asset will be "
+                "marked manual_production_required"
+            )
+
+        output = await agent.generate(brief, storage_client=None, db_session=None)
+
+        video_entry = {
+            "id": output.generation_id,
+            "format": "social_video",
+            "url": output.asset_url,
+            "job_id": output.job_id,
+            "model_used": output.model_used,
+            "duration_seconds": output.duration_seconds,
+            "status": output.status,
+            "approved": None,
+            "revision_count": 0,
+        }
+
+        await db["campaigns"].update_one(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {
+                "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+                "$push": {"creative_assets.video": video_entry},
+            },
+        )
+        logger.info(
+            "[run_video_generation] complete campaign_id=%s status=%s",
+            campaign_id, output.status,
+        )
+    finally:
+        mongo_client.close()
+
+
+@shared_task(bind=True, max_retries=2)
+def run_video_generation(self, campaign_id: str, tenant_id: str) -> None:
+    """Celery task: run AGT-11 video generator after creatives are generated."""
+    logger.info(f"[run_video_generation] start campaign_id={campaign_id} tenant_id={tenant_id}")
+    try:
+        asyncio.run(_run_video_generation(campaign_id, tenant_id))
+        logger.info(f"[run_video_generation] complete campaign_id={campaign_id}")
+    except Exception as exc:
+        logger.error(f"[run_video_generation] error for {campaign_id}: {exc}")
+        raise self.retry(exc=exc, countdown=30)

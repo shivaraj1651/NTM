@@ -29,7 +29,7 @@ celery_app.conf.update(
     result_backend=CELERY_RESULT_BACKEND,
     task_serializer=CELERY_TASK_SERIALIZER,
     result_serializer=CELERY_RESULT_SERIALIZER,
-    accept_content=[CELERY_ACCEPT_CONTENT],
+    accept_content=CELERY_ACCEPT_CONTENT,
     timezone=CELERY_TIMEZONE,
     enable_utc=CELERY_ENABLE_UTC,
     task_track_started=CELERY_TASK_TRACK_STARTED,
@@ -49,8 +49,23 @@ celery_app.conf.update(
     beat_schedule={
         "analytics-daily-analysis": {
             "task": "analytics.run_daily_analysis",
-            "schedule": crontab(hour=0, minute=0),  # Run daily at midnight UTC
-            "args": ("00000000-0000-0000-0000-000000000000",),  # Placeholder mandate ID
+            "schedule": crontab(hour=0, minute=0),
+            "args": (),
+        },
+        "replanning-weekly": {
+            "task": "replanning.run_weekly_replan",
+            "schedule": crontab(hour=1, minute=0, day_of_week=1),  # Monday 01:00 UTC
+            "args": (),
+        },
+        "reports-daily": {
+            "task": "reports.generate_daily_report",
+            "schedule": crontab(hour=6, minute=0),  # 06:00 UTC daily
+            "args": (),
+        },
+        "reports-weekly": {
+            "task": "reports.generate_weekly_report",
+            "schedule": crontab(hour=7, minute=0, day_of_week=1),  # Monday 07:00 UTC
+            "args": (),
         },
     },
 )

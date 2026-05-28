@@ -20,7 +20,101 @@ _STATUS_ORDER = [
     "planned",
     "budget_proposed",
     "approved",
+    "creative_generating",
+    "creative_ready",
+    "live",
 ]
+
+_ASSET_KINDS = ("copy", "scripts", "images", "audio")
+
+
+def _make_stub_creative_assets(campaign_id: str) -> dict:
+    """Generate placeholder creative assets when real generation is unavailable."""
+    return {
+        "campaign_id": campaign_id,
+        "stage": "internal_review",
+        "copy": [
+            {
+                "asset_type": "headline",
+                "variants": [
+                    {"variant": "A", "content": "Bold Vision. Real Results.", "word_count": 4},
+                    {"variant": "B", "content": "Your Brand, Amplified.", "word_count": 3},
+                ],
+                "approved": None,
+                "revision_count": 0,
+            },
+            {
+                "asset_type": "social_caption",
+                "variants": [
+                    {"variant": "A", "content": "Experience the difference. Join thousands already transforming their journey. #Innovation #Impact", "word_count": 15},
+                    {"variant": "B", "content": "Ready to level up? We make it happen. Share your story. #Growth #Community", "word_count": 13},
+                ],
+                "approved": None,
+                "revision_count": 0,
+            },
+            {
+                "asset_type": "body_copy",
+                "variants": [
+                    {"variant": "A", "content": "In a world where attention is currency, your message needs to cut through. We craft campaigns that don't just reach audiences — they move them.", "word_count": 30},
+                    {"variant": "B", "content": "Every brand has a story worth telling. We find yours, shape it, and deliver it to the people who matter most to your growth.", "word_count": 27},
+                ],
+                "approved": None,
+                "revision_count": 0,
+            },
+        ],
+        "scripts": [
+            {
+                "id": str(uuid.uuid4()),
+                "format": "tvc_vo",
+                "content": "Picture this. A world where your brand speaks directly to those who matter.\n\n[PAUSE]\n\nThat world exists. And we're here to build it with you.\n\n[BRAND]. Made for impact.",
+                "duration_estimate": "30s",
+                "approved": None,
+                "revision_count": 0,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "format": "radio",
+                "content": "Tired of blending in? We help businesses stand out. With data-driven strategies and creative excellence, we deliver campaigns that convert. Visit us today.",
+                "duration_estimate": "30s",
+                "approved": None,
+                "revision_count": 0,
+            },
+        ],
+        "images": [
+            {
+                "id": str(uuid.uuid4()),
+                "format": "square",
+                "url": "https://placehold.co/1024x1024/1a1a2e/ffffff?text=Square+Creative",
+                "approved": None,
+                "revision_count": 0,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "format": "landscape",
+                "url": "https://placehold.co/1344x768/16213e/ffffff?text=Landscape+Creative",
+                "approved": None,
+                "revision_count": 0,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "format": "portrait",
+                "url": "https://placehold.co/768x1344/0f3460/ffffff?text=Portrait+Creative",
+                "approved": None,
+                "revision_count": 0,
+            },
+        ],
+        "audio": [
+            {
+                "id": str(uuid.uuid4()),
+                "format": "radio",
+                "voice_style": "warm",
+                "url": "",
+                "duration_seconds": 30,
+                "approved": None,
+                "revision_count": 0,
+            },
+        ],
+    }
 
 
 def _status_gte(current: str, minimum: str) -> bool:
@@ -252,6 +346,113 @@ class CampaignService:
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {"status": "approved", "updated_at": _utc_now()}},
+            return_document=True,
+        )
+        return updated
+
+    # ------------------------------------------------------------------
+    # generate_creatives
+    # ------------------------------------------------------------------
+
+    async def generate_creatives(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if doc["status"] != "approved":
+            raise HTTPException(status_code=409, detail=f"Cannot generate creatives from status '{doc['status']}'")
+
+        creative_assets = _make_stub_creative_assets(campaign_id)
+
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "creative_ready",
+                "creative_assets": creative_assets,
+                "updated_at": _utc_now(),
+            }},
+            return_document=True,
+        )
+        return updated
+
+    # ------------------------------------------------------------------
+    # approve_creative_asset
+    # ------------------------------------------------------------------
+
+    async def approve_creative_asset(
+        self,
+        campaign_id: str,
+        tenant_id: str,
+        asset_kind: str,
+        asset_id: str,
+        approved: bool,
+    ) -> dict:
+        if asset_kind not in _ASSET_KINDS:
+            raise HTTPException(status_code=422, detail=f"Invalid asset kind '{asset_kind}'. Must be one of: {_ASSET_KINDS}")
+
+        doc = await self.get(campaign_id, tenant_id)
+        if doc.get("status") not in ("creative_ready", "creative_generating"):
+            raise HTTPException(status_code=409, detail="Campaign has no creative assets to approve")
+
+        # copy assets are keyed by asset_type; all others by id
+        match_field = "asset_type" if asset_kind == "copy" else "id"
+
+        await self._campaigns.update_one(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {
+                "$set": {
+                    f"creative_assets.{asset_kind}.$[elem].approved": approved,
+                    "updated_at": _utc_now(),
+                }
+            },
+            array_filters=[{f"elem.{match_field}": asset_id}],
+        )
+        return await self.get(campaign_id, tenant_id)
+
+    # ------------------------------------------------------------------
+    # regenerate_creative_asset
+    # ------------------------------------------------------------------
+
+    async def regenerate_creative_asset(
+        self,
+        campaign_id: str,
+        tenant_id: str,
+        asset_kind: str,
+        asset_id: str,
+    ) -> dict:
+        if asset_kind not in _ASSET_KINDS:
+            raise HTTPException(status_code=422, detail=f"Invalid asset kind '{asset_kind}'. Must be one of: {_ASSET_KINDS}")
+
+        doc = await self.get(campaign_id, tenant_id)
+        if doc.get("status") != "creative_ready":
+            raise HTTPException(status_code=409, detail="Campaign has no creative assets to regenerate")
+
+        match_field = "asset_type" if asset_kind == "copy" else "id"
+
+        await self._campaigns.update_one(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {
+                "$set": {
+                    f"creative_assets.{asset_kind}.$[elem].approved": None,
+                    "updated_at": _utc_now(),
+                },
+                "$inc": {f"creative_assets.{asset_kind}.$[elem].revision_count": 1},
+            },
+            array_filters=[{f"elem.{match_field}": asset_id}],
+        )
+        return await self.get(campaign_id, tenant_id)
+
+    # ------------------------------------------------------------------
+    # go_live
+    # ------------------------------------------------------------------
+
+    async def go_live(self, campaign_id: str, tenant_id: str) -> dict:
+        doc = await self.get(campaign_id, tenant_id)
+
+        if doc["status"] != "creative_ready":
+            raise HTTPException(status_code=409, detail=f"Cannot go live from status '{doc['status']}'")
+
+        updated = await self._campaigns.find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {"status": "live", "updated_at": _utc_now()}},
             return_document=True,
         )
         return updated

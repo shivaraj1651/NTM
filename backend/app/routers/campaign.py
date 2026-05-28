@@ -9,13 +9,14 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.schemas.campaign import (
+    ApproveAssetRequest,
     CampaignCreateRequest,
     CampaignUpdateRequest,
     CampaignConfirmRequest,
     CampaignResponse,
 )
 from backend.app.services.campaign_service import CampaignService
-from backend.app.tasks.campaign_tasks import run_media_planning
+from backend.app.tasks.campaign_tasks import run_media_planning, run_video_generation
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,57 @@ async def approve_plan(
     svc = CampaignService(db)
     await svc.propose_budget(campaign_id, tenant_id)
     return await svc.confirm_budget(campaign_id, tenant_id)
+
+
+@router.post("/campaigns/{campaign_id}/generate-creatives", status_code=200)
+async def generate_creatives(
+    campaign_id: str,
+    _: User = Depends(require_role(CAMPAIGN_ROLES)),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> dict:
+    svc = CampaignService(db)
+    result = await svc.generate_creatives(campaign_id, tenant_id)
+    run_video_generation.delay(campaign_id, tenant_id)
+    return result
+
+
+@router.patch("/campaigns/{campaign_id}/creatives/{asset_kind}/{asset_id}", status_code=200)
+async def approve_creative_asset(
+    campaign_id: str,
+    asset_kind: str,
+    asset_id: str,
+    body: ApproveAssetRequest,
+    _: User = Depends(require_role(CAMPAIGN_ROLES)),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> dict:
+    svc = CampaignService(db)
+    return await svc.approve_creative_asset(campaign_id, tenant_id, asset_kind, asset_id, body.approved)
+
+
+@router.post("/campaigns/{campaign_id}/creatives/{asset_kind}/{asset_id}/regenerate", status_code=200)
+async def regenerate_creative_asset(
+    campaign_id: str,
+    asset_kind: str,
+    asset_id: str,
+    _: User = Depends(require_role(CAMPAIGN_ROLES)),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> dict:
+    svc = CampaignService(db)
+    return await svc.regenerate_creative_asset(campaign_id, tenant_id, asset_kind, asset_id)
+
+
+@router.post("/campaigns/{campaign_id}/go-live", status_code=200)
+async def go_live(
+    campaign_id: str,
+    _: User = Depends(require_role(CAMPAIGN_ROLES)),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> dict:
+    svc = CampaignService(db)
+    return await svc.go_live(campaign_id, tenant_id)
 
 
 @router.get("/campaigns/{campaign_id}/deck", status_code=200)

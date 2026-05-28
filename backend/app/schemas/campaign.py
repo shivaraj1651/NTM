@@ -13,6 +13,13 @@ class CampaignStatusEnum(str, Enum):
     planned = "planned"
     budget_proposed = "budget_proposed"
     approved = "approved"
+    creative_generating = "creative_generating"
+    creative_ready = "creative_ready"
+    live = "live"
+
+
+class ApproveAssetRequest(BaseModel):
+    approved: bool
 
 
 class CampaignCreateRequest(BaseModel):
@@ -39,6 +46,8 @@ class CampaignResponse(BaseModel):
     selected_concept_id: str | None = None
     activation_plan: list[dict[str, Any]] | None = None
     budget_proposal: dict[str, Any] | None = None
+    creative_assets: dict[str, Any] | None = None
+    kpi_configs: list[dict[str, Any]] = []
     created_at: str | None = None
     updated_at: str | None = None
 
