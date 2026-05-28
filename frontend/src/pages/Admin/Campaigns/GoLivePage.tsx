@@ -2,13 +2,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useCampaign, useGoLive } from '@/hooks/useCampaigns'
+import { useCampaign, useGoLive, useActivateCampaign } from '@/hooks/useCampaigns'
 
 export function GoLivePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: campaign, isError } = useCampaign(id ?? '')
   const goLive = useGoLive(id ?? '')
+  const activate = useActivateCampaign(id ?? '')
 
   if (!id) return null
   if (isError) return <p className="text-destructive text-sm">Failed to load campaign.</p>
@@ -31,9 +32,11 @@ export function GoLivePage() {
   const handleLaunch = async () => {
     try {
       await goLive.mutateAsync()
+      // Dispatch platform activation tasks (AGT-12) after status is set to live
+      await activate.mutateAsync()
       navigate(`/campaigns/${id}/kpis`)
     } catch {
-      // Error stored in goLive.isError, displayed in UI
+      // Errors stored in goLive.isError / activate.isError, displayed in UI
     }
   }
 
@@ -76,16 +79,16 @@ export function GoLivePage() {
         </CardContent>
       </Card>
 
-      {goLive.isError && (
+      {(goLive.isError || activate.isError) && (
         <p className="text-destructive text-sm">Launch failed. Please try again.</p>
       )}
 
       <Button
         onClick={handleLaunch}
-        disabled={goLive.isPending}
+        disabled={goLive.isPending || activate.isPending}
         className="w-full sm:w-auto"
       >
-        {goLive.isPending ? (
+        {(goLive.isPending || activate.isPending) ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
             Launching…

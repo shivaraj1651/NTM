@@ -8,7 +8,6 @@ from typing import Any
 from fastapi import HTTPException
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
 from backend.app.agents.media_planner import media_planner_agent
-from backend.app.agents.budget_optimizer import budget_optimizer_agent
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +17,7 @@ _STATUS_ORDER = [
     "concepts_ready",
     "confirmed",
     "planned",
+    "budget_pending",
     "budget_proposed",
     "approved",
     "creative_generating",
@@ -301,34 +301,10 @@ class CampaignService:
         if doc["status"] != "planned":
             raise HTTPException(status_code=409, detail=f"Cannot propose budget from status '{doc['status']}'")
 
-        activations = doc.get("activation_plan", []) or []
-        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
-        budget_env = {}
-        if mandate:
-            b = mandate.get("budget", {})
-            budget_env = {"total_budget": b.get("total_amount", 0), "currency": b.get("currency", "USD")}
-
-        campaign_context = {
-            "campaign_id": campaign_id,
-            "campaign_name": doc.get("concepts", [{}])[0].get("name", ""),
-            "tone_board": doc.get("concepts", [{}])[0].get("tone_board", ""),
-        }
-
-        try:
-            proposal = await budget_optimizer_agent(activations, budget_env, campaign_context)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.error("AGT-05 failed: %s", exc)
-            raise HTTPException(status_code=500, detail=f"Budget optimisation failed: {exc}")
-
+        # Set status to budget_pending; AGT-05 runs as a Celery task (dispatched by router)
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
-            {"$set": {
-                "status": "budget_proposed",
-                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
-                "updated_at": _utc_now(),
-            }},
+            {"$set": {"status": "budget_pending", "updated_at": _utc_now()}},
             return_document=True,
         )
         return updated
@@ -340,7 +316,7 @@ class CampaignService:
     async def confirm_budget(self, campaign_id: str, tenant_id: str) -> dict:
         doc = await self.get(campaign_id, tenant_id)
 
-        if doc["status"] != "budget_proposed":
+        if doc["status"] not in ("budget_proposed", "budget_pending"):
             raise HTTPException(status_code=409, detail=f"Cannot confirm budget from status '{doc['status']}'")
 
         updated = await self._campaigns.find_one_and_update(

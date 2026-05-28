@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
 import {
   getCampaigns,
   getCampaign,
@@ -12,6 +12,7 @@ import {
   approveCreativeAsset,
   regenerateAsset,
   goLive,
+  activateCampaign,
   getCampaignKpis,
   updateKpiConfig,
 } from '@/api/admin'
@@ -25,11 +26,12 @@ export function useCampaigns(tenantId: string | null) {
   })
 }
 
-export function useCampaign(campaignId: string) {
+export function useCampaign(campaignId: string, options?: Partial<UseQueryOptions<Campaign>>) {
   return useQuery<Campaign>({
     queryKey: ['campaign', campaignId],
     queryFn: () => getCampaign(campaignId),
     enabled: !!campaignId,
+    ...options,
   })
 }
 
@@ -139,6 +141,14 @@ export function useGoLive(campaignId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => goLive(campaignId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
+  })
+}
+
+export function useActivateCampaign(campaignId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => activateCampaign(campaignId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', campaignId] }),
   })
 }

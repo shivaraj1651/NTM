@@ -574,3 +574,51 @@ def fetch_competitor_metrics(
 
         # Retry with exponential backoff
         raise self.retry(exc=e, countdown=2 ** self.request.retries)
+
+
+async def _run_competitive_intel_pipeline(mandate_id: str, tenant_id: str) -> None:
+    """Async: fetch mandate + client from MongoDB, run AGT-02 phase 1, dispatch phase 2."""
+    from backend.app.agents.competitive_intel import competitive_intel_agent
+    import uuid
+
+    mongo_client = AsyncIOMotorClient(os.getenv("MONGO_DB_URL", "mongodb://localhost:27017"))
+    try:
+        db = mongo_client[os.getenv("MONGO_DB_NAME", "ntm")]
+        mandate = await db["mandates"].find_one({"_id": mandate_id, "tenant_id": tenant_id})
+        if not mandate:
+            logger.warning("[run_competitive_intel_pipeline] mandate not found: %s", mandate_id)
+            return
+        client_id = mandate.get("client_id")
+        client_profile = {}
+        if client_id:
+            client_profile = await db["clients"].find_one({"_id": client_id, "tenant_id": tenant_id}) or {}
+    finally:
+        mongo_client.close()
+
+    ci_initial = await competitive_intel_agent(
+        mandate=mandate,
+        client_profile=client_profile,
+        mandate_id=mandate_id,
+        tenant_id=tenant_id,
+    )
+    competitor_names = [c.name for c in ci_initial.competitors]
+    job_id = ci_initial.job_id or str(uuid.uuid4())
+
+    fetch_competitor_metrics.delay(
+        mandate_id=mandate_id,
+        competitor_names=competitor_names,
+        mandate_dict=mandate,
+        tenant_id=tenant_id,
+        job_id=job_id,
+    )
+    logger.info("[run_competitive_intel_pipeline] dispatched phase-2 for mandate %s, job %s", mandate_id, job_id)
+
+
+@shared_task(bind=True, max_retries=2)
+def run_competitive_intel_pipeline(self, mandate_id: str, tenant_id: str) -> None:
+    """Celery task: auto-triggered after AGT-01; runs CI phase 1 then enqueues phase 2."""
+    try:
+        asyncio.run(_run_competitive_intel_pipeline(mandate_id, tenant_id))
+    except Exception as e:
+        logger.error("[run_competitive_intel_pipeline] failed for %s: %s", mandate_id, e)
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)

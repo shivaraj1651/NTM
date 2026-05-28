@@ -163,6 +163,9 @@ export const regenerateAsset = (id: string, assetKind: string, assetId: string) 
 export const goLive = (id: string) =>
   apiClient.post(`/campaigns/${id}/go-live`).then((r) => r.data)
 
+export const activateCampaign = (id: string) =>
+  apiClient.post(`/campaigns/${id}/activate`).then((r) => r.data)
+
 export const getCampaignKpis = (id: string) =>
   apiClient.get(`/campaigns/${id}/kpis`).then((r) => r.data)
 

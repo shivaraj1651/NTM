@@ -78,6 +78,11 @@ async def _run_mandate_analysis(mandate_id: str, tenant_id: str) -> None:
         )
         await session.commit()
 
+    # Auto-chain AGT-02: competitive intel pipeline runs after AGT-01 succeeds
+    from backend.app.tasks.competitive_intel_tasks import run_competitive_intel_pipeline
+    run_competitive_intel_pipeline.delay(mandate_id, tenant_id)
+    logger.info(f"[run_mandate_analysis] dispatched CI pipeline for mandate {mandate_id}")
+
 
 @shared_task(bind=True, max_retries=3)
 def run_mandate_analysis(self, mandate_id: str, tenant_id: str) -> None:

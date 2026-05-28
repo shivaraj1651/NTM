@@ -16,7 +16,7 @@ from backend.app.schemas.campaign import (
     CampaignResponse,
 )
 from backend.app.services.campaign_service import CampaignService
-from backend.app.tasks.campaign_tasks import run_media_planning, run_video_generation
+from backend.app.tasks.campaign_tasks import run_media_planning, run_video_generation, run_budget_optimization
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,10 @@ async def propose_budget(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
     svc = CampaignService(db)
-    return await svc.propose_budget(campaign_id, tenant_id)
+    result = await svc.propose_budget(campaign_id, tenant_id)
+    # Dispatch AGT-05 budget optimizer as async Celery task
+    run_budget_optimization.delay(campaign_id, tenant_id)
+    return result
 
 
 @router.post("/campaigns/{campaign_id}/confirm-budget", response_model=CampaignResponse, status_code=200)

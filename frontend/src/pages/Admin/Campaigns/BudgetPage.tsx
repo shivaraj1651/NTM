@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -9,13 +10,26 @@ import type { BudgetAllocation } from '@/types/admin'
 export function BudgetPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: campaign, isLoading } = useCampaign(id!)
+  // Poll every 5s while AGT-05 is running (status=budget_pending, no proposal yet)
+  const { data: campaign, isLoading } = useCampaign(id!, {
+    refetchInterval: (data) =>
+      data?.status === 'budget_pending' && !data?.budget_proposal ? 5000 : false,
+  })
   const confirmBudget = useConfirmBudget(id!)
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (!campaign) return null
 
   const { budget_proposal, status } = campaign
+
+  if (status === 'budget_pending' && !budget_proposal) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Budget optimisation in progress…
+      </div>
+    )
+  }
 
   if (!budget_proposal) {
     return <p className="text-muted-foreground text-sm">No budget proposal available.</p>

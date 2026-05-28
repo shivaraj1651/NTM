@@ -249,3 +249,57 @@ def run_video_generation(self, campaign_id: str, tenant_id: str) -> None:
     except Exception as exc:
         logger.error(f"[run_video_generation] error for {campaign_id}: {exc}")
         raise self.retry(exc=exc, countdown=30)
+
+
+async def _run_budget_optimization(campaign_id: str, tenant_id: str) -> None:
+    """Async: fetch campaign doc, run AGT-05, store budget_proposal."""
+    from backend.app.agents.budget_optimizer import budget_optimizer_agent
+
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        campaign_doc = await db["campaigns"].find_one({"_id": campaign_id, "tenant_id": tenant_id})
+        if not campaign_doc:
+            logger.error("[run_budget_optimization] campaign not found: %s", campaign_id)
+            return
+
+        activations = campaign_doc.get("activation_plan", []) or []
+        mandate = await db["mandates"].find_one({"_id": campaign_doc.get("mandate_id"), "tenant_id": tenant_id}) or {}
+        b = mandate.get("budget", {})
+        budget_env = {"total_budget": b.get("total_amount", 0), "currency": b.get("currency", "USD")}
+        concept = (campaign_doc.get("concepts") or [{}])[0]
+        campaign_context = {
+            "campaign_id": campaign_id,
+            "campaign_name": concept.get("name", ""),
+            "objective": mandate.get("objective", ""),
+            "description": concept.get("narrative", ""),
+            "target_audience": mandate.get("target_audience", ""),
+            "tone_board": concept.get("tone_board", ""),
+        }
+
+        logger.info("[run_budget_optimization] running AGT-05 for campaign_id=%s", campaign_id)
+        proposal = await budget_optimizer_agent(activations, budget_env, campaign_context)
+
+        await db["campaigns"].find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "budget_proposed",
+                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+        logger.info("[run_budget_optimization] stored budget_proposal for campaign %s", campaign_id)
+    finally:
+        mongo_client.close()
+
+
+@shared_task(bind=True, max_retries=3)
+def run_budget_optimization(self, campaign_id: str, tenant_id: str) -> None:
+    """Celery task: run AGT-05 budget optimizer after activation plan is ready."""
+    logger.info("[run_budget_optimization] start campaign_id=%s tenant_id=%s", campaign_id, tenant_id)
+    try:
+        asyncio.run(_run_budget_optimization(campaign_id, tenant_id))
+        logger.info("[run_budget_optimization] complete campaign_id=%s", campaign_id)
+    except Exception as exc:
+        logger.error("[run_budget_optimization] error for %s: %s", campaign_id, exc)
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
