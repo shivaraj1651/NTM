@@ -12,6 +12,7 @@ TASK-021
 import json
 import logging
 from typing import Any, Dict, List, Tuple
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,17 @@ class LLMEnricher:
             f"Activation plan context: {json.dumps(activation_plan)}\n\n"
             f"Candidates requiring recommendations:\n{json.dumps(payload, indent=2)}"
         )
+
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Replanning agent LLM enrichment stubbed (NTM_STUB_EXTERNAL)")
+            result = []
+            for candidate in candidates:
+                enriched = dict(candidate)
+                enriched["rationale"] = _FALLBACK_RATIONALE
+                enriched["expected_impact"] = _FALLBACK_IMPACT
+                result.append(enriched)
+            return result
 
         enriched_index: Dict[str, Dict[str, str]] = {}
         try:

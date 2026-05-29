@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.performance_metric import PerformanceMetric
 from backend.app.services.report_service import ReportService
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,13 @@ class LLMNarrator:
             'Return JSON only: {"executive_summary": "...", "key_insights": ["...", "...", "..."]}\n\n'
             + json.dumps(weekly_report)
         )
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Report generator LLM narrator stubbed (NTM_STUB_EXTERNAL)")
+            return {
+                "executive_summary": "Stub weekly summary (NTM_STUB_EXTERNAL).",
+                "key_insights": ["Stub insight 1", "Stub insight 2", "Stub insight 3"],
+            }
         try:
             response = await self.client.messages.create(
                 model=self._MODEL,

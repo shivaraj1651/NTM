@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 from anthropic import AsyncAnthropic
 
 from backend.app.schemas.competitive_intel import CompetitorIdentity, CIReportInitial
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,17 @@ Budget: ${budget}
 Known Competitors: {existing_competitors if existing_competitors else "None provided"}
 
 Return 5-15 competitors with confidence scores."""
+
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Competitive intel LLM stubbed (NTM_STUB_EXTERNAL)")
+        return [
+            CompetitorIdentity(name="StubCompetitor1", confidence=80),
+            CompetitorIdentity(name="StubCompetitor2", confidence=70),
+            CompetitorIdentity(name="StubCompetitor3", confidence=60),
+            CompetitorIdentity(name="StubCompetitor4", confidence=50),
+            CompetitorIdentity(name="StubCompetitor5", confidence=40),
+        ]
 
     try:
         response = await client.messages.create(

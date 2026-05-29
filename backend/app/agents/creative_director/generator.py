@@ -12,6 +12,7 @@ import json
 import logging
 from typing import Dict, List, Optional
 from anthropic import AsyncAnthropic
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,11 @@ class CreativeGenerator:
         Raises:
             Exception: If API call fails or response is not valid JSON
         """
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Creative director LLM stubbed (NTM_STUB_EXTERNAL)")
+            return {"concept": "Stub creative concept", "platform_variants": {}, "rationale": "stub"}
+
         message = await self.client.messages.create(
             model=self.model,
             max_tokens=2048,

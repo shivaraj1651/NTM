@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional
 
 import httpx
 
+from backend.app.external.stubs import stub_enabled
+
 logger = logging.getLogger(__name__)
 
 _LINKEDIN_BASE = "https://api.linkedin.com/rest"
@@ -33,6 +35,16 @@ async def activate_linkedin(
     creative_url: str,
     access_token: Optional[str] = None,
 ) -> Dict[str, Any]:
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("LinkedIn Ads activate_linkedin stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "campaign_id": "stub-linkedin-campaign-001",
+            "ad_id": "stub-linkedin-ad-001",
+            "status": "live",
+            "error": None,
+        }
+
     account_id = os.getenv("LINKEDIN_ACCOUNT_ID", "")
     provided_token = access_token or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
 

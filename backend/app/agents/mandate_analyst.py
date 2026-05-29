@@ -5,10 +5,14 @@ Validates mandates for completeness and contradictions, produces structured summ
 """
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any
 
 from anthropic import AsyncAnthropic
+from backend.app.external.stubs import stub_enabled
+
+logger = logging.getLogger(__name__)
 
 
 class MandateValidator:
@@ -122,6 +126,21 @@ Missing fields: {validation_result['missing_fields']}
 
 Mandate data:
 {json.dumps(mandate, indent=2)}"""
+
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Mandate analyst LLM stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "contradictions": [],
+            "mandate_summary": {
+                "objective": mandate.get("objective", "stub"),
+                "budget_total": str(mandate.get("budget", {}).get("total_amount", 0)),
+                "timeline": "stub timeline",
+                "key_risks": [],
+                "readiness": "Ready to proceed",
+            },
+            "completeness_score": 90,
+        }
 
     response = await client.messages.create(
         model="claude-sonnet-4-5",

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from anthropic import AsyncAnthropic
 
 from backend.app.schemas.campaign_concept import CampaignConcept
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,22 @@ Generate a comprehensive campaign concept that:
 4. Includes all required fields in the JSON output
 5. Self-assesses for legal, regulatory, and sensitivity risks
 """
+
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Campaign strategist LLM stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "campaign_name": f"Stub Campaign {campaign_number}",
+            "tagline": "Stub tagline",
+            "strategic_narrative": "Stub narrative (NTM_STUB_EXTERNAL).",
+            "theme": "stub",
+            "audience_segments": {"primary": "all", "secondary": None, "tertiary": None},
+            "channel_mix": [],
+            "message_architecture": {"master_message": "Stub message", "channel_adaptations": {}},
+            "campaign_phasing": {},
+            "tone_board": {"adjectives": [], "visual_direction": "stub", "tone": "neutral"},
+            "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+        }
 
     for attempt in range(2):  # Max 2 attempts (initial + 1 retry)
         try:

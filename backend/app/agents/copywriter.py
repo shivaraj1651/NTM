@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +260,10 @@ Return ONLY valid JSON (no markdown, no code blocks):
         return AssetCopy(asset_type=asset_type, variants=variants)
 
     async def _call_with_retry(self, system_prompt: str, user_message: str) -> dict:
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Copywriter LLM stubbed (NTM_STUB_EXTERNAL)")
+            return {"variants": [{"copy": "Stub copy variant A.", "rationale": "stub"}, {"copy": "Stub copy variant B.", "rationale": "stub"}]}
         last_exc: Optional[Exception] = None
         for attempt in range(MAX_RETRIES):
             try:

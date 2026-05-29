@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from datetime import date, timedelta
 from pydantic import ValidationError
 from anthropic import AsyncAnthropic
+from backend.app.external.stubs import stub_enabled
 from backend.app.schemas.media_plan import Activation, PhaseEnum, ChannelEnum, AudienceSegmentEnum
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,24 @@ Rules:
 - channel_context must include an entry for every channel listed
 - Be precise: e.g., format "15-second skippable in-stream" not "Standard format"
 """
+
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Media planner LLM stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "phase_split": {"Awareness": 0.40, "Engagement": 0.40, "Conversion": 0.20},
+            "audience_size_per_market": {m: 2_000_000 for m in markets},
+            "channel_context": {
+                ch: {
+                    "format": f"{ch} stub format",
+                    "placement": f"{ch} stub placement",
+                    "audience_segment": "Primary",
+                    "rationale": "Stub allocation (NTM_STUB_EXTERNAL).",
+                }
+                for ch in channels
+            },
+            "strategic_rationale": "Stub plan intelligence (NTM_STUB_EXTERNAL).",
+        }
 
     try:
         response = await client.messages.create(

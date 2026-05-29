@@ -4,6 +4,8 @@ import os
 from typing import Dict, Any, List, Optional
 import re
 
+from backend.app.external.stubs import stub_enabled
+
 logger = logging.getLogger(__name__)
 
 META_BASE = "https://graph.facebook.com/v21.0"
@@ -500,6 +502,16 @@ async def activate_meta(
     Returns:
         {campaign_id, ad_id, status: "live"|"failed", error: str|None}
     """
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Meta Ads activate_meta stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "campaign_id": "stub-meta-campaign-001",
+            "ad_id": "stub-meta-ad-001",
+            "status": "live",
+            "error": None,
+        }
+
     account_id = os.getenv("META_AD_ACCOUNT_ID", "")
     campaign_name = activation.get("name", "Campaign")
     daily_budget = float(activation.get("cost_estimated", 0))

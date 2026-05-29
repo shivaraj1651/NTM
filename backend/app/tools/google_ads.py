@@ -4,6 +4,8 @@ from typing import Dict, Any, Optional
 
 import httpx
 
+from backend.app.external.stubs import stub_enabled
+
 logger = logging.getLogger(__name__)
 
 _GOOGLE_ADS_BASE = "https://googleads.googleapis.com/v17/customers/{customer_id}"
@@ -38,6 +40,16 @@ async def activate_google(
     creative_url: str,
     customer_id: Optional[str] = None,
 ) -> Dict[str, Any]:
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Google Ads activate_google stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "campaign_id": "stub-google-campaign-001",
+            "ad_id": "stub-google-ad-001",
+            "status": "live",
+            "error": None,
+        }
+
     cid = customer_id or os.getenv("GOOGLE_ADS_CUSTOMER_ID", "")
     developer_token = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
 

@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional
 from datetime import date
 import asyncio
 from anthropic import AsyncAnthropic
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,16 @@ Guidelines:
 - audience_conversion_adjustments: adjust channels that are particularly suited or poorly suited for {audience}
 - executive_summary MUST reference '{objective}', the audience '{audience}', and name at least 2 specific channels
 """
+
+    # NTM_STUB_EXTERNAL: stubbed external call
+    if stub_enabled():
+        logger.info("Budget optimizer LLM stubbed (NTM_STUB_EXTERNAL)")
+        return {
+            "phase_weights": {"Awareness": 1.0, "Engagement": 1.0, "Conversion": 1.0},
+            "channel_priorities": [],
+            "audience_conversion_adjustments": {},
+            "executive_summary": "Stub: budget optimization intelligence (NTM_STUB_EXTERNAL).",
+        }
 
     try:
         response = await client.messages.create(

@@ -15,6 +15,7 @@ from typing import Any, Literal, Optional
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
+from backend.app.external.stubs import stub_enabled
 
 from backend.app.tools import stability_ai
 
@@ -124,6 +125,11 @@ class ImageGeneratorAgent:
         if brief.style_notes:
             base += f" {brief.style_notes}"
 
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Image generator prompt-enrichment LLM stubbed (NTM_STUB_EXTERNAL)")
+            return base
+
         try:
             response = await self.anthropic_client.messages.create(
                 model=HAIKU_MODEL,
@@ -144,6 +150,16 @@ class ImageGeneratorAgent:
     async def _generate_image(
         self, prompt: str, width: int, height: int
     ) -> tuple[bytes, str]:
+        # NTM_STUB_EXTERNAL: stubbed external call — return 1x1 white PNG, no real API call
+        if stub_enabled():
+            logger.info("Image generator _generate_image stubbed (NTM_STUB_EXTERNAL)")
+            import base64 as _b64
+            # Minimal 1x1 white PNG (67 bytes)
+            stub_png = _b64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
+            )
+            return stub_png, "stub"
+
         # Primary: Stability AI
         for attempt in range(MAX_RETRIES):
             try:

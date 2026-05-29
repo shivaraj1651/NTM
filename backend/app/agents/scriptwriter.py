@@ -13,6 +13,7 @@ from typing import Literal, Optional
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +360,10 @@ Return ONLY valid JSON — no markdown fences, no commentary."""
         return "\n".join(lines)
 
     async def _call_with_retry(self, system_prompt: str, user_message: str) -> dict:
+        # NTM_STUB_EXTERNAL: stubbed external call
+        if stub_enabled():
+            logger.info("Scriptwriter LLM stubbed (NTM_STUB_EXTERNAL)")
+            return {"scenes": [{"scene_number": 1, "action": "Stub action.", "dialogue": "Stub dialogue.", "duration": "5s"}]}
         last_exc: Optional[Exception] = None
         for attempt in range(MAX_RETRIES):
             try:
