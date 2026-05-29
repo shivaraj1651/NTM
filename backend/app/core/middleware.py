@@ -1,56 +1,52 @@
-"""Tenant validation middleware for multi-tenant request handling."""
-
+"""Tenant validation middleware: authenticates JWT, validates X-Tenant-ID."""
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
+from backend.app.core.auth_state import decode_user_id, load_user_and_tenants
 from backend.app.core.dependencies import tenant_context
 from backend.app.core.exceptions import (
-    MissingTenantHeaderException,
-    TenantMismatchException,
-    InvalidTokenException
+    MissingTenantHeaderException, TenantMismatchException, InvalidTokenException,
 )
+from backend.app.db import get_session_local
+
+PUBLIC_PATHS = {
+    "/health", "/docs", "/openapi.json", "/redoc",
+    "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/jwt/login",
+    "/api/v1/auth/password-reset/request", "/api/v1/auth/password-reset/confirm",
+}
 
 
 class TenantValidationMiddleware(BaseHTTPMiddleware):
-    """Validates X-Tenant-ID header and injects tenant context."""
-
     async def dispatch(self, request: Request, call_next):
-        """Process request and validate tenant before passing to route handler."""
-        # Skip auth for public endpoints
-        public_endpoints = ["/docs", "/openapi.json", "/redoc", "/auth/login", "/auth/register", "/health"]
-        if request.url.path in public_endpoints:
+        if request.url.path in PUBLIC_PATHS or request.method == "OPTIONS":
             return await call_next(request)
-
         try:
-            # Extract X-Tenant-ID header
+            auth = request.headers.get("Authorization", "")
+            token = auth[7:] if auth.lower().startswith("bearer ") else None
+            user_id = decode_user_id(token) if token else None
+            if not user_id:
+                raise InvalidTokenException()
+
+            factory = get_session_local()
+            async with factory() as session:
+                user, allowed = await load_user_and_tenants(session, user_id)
+            if user is None:
+                raise InvalidTokenException()
+
+            request.state.user = user
+            request.state.allowed_tenants = allowed
+
             tenant_id = request.headers.get("X-Tenant-ID")
             if not tenant_id:
                 raise MissingTenantHeaderException()
-
-            # Extract user from request state (set by FastAPI-Users middleware)
-            user = request.state.__dict__.get("user")
-            if not user:
-                raise InvalidTokenException()
-
-            # Extract allowed_tenants from request state (set by auth middleware)
-            allowed_tenants = request.state.__dict__.get("allowed_tenants", [])
-
-            # Validate tenant_id is in allowed tenants
-            if tenant_id not in allowed_tenants:
+            if tenant_id not in allowed:
                 raise TenantMismatchException(tenant_id)
 
-            # Store tenant in context for dependency injection
-            tenant_context.set(tenant_id)
             request.state.tenant_id = tenant_id
-
+            tenant_context.set(tenant_id)
             return await call_next(request)
-
         except Exception as exc:
-            # Handle custom exceptions with status_code and detail
-            if hasattr(exc, 'status_code') and hasattr(exc, 'detail'):
-                return JSONResponse(
-                    status_code=exc.status_code,
-                    content=exc.detail
-                )
-            # Re-raise unexpected exceptions
+            if hasattr(exc, "status_code") and hasattr(exc, "detail"):
+                return JSONResponse(status_code=exc.status_code, content=exc.detail)
             raise
