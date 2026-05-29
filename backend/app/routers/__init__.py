@@ -14,6 +14,7 @@ from backend.app.routers.report import router as report_router
 from backend.app.routers.admin import router as admin_router
 from backend.app.routers.physical_activation import router as physical_activation_router
 from backend.app.routers.auth_ext import router as auth_ext_router
+from backend.app.routers.auth_session import router as auth_session_router
 
 
 def register_routers(app: FastAPI) -> None:
@@ -29,3 +30,4 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(admin_router)
     app.include_router(physical_activation_router)
     app.include_router(auth_ext_router)
+    app.include_router(auth_session_router)

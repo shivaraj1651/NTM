@@ -51,6 +51,11 @@ fastapi_users = FastAPIUsers[User, str](
 )
 
 
+async def write_jwt(user) -> str:
+    """Mint a JWT readable by the auth middleware."""
+    return await get_jwt_strategy().write_token(user)
+
+
 async def current_user(request: Request) -> User:
     """Return the user authenticated by TenantValidationMiddleware (request.state.user)."""
     user = getattr(request.state, "user", None)
