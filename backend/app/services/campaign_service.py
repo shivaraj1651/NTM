@@ -194,6 +194,10 @@ class CampaignService:
     # get
     # ------------------------------------------------------------------
 
+    async def list(self, tenant_id: str) -> list[dict]:
+        cursor = self._campaigns.find({"tenant_id": tenant_id})
+        return await cursor.to_list(length=None)
+
     async def get(self, campaign_id: str, tenant_id: str) -> dict:
         doc = await self._campaigns.find_one({"_id": campaign_id, "tenant_id": tenant_id})
         if not doc:

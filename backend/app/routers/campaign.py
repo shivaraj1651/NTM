@@ -57,6 +57,15 @@ async def create_campaign(
     return await svc.create(body.mandate_id, tenant_id)
 
 
+@router.get("/campaigns", response_model=list[CampaignResponse], status_code=200)
+async def list_campaigns(
+    _: User = Depends(require_role(CAMPAIGN_ROLES)),
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> list[CampaignResponse]:
+    return await CampaignService(db).list(tenant_id)
+
+
 @router.get("/campaigns/{campaign_id}", response_model=CampaignResponse, status_code=200)
 async def get_campaign(
     campaign_id: str,

@@ -141,3 +141,17 @@ async def test_update_campaign_returns_updated_doc():
     result = await svc.update("camp-001", "tenant-001", {"status": "confirmed"})
 
     assert result["status"] == "confirmed"
+
+
+# ── list ───────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_returns_tenant_campaigns():
+    db, campaign_col, _m, _c = make_db()
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[CAMPAIGN_DOC])
+    campaign_col.find = MagicMock(return_value=cursor)
+    svc = CampaignService(db)
+    rows = await svc.list("tenant-001")
+    assert rows == [CAMPAIGN_DOC]
+    campaign_col.find.assert_called_once_with({"tenant_id": "tenant-001"})
