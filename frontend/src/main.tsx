@@ -6,7 +6,7 @@ import { router } from './App'
 import './index.css'
 
 async function enableMocking() {
-  if (!import.meta.env.DEV) return
+  if (import.meta.env.VITE_USE_MOCKS !== 'true') return
   const { worker } = await import('./mocks/browser')
   return worker.start({ onUnhandledRequest: 'bypass' })
 }
