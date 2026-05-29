@@ -160,8 +160,8 @@ export const getAnalyticsTrends = (
 export const triggerReplan = (campaignId: string) =>
   apiClient.post(`/campaigns/${campaignId}/replan`).then((r) => r.data)
 
-export const dismissAlert = (alertId: string) =>
-  apiClient.delete(`/alerts/${alertId}`).then((r) => r.data)
+// backend route not implemented: DELETE /alerts/{id} does not exist — no-op; UI updates local state
+export const dismissAlert = (_alertId: string): Promise<void> => Promise.resolve()
 
 export const getCampaigns = (tenantId: string) =>
   apiClient.get(`/campaigns?tenant_id=${tenantId}`).then((r) => r.data)
@@ -215,18 +215,60 @@ export const goLive = (id: string) =>
 export const activateCampaign = (id: string) =>
   apiClient.post(`/campaigns/${id}/activate`).then((r) => r.data)
 
-export const getCampaignKpis = (id: string) =>
-  apiClient.get(`/campaigns/${id}/kpis`).then((r) => r.data)
-
-export const updateKpiConfig = (
-  id: string,
-  activationId: string,
-  kpiName: string,
-  payload: { target?: number; green_threshold?: number; amber_threshold?: number },
-) =>
+// repointed to GET /campaigns/{id}/analytics (backend: analytics.py get_analytics)
+// Response is an analytics_summaries doc with activations[].kpi_results[]
+// Maps to CampaignKpiRow[]; missing fields (actual, achievement_percent, thresholds) get safe defaults
+export const getCampaignKpis = (id: string): Promise<import('@/types/admin').CampaignKpiRow[]> =>
   apiClient
-    .patch(`/campaigns/${id}/kpi-configs/${activationId}/${kpiName}`, payload)
-    .then((r) => r.data)
+    .get(`/campaigns/${id}/analytics`)
+    .then((r) => {
+      const doc = r.data as {
+        activations?: Array<{
+          activation_id: string
+          channel: string
+          sub_channel?: string
+          status: 'red' | 'amber' | 'green' | 'no_kpis'
+          kpi_results: Array<{
+            kpi_name: string
+            target: number
+            actual: number
+            achievement_percent: number
+            threshold_unit: string
+            status: 'red' | 'amber' | 'green' | 'no_kpis'
+          }>
+        }>
+      }
+      const activations = doc.activations ?? []
+      const rows: import('@/types/admin').CampaignKpiRow[] = []
+      for (const act of activations) {
+        for (const kr of act.kpi_results ?? []) {
+          if (kr.status === 'no_kpis') continue
+          rows.push({
+            activation_id: act.activation_id,
+            channel: act.channel,
+            sub_channel: act.sub_channel ?? '',
+            kpi_name: kr.kpi_name,
+            unit: kr.threshold_unit,
+            target: kr.target,
+            actual: kr.actual,
+            achievement_percent: kr.achievement_percent,
+            green_threshold: 0, // backend route not implemented: kpi-configs not in analytics response
+            amber_threshold: 0, // backend route not implemented: kpi-configs not in analytics response
+            status: kr.status as 'red' | 'amber' | 'green',
+          })
+        }
+      }
+      return rows
+    })
+    .catch(() => [] as import('@/types/admin').CampaignKpiRow[])
+
+// backend route not implemented: PATCH /campaigns/{id}/kpi-configs/{activationId}/{kpiName} does not exist
+export const updateKpiConfig = (
+  _id: string,
+  _activationId: string,
+  _kpiName: string,
+  _payload: { target?: number; green_threshold?: number; amber_threshold?: number },
+): Promise<void> => Promise.resolve()
 
 export const createClient = (formData: FormData) =>
   apiClient

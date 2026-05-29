@@ -146,9 +146,10 @@ export function KpisPage() {
     {
       id: 'edit',
       header: '',
+      // backend route not implemented: kpi-config updates are read-only (no-op)
       cell: ({ row }: { row: any }) => (
-        <Button variant="ghost" size="sm" onClick={() => setEditRow(row.original)}>
-          <Pencil className="h-4 w-4" />
+        <Button variant="ghost" size="sm" disabled title="KPI config editing not available" onClick={() => setEditRow(row.original)}>
+          <Pencil className="h-4 w-4 opacity-40" />
         </Button>
       ),
     },
