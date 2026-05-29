@@ -51,6 +51,12 @@ class MandateService:
         await self._db.refresh(mandate)
         return mandate.to_dict()
 
+    async def list(self, tenant_id: str) -> list[dict]:
+        result = await self._db.execute(
+            select(Mandate).where(Mandate.tenant_id == tenant_id).order_by(Mandate.id)
+        )
+        return [m.to_dict() for m in result.scalars().all()]
+
     async def get(self, mandate_id: str, tenant_id: str) -> dict:
         mandate = await self._get_or_404(mandate_id, tenant_id)
         return mandate.to_dict()

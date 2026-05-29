@@ -153,3 +153,19 @@ async def test_create_mandate_sets_draft_status():
     await svc.create(data, "user-1", "tenant-1")
     assert session.add.called
     assert session.commit.called
+
+
+# ── list ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_returns_tenant_mandates():
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.app.services.mandate_service import MandateService
+    m = make_mandate()
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [m]
+    session = MagicMock()
+    session.execute = AsyncMock(return_value=result)
+    svc = MandateService(session)
+    rows = await svc.list("tenant-1")
+    assert rows == [m.to_dict.return_value]

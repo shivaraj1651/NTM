@@ -272,6 +272,14 @@ async def get_job_status(
 # Mandate CRUD + lifecycle (SQLAlchemy / Postgres)
 # ---------------------------------------------------------------------------
 
+@router.get("/mandates", status_code=200)
+async def list_mandates(
+    tenant_id: str = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_sql_db),
+) -> list[dict]:
+    return await MandateService(db).list(tenant_id)
+
+
 @router.post("/mandates", status_code=201)
 async def create_mandate(
     body: CreateMandateRequest,
