@@ -10,10 +10,10 @@ import type { BudgetAllocation } from '@/types/admin'
 export function BudgetPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // Poll every 5s while AGT-05 is running (status=budget_pending, no proposal yet)
+  // Poll every 5s while AGT-05 is running (status=planned, no proposal yet)
   const { data: campaign, isLoading } = useCampaign(id!, {
-    refetchInterval: (data) =>
-      data?.status === 'budget_pending' && !data?.budget_proposal ? 5000 : false,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'planned' && !query.state.data?.budget_proposal ? 5000 : false,
   })
   const confirmBudget = useConfirmBudget(id!)
 
@@ -22,7 +22,7 @@ export function BudgetPage() {
 
   const { budget_proposal, status } = campaign
 
-  if (status === 'budget_pending' && !budget_proposal) {
+  if (status === 'planned' && !budget_proposal) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground text-sm">
         <Loader2 className="h-4 w-4 animate-spin" />

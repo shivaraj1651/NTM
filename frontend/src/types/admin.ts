@@ -21,28 +21,35 @@ export interface Role {
   user_count: number
 }
 
+// Aligned to backend AuditLogResponse schema
 export interface AuditEntry {
   id: string
-  timestamp: string
-  actor: string
+  created_at: string
+  actor_id: string
   action: string
   entity_type: string
   entity_id: string
-  detail: string
+  tenant_id: string
+  notes: string | null
+  status_before: string | null
+  status_after: string | null
 }
 
+// backend GET /health returns {status: "ok"} only
+// api/db/celery/latency_ms are degraded to derived/placeholder values
 export interface HealthStatus {
+  status: 'ok' | 'degraded' | 'down'
   api: 'ok' | 'degraded' | 'down'
   db: 'ok' | 'degraded' | 'down'
   celery: 'ok' | 'degraded' | 'down'
   latency_ms: number
 }
 
+// backend GET /admin/audit-log supports: tenant_id, limit, offset only
 export interface AuditFilters {
-  entity_type?: string
-  actor?: string
-  from?: string
-  to?: string
+  tenant_id?: string
+  limit?: number
+  offset?: number
 }
 
 export const ROLES = [

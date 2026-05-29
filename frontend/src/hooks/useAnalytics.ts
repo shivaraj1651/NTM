@@ -7,15 +7,18 @@ import {
 } from '@/api/admin'
 import type { AnalyticsSummary, TrendPoint } from '@/types/admin'
 
-export function useAnalyticsSummary(tenantId: string | null, date: string) {
+// tenantId param kept for API compatibility but backend uses mandate_id.
+// Pass mandate_id as the first arg (was tenantId); date is unused by the real endpoint.
+export function useAnalyticsSummary(mandateId: string | null, date: string) {
   return useQuery<AnalyticsSummary[]>({
-    queryKey: ['analytics-summary', tenantId, date],
-    queryFn: () => getAnalyticsSummary(tenantId!, date),
-    enabled: !!tenantId,
+    queryKey: ['analytics-summary', mandateId, date],
+    queryFn: () => getAnalyticsSummary(mandateId!, date),
+    enabled: !!mandateId,
     staleTime: 5 * 60 * 1000,
   })
 }
 
+// backend route not implemented: GET /analytics/trends — returns [] always
 export function useAnalyticsTrends(
   tenantId: string | null,
   mandateId: string | null,
@@ -23,7 +26,7 @@ export function useAnalyticsTrends(
 ) {
   return useQuery<TrendPoint[]>({
     queryKey: ['analytics-trends', tenantId, mandateId, days],
-    queryFn: () => getAnalyticsTrends(tenantId!, mandateId, days),
+    queryFn: () => getAnalyticsTrends(tenantId ?? '', mandateId, days),
     enabled: !!tenantId,
   })
 }

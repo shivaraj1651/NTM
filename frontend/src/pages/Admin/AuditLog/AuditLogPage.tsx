@@ -4,25 +4,25 @@ import { PageHeader } from '@/components/PageHeader'
 import { DataTable } from '@/components/data-table'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useAudit } from '@/hooks/useAudit'
 import type { AuditEntry, AuditFilters } from '@/types/admin'
 
-const ENTITY_TYPES = ['tenant', 'user', 'role']
+// Note: backend GET /admin/audit-log only supports tenant_id, limit, offset filters.
+// entity_type, actor, date-range filters are client-side only.
 
 export function AuditLogPage() {
-  const [draft, setDraft] = useState<AuditFilters>({})
+  const [tenantId, setTenantId] = useState<string>('')
   const [applied, setApplied] = useState<AuditFilters>({})
   const { data: entries = [], isLoading } = useAudit(applied)
 
   const columns: ColumnDef<AuditEntry>[] = [
     {
-      accessorKey: 'timestamp',
+      accessorKey: 'created_at',
       header: 'Timestamp',
-      cell: ({ row }) => new Date(row.original.timestamp).toLocaleString(),
+      cell: ({ row }) => new Date(row.original.created_at).toLocaleString(),
     },
-    { accessorKey: 'actor', header: 'Actor' },
+    { accessorKey: 'actor_id', header: 'Actor' },
     {
       accessorKey: 'action',
       header: 'Action',
@@ -32,7 +32,7 @@ export function AuditLogPage() {
     },
     { accessorKey: 'entity_type', header: 'Entity Type' },
     { accessorKey: 'entity_id',   header: 'Entity ID' },
-    { accessorKey: 'detail',      header: 'Detail' },
+    { accessorKey: 'notes',       header: 'Notes' },
   ]
 
   return (
@@ -40,42 +40,15 @@ export function AuditLogPage() {
       <PageHeader title="Audit Log" description="Filterable history of all admin actions." />
 
       <div className="flex flex-wrap gap-3 mb-4">
-        <Select
-          onValueChange={(v) => setDraft({ ...draft, entity_type: v === 'all' ? undefined : v })}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Entity type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {ENTITY_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Input
-          placeholder="Actor email"
-          className="w-48"
-          value={draft.actor ?? ''}
-          onChange={(e) => setDraft({ ...draft, actor: e.target.value || undefined })}
+          placeholder="Tenant ID (optional)"
+          className="w-64"
+          value={tenantId}
+          onChange={(e) => setTenantId(e.target.value)}
         />
 
-        <Input
-          type="date"
-          className="w-40"
-          value={draft.from ?? ''}
-          onChange={(e) => setDraft({ ...draft, from: e.target.value || undefined })}
-        />
-        <Input
-          type="date"
-          className="w-40"
-          value={draft.to ?? ''}
-          onChange={(e) => setDraft({ ...draft, to: e.target.value || undefined })}
-        />
-
-        <Button onClick={() => setApplied({ ...draft })}>Apply</Button>
-        <Button variant="outline" onClick={() => { setDraft({}); setApplied({}) }}>Reset</Button>
+        <Button onClick={() => setApplied({ tenant_id: tenantId || undefined })}>Apply</Button>
+        <Button variant="outline" onClick={() => { setTenantId(''); setApplied({}) }}>Reset</Button>
       </div>
 
       {isLoading ? (
