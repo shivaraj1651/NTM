@@ -1,6 +1,6 @@
 """JSON session auth: POST /api/v1/auth/login and /register (frontend contract)."""
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,12 +14,12 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth-session"])
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     tenant_id: str | None = None
     role: str | None = None

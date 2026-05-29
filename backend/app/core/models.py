@@ -36,7 +36,7 @@ class Role(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, nullable=False, index=True)
     permissions = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
 
 
 class Tenant(Base):
@@ -51,7 +51,7 @@ class Tenant(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
 
     users = relationship("User", back_populates="tenant")
 
@@ -77,7 +77,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     tenant_id = Column(String, ForeignKey("tenants.id"), nullable=False, index=True)
     role_id = Column(String, ForeignKey("roles.id"), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
 
     tenant = relationship("Tenant", back_populates="users")
     role = relationship("Role")
@@ -89,5 +89,5 @@ user_tenant_access = Table(
     Base.metadata,
     Column("user_id", String, ForeignKey("user.id"), primary_key=True),
     Column("tenant_id", String, ForeignKey("tenants.id"), primary_key=True),
-    Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
 )
