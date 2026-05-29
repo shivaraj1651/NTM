@@ -4,6 +4,7 @@ FastAPI-Users configuration with JWT authentication.
 Sets up user management, JWT strategy, and auth dependencies.
 """
 
+from fastapi import Request, HTTPException
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, BearerTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
@@ -50,5 +51,12 @@ fastapi_users = FastAPIUsers[User, str](
 )
 
 
-# Current user dependency for route guards
-current_user = fastapi_users.current_user(active=True)
+async def current_user(request: Request) -> User:
+    """Return the user authenticated by TenantValidationMiddleware (request.state.user)."""
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"error_code": "INVALID_TOKEN", "message": "Not authenticated"},
+        )
+    return user
