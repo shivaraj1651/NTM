@@ -75,12 +75,18 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ntm-api
     restart: unless-stopped
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
       MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      MONGODB_DB: ntm
       REDIS_URL: redis://ntm-redis:6379/0
       S3_ENDPOINT_URL: http://ntm-minio:9000
+    volumes:
+      - ./backend:/app/backend
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     ports:
       - "8000:8000"
     depends_on:
@@ -107,8 +113,15 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
       MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      MONGODB_DB: ntm
       REDIS_URL: redis://ntm-redis:6379/0
+      CELERY_BROKER_URL: redis://ntm-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
       S3_ENDPOINT_URL: http://ntm-minio:9000
+    volumes:
+      - ./backend:/app/backend
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     depends_on:
       ntm-redis:
         condition: service_healthy
@@ -127,6 +140,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
       MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
       REDIS_URL: redis://ntm-redis:6379/0
+      CELERY_BROKER_URL: redis://ntm-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
     depends_on:
       ntm-redis:
         condition: service_healthy
@@ -134,13 +149,10 @@ services:
         condition: service_healthy
 
   ntm-flower:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    image: mher/flower:2.0
     container_name: ntm-flower
     restart: unless-stopped
-    command: celery -A backend.app.tasks flower --port=5555
-    env_file: .env
+    command: celery flower --broker=redis://ntm-redis:6379/0 --result-backend=redis://ntm-redis:6379/1 --port=5555
     environment:
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1

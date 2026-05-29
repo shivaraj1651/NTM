@@ -33,8 +33,10 @@ _PLATFORM_TASK_MAP = {
 
 
 async def get_db() -> AsyncIOMotorDatabase:
-    client = AsyncIOMotorClient(os.getenv("MONGO_DB_URL", "mongodb://localhost:27017"))
-    return client[os.getenv("MONGO_DB_NAME", "ntm")]
+    mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    mongo_db_name = os.getenv("MONGODB_DB", "ntm")
+    client = AsyncIOMotorClient(mongo_url)
+    return client[mongo_db_name]
 
 
 @router.post("/campaigns/{campaign_id}/activate", response_model=JobQueuedResponse, status_code=202)

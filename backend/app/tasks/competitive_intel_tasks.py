@@ -29,8 +29,8 @@ from backend.app.tools.meta_ads import lookup_meta_ads
 logger = logging.getLogger(__name__)
 
 # Configuration from environment
-MONGO_DB_URL = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ntm")
+MONGO_DB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGODB_DB", "ntm")
 MONGO_COLLECTION_CI_REPORTS = os.getenv("MONGO_COLLECTION_CI_REPORTS", "ci_reports")
 MONGO_COLLECTION_COMPETITOR_CACHE = os.getenv("MONGO_COLLECTION_COMPETITOR_CACHE", "competitor_cache")
 CACHE_TTL_METRICS_DAYS = int(os.getenv("CACHE_TTL_METRICS_DAYS", "7"))
@@ -581,9 +581,9 @@ async def _run_competitive_intel_pipeline(mandate_id: str, tenant_id: str) -> No
     from backend.app.agents.competitive_intel import competitive_intel_agent
     import uuid
 
-    mongo_client = AsyncIOMotorClient(os.getenv("MONGO_DB_URL", "mongodb://localhost:27017"))
+    mongo_client = AsyncIOMotorClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
     try:
-        db = mongo_client[os.getenv("MONGO_DB_NAME", "ntm")]
+        db = mongo_client[os.getenv("MONGODB_DB", "ntm")]
         mandate = await db["mandates"].find_one({"_id": mandate_id, "tenant_id": tenant_id})
         if not mandate:
             logger.warning("[run_competitive_intel_pipeline] mandate not found: %s", mandate_id)

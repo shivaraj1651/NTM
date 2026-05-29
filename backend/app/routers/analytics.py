@@ -31,9 +31,11 @@ ALL_ROLES = [
 
 
 async def get_mongo_db() -> AsyncIOMotorDatabase:
-    client = AsyncIOMotorClient(os.getenv("MONGO_DB_URL", "mongodb://localhost:27017"))
+    mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    mongo_db_name = os.getenv("MONGODB_DB", "ntm")
+    client = AsyncIOMotorClient(mongo_url)
     try:
-        yield client[os.getenv("MONGO_DB_NAME", "ntm")]
+        yield client[mongo_db_name]
     finally:
         client.close()
 

@@ -36,8 +36,8 @@ CAMPAIGN_ROLES = [
 # ---------------------------------------------------------------------------
 
 async def get_db() -> AsyncIOMotorDatabase:
-    mongo_url = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
-    mongo_db_name = os.getenv("MONGO_DB_NAME", "ntm")
+    mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    mongo_db_name = os.getenv("MONGODB_DB", "ntm")
     client = AsyncIOMotorClient(mongo_url)
     return client[mongo_db_name]
 

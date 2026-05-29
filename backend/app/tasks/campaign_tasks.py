@@ -15,8 +15,8 @@ from backend.app.agents.campaign_strategist import campaign_strategist_agent
 
 logger = logging.getLogger(__name__)
 
-MONGO_DB_URL = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ntm")
+MONGO_DB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGODB_DB", "ntm")
 
 
 def _make_session_factory() -> async_sessionmaker:
