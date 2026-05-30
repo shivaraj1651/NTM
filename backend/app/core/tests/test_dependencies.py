@@ -13,19 +13,35 @@ def test_tenant_context_is_context_var():
 
 @pytest.mark.asyncio
 async def test_get_current_tenant_returns_context_value():
-    """get_current_tenant should return value from tenant_context"""
+    """get_current_tenant falls back to tenant_context when request.state has no tenant_id"""
+    from types import SimpleNamespace
+    request = MagicMock()
+    request.state = SimpleNamespace()  # no tenant_id attribute -> falls back to context
     token = tenant_context.set("tenant-123")
     try:
-        tenant_id = await get_current_tenant()
+        tenant_id = await get_current_tenant(request)
         assert tenant_id == "tenant-123"
     finally:
         tenant_context.reset(token)
 
 
 @pytest.mark.asyncio
+async def test_get_current_tenant_prefers_request_state():
+    """get_current_tenant returns request.state.tenant_id when present"""
+    from types import SimpleNamespace
+    request = MagicMock()
+    request.state = SimpleNamespace(tenant_id="tenant-from-state")
+    tenant_id = await get_current_tenant(request)
+    assert tenant_id == "tenant-from-state"
+
+
+@pytest.mark.asyncio
 async def test_get_current_tenant_empty_context():
-    """get_current_tenant should return None if context not set"""
-    tenant_id = await get_current_tenant()
+    """get_current_tenant returns None if neither request.state nor context is set"""
+    from types import SimpleNamespace
+    request = MagicMock()
+    request.state = SimpleNamespace()
+    tenant_id = await get_current_tenant(request)
     assert tenant_id is None
 
 

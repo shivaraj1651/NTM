@@ -52,49 +52,77 @@ async def test_middleware_dispatch_with_public_endpoint():
     assert mock_call_next.called
 
 
+class _FakeSession:
+    """Async context manager standing in for an AsyncSession (middleware opens one)."""
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+def _build_request(path="/protected", headers=None):
+    """Build a fake Starlette request with an assignable state."""
+    from types import SimpleNamespace
+    req = MagicMock()
+    req.url = SimpleNamespace(path=path)
+    req.method = "GET"
+    req.headers = headers or {}
+    req.state = SimpleNamespace()
+    return req
+
+
 @pytest.mark.asyncio
 async def test_middleware_dispatch_requires_tenant_header():
-    """Middleware should raise exception for protected endpoint without tenant header."""
-    mock_request = MagicMock(spec=Request)
-    mock_request.url.path = "/protected"
-    mock_request.headers = {}
-
+    """With a valid token but no X-Tenant-ID header, middleware returns 400."""
+    req = _build_request(headers={"Authorization": "Bearer validtoken"})
     mock_call_next = AsyncMock()
-
     middleware = TenantValidationMiddleware(mock_call_next)
-    response = await middleware.dispatch(mock_request, mock_call_next)
 
-    # Should return 400 for missing tenant header
+    with patch("backend.app.core.middleware.decode_user_id", return_value="user-1"), \
+         patch("backend.app.core.middleware.get_session_local",
+               return_value=lambda: _FakeSession()), \
+         patch("backend.app.core.middleware.load_user_and_tenants",
+               new=AsyncMock(return_value=(MagicMock(), ["tenant-123"]))):
+        response = await middleware.dispatch(req, mock_call_next)
+
     assert response.status_code == 400
+    assert not mock_call_next.called
+
+
+@pytest.mark.asyncio
+async def test_middleware_dispatch_requires_valid_token():
+    """A protected request with no/invalid token returns 401 before tenant checks."""
+    req = _build_request(headers={})  # no Authorization
+    mock_call_next = AsyncMock()
+    middleware = TenantValidationMiddleware(mock_call_next)
+
+    response = await middleware.dispatch(req, mock_call_next)
+
+    assert response.status_code == 401
+    assert not mock_call_next.called
 
 
 @pytest.mark.asyncio
 async def test_middleware_dispatch_with_valid_tenant():
-    """Middleware should inject tenant_id for valid request."""
-    # Create a simple state class that allows attribute assignment
-    class StateObj:
-        pass
-
-    mock_request = MagicMock()
-    mock_request.url.path = "/protected"
-    mock_request.headers = {"X-Tenant-ID": "tenant-123"}
-
-    # Create a real state object that supports attribute assignment
-    state = StateObj()
-    state.user = MagicMock()
-    state.allowed_tenants = ["tenant-123"]
-    mock_request.state = state
-
+    """Valid token + matching X-Tenant-ID passes through and injects tenant/user state."""
+    req = _build_request(headers={"Authorization": "Bearer validtoken", "X-Tenant-ID": "tenant-123"})
+    user = MagicMock()
     mock_response = JSONResponse({"status": "ok"})
     mock_call_next = AsyncMock(return_value=mock_response)
-
     middleware = TenantValidationMiddleware(mock_call_next)
-    response = await middleware.dispatch(mock_request, mock_call_next)
 
-    # Should pass through successfully
+    with patch("backend.app.core.middleware.decode_user_id", return_value="user-1"), \
+         patch("backend.app.core.middleware.get_session_local",
+               return_value=lambda: _FakeSession()), \
+         patch("backend.app.core.middleware.load_user_and_tenants",
+               new=AsyncMock(return_value=(user, ["tenant-123"]))):
+        response = await middleware.dispatch(req, mock_call_next)
+
     assert response == mock_response
     assert mock_call_next.called
-    assert mock_request.state.tenant_id == "tenant-123"
+    assert req.state.tenant_id == "tenant-123"
+    assert req.state.user is user
 
 
 def test_missing_tenant_exception_has_correct_status():
