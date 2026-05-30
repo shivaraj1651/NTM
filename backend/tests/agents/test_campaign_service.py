@@ -123,7 +123,8 @@ class TestCreate:
             await svc.create("m-missing", "t-001")
         assert exc.value.status_code == 404
 
-    async def test_create_404_missing_ci_report(self):
+    async def test_create_proceeds_without_ci_report(self):
+        """CI report is optional now — create() proceeds with empty CI context."""
         campaigns_col = AsyncMock()
         mandates_col = AsyncMock()
         ci_reports_col = AsyncMock()
@@ -133,9 +134,12 @@ class TestCreate:
         db = _make_db(campaigns_col, mandates_col, ci_reports_col)
         svc = CampaignService(db)
 
-        with pytest.raises(HTTPException) as exc:
-            await svc.create("m-001", "t-001")
-        assert exc.value.status_code == 404
+        with patch(
+            "backend.app.services.campaign_service.campaign_strategist_agent",
+            new=AsyncMock(return_value={"campaigns": [{"id": "concept-1", "name": "C1"}]}),
+        ):
+            result = await svc.create("m-001", "t-001")
+        assert result["status"] == "concepts_ready"
 
 
 # ---------------------------------------------------------------------------
