@@ -176,6 +176,11 @@ class CampaignService:
                 )
                 mandate = result.scalar_one_or_none()
                 return mandate.to_dict() if mandate else None
+        except Exception as exc:
+            # No Postgres mandate reachable (missing table, no connection, etc.)
+            # → treat as "not found" so the caller returns a clean 404.
+            logger.warning("Postgres mandate lookup failed for %s: %s", mandate_id, exc)
+            return None
         finally:
             await engine.dispose()
 

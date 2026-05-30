@@ -1,5 +1,7 @@
 """Unit tests for CampaignService — campaign lifecycle business logic."""
 
+import uuid
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
