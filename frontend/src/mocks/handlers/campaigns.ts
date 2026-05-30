@@ -236,6 +236,27 @@ export const campaignHandlers = [
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
 
+  // Backend-canonical KPIs source: GET /campaigns/:id/analytics (activations[].kpi_results[])
+  http.get('/api/v1/campaigns/:id/analytics', ({ params }) => {
+    const campaign = db.campaignStore[params.id as string]
+    if (!campaign) return new HttpResponse(null, { status: 404 })
+    return HttpResponse.json({
+      campaign_id: params.id,
+      activations: [
+        {
+          activation_id: 'act-analytics-1',
+          channel: 'Google Ads',
+          sub_channel: 'Search',
+          status: 'green',
+          kpi_results: [
+            { kpi_name: 'Clicks', target: 1000, actual: 1200, achievement_percent: 120, threshold_unit: 'count', status: 'green' },
+            { kpi_name: 'CTR', target: 2, actual: 2.5, achievement_percent: 125, threshold_unit: 'percent', status: 'green' },
+          ],
+        },
+      ],
+    })
+  }),
+
   http.get('/api/v1/campaigns/:id/kpis', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign) return new HttpResponse(null, { status: 404 })
