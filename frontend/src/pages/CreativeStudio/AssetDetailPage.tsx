@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useCreative, useUpdateCreativeStatus, type Creative } from '@/hooks/useCreatives'
 import { useAuthStore } from '@/store/useAuthStore'
 
-const STATUS_BADGE: Record<Creative['status'], { label: string; className: string }> = {
+const STATUS_BADGE: Record<NonNullable<Creative['status']>, { label: string; className: string }> = {
   ai_draft:           { label: 'AI Draft',           className: 'bg-gray-100 text-gray-700' },
   internal_review:    { label: 'Internal Review',    className: 'bg-yellow-100 text-yellow-700' },
   client_review:      { label: 'Client Review',      className: 'bg-blue-100 text-blue-700' },
@@ -48,34 +48,46 @@ export function AssetDetailPage() {
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading asset…</div>
   if (!asset)   return <div className="p-8 text-destructive">Asset not found.</div>
 
-  const badge = STATUS_BADGE[asset.status]
+  // Resolve fields — backend uses validation_status/creative_type/content; MSW mocks use status/asset_type/asset_url
+  const statusKey = asset.status ?? (asset.validation_status as NonNullable<Creative['status']> | undefined)
+  const typeKey = asset.asset_type ?? (asset.creative_type as NonNullable<Creative['asset_type']> | undefined)
+  const displayUrl = asset.asset_url ?? (asset.content as Record<string, unknown> | undefined)?.['url'] as string | undefined
+  const displayTitle = asset.message_variant ?? asset.id
+  const displayDesc = `${typeKey ?? '—'} · ${asset.format_spec ?? asset.platform ?? '—'}`
+  const badge = statusKey ? STATUS_BADGE[statusKey] : undefined
+  const bodyText = asset.notes ?? (asset.content as Record<string, unknown> | undefined)?.['body'] as string | undefined
 
   return (
     <div className="p-6 space-y-6 max-w-3xl mx-auto">
       <PageHeader
-        title={asset.message_variant}
-        description={`${asset.asset_type} · ${asset.format_spec}`}
+        title={displayTitle}
+        description={displayDesc}
       />
 
-      <Badge className={badge.className}>{badge.label}</Badge>
+      {badge
+        ? <Badge className={badge.className}>{badge.label}</Badge>
+        : asset.validation_status
+          ? <Badge variant="outline">{asset.validation_status}</Badge>
+          : null
+      }
 
       <Card>
         <CardContent className="pt-6">
-          {asset.asset_type === 'image' && asset.asset_url && (
-            <img src={asset.asset_url} alt={asset.message_variant} className="w-full rounded" />
+          {typeKey === 'image' && displayUrl && (
+            <img src={displayUrl} alt={displayTitle} className="w-full rounded" />
           )}
-          {asset.asset_type === 'audio' && asset.asset_url && (
-            <audio controls src={asset.asset_url} className="w-full" />
+          {typeKey === 'audio' && displayUrl && (
+            <audio controls src={displayUrl} className="w-full" />
           )}
-          {asset.asset_type === 'video' && asset.asset_url && (
-            <video controls src={asset.asset_url} className="w-full rounded" />
+          {typeKey === 'video' && displayUrl && (
+            <video controls src={displayUrl} className="w-full rounded" />
           )}
-          {(asset.asset_type === 'copy' || asset.asset_type === 'script') && (
+          {(typeKey === 'copy' || typeKey === 'script') && (
             <pre className="whitespace-pre-wrap text-sm font-mono bg-muted p-4 rounded">
-              {asset.notes ?? 'No content generated yet.'}
+              {bodyText ?? 'No content generated yet.'}
             </pre>
           )}
-          {!asset.asset_url && asset.asset_type !== 'copy' && asset.asset_type !== 'script' && (
+          {!displayUrl && typeKey !== 'copy' && typeKey !== 'script' && (
             <p className="text-muted-foreground text-sm">Asset not yet generated.</p>
           )}
         </CardContent>
