@@ -11,8 +11,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 
+// Aligned to backend PhysicalLogResponse schema
 interface PhysicalLog {
   id: string
+  tenant_id: string
+  campaign_id: string
   activation_id: string | null
   event_type: string
   channel: string
@@ -25,6 +28,7 @@ interface PhysicalLog {
     notes?: string
   }
   logged_at: string
+  created_at: string
 }
 
 interface LogForm {

@@ -47,26 +47,43 @@ export function MandateSummaryPage() {
             </div>
             <div>
               <span className="font-medium">Budget:</span>{' '}
-              {mandate.budget.currency} {mandate.budget.total_budget.toLocaleString()}
+              {mandate.currency ?? mandate.budget?.currency}{' '}
+              {(mandate.total_budget ?? mandate.budget?.total_budget ?? 0).toLocaleString()}
             </div>
             <div>
               <span className="font-medium">Duration:</span>{' '}
               {mandate.start_date} → {mandate.end_date}
             </div>
-            <div>
-              <span className="font-medium">Client:</span> {mandate.client.org_name}
-            </div>
-            <div>
-              <span className="font-medium">Industry:</span> {mandate.client.industry}
-            </div>
-            <div className="col-span-2">
-              <span className="font-medium">Competitors:</span>{' '}
-              <span className="flex flex-wrap gap-1 mt-1">
-                {mandate.client.competitors.map((c) => (
-                  <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
-                ))}
-              </span>
-            </div>
+            {mandate.client && (
+              <div>
+                <span className="font-medium">Client:</span> {mandate.client.org_name}
+              </div>
+            )}
+            {mandate.client && (
+              <div>
+                <span className="font-medium">Industry:</span> {mandate.client.industry}
+              </div>
+            )}
+            {mandate.client && (
+              <div className="col-span-2">
+                <span className="font-medium">Competitors:</span>{' '}
+                <span className="flex flex-wrap gap-1 mt-1">
+                  {mandate.client.competitors.map((c) => (
+                    <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                  ))}
+                </span>
+              </div>
+            )}
+            {!mandate.client && (mandate.competitors ?? []).length > 0 && (
+              <div className="col-span-2">
+                <span className="font-medium">Competitors:</span>{' '}
+                <span className="flex flex-wrap gap-1 mt-1">
+                  {(mandate.competitors ?? []).map((c) => (
+                    <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                  ))}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex gap-2 pt-2">
             <Button

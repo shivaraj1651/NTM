@@ -5,6 +5,13 @@ Async background tasks for mandate analysis, campaign strategy, media planning,
 competitive intelligence, activation, analytics, replanning, and reporting.
 """
 
+from backend.app.celery_app import celery_app
+
+# Expose the Celery application instance so `celery -A backend.app.tasks`
+# can discover it (Celery looks for an `app`/`celery` attribute on the target).
+celery = celery_app
+app = celery_app
+
 from backend.app.tasks.mandate_tasks import run_mandate_analysis
 from backend.app.tasks.campaign_tasks import run_campaign_strategy, run_media_planning, run_video_generation, run_budget_optimization
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics, run_competitive_intel_pipeline
@@ -19,6 +26,10 @@ from backend.app.tasks.activation_tasks import (
 )
 
 __all__ = [
+    # Celery app
+    "celery",
+    "app",
+    "celery_app",
     # Mandate pipeline
     "run_mandate_analysis",
     # Campaign pipeline

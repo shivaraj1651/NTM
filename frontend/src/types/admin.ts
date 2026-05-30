@@ -129,14 +129,29 @@ export type MandateObjective =
 
 export type MandateStatus = 'draft' | 'pending_review' | 'confirmed' | 'rejected'
 
+// Aligned to backend MandateResponse (flat fields).
+// `budget` and `geography` kept optional for MSW mock compatibility.
 export interface Mandate {
   id: string
   name: string
   tenant_id: string
-  budget: { total_budget: number; currency: string }
-  geography: { regions: string[]; markets: string[]; country_list: string[] }
-  created_at: string
+  client_id?: string
+  // flat fields from backend MandateResponse
+  total_budget?: number
+  currency?: string
+  objective?: MandateObjective
+  region?: string
+  countries?: string[]
+  competitors?: string[]
+  start_date?: string
+  end_date?: string
+  description?: string | null
   status?: MandateStatus
+  updated_at?: string | null
+  created_at: string
+  // nested shape kept optional for MSW mock compatibility
+  budget?: { total_budget: number; currency: string }
+  geography?: { regions: string[]; markets: string[]; country_list: string[] }
 }
 
 export interface ClientProfile {
@@ -162,14 +177,21 @@ export interface MandateCreate {
   client_id: string
 }
 
+// MandateSummaryCard — used by mandate list/summary pages.
+// Backend returns flat MandateResponse (no nested budget/geography/client).
+// MSW mocks include client; mark it optional so both sources work.
 export interface MandateSummaryCard extends Mandate {
+  // override optionals to required for the summary card context
   objective: MandateObjective
   region: string
   countries: string[]
   start_date: string
   end_date: string
+  total_budget: number
+  currency: string
   status: MandateStatus
-  client: ClientProfile
+  // client is NOT returned by the backend (only client_id); optional for MSW compat
+  client?: ClientProfile
 }
 
 export interface CampaignConcept {
@@ -218,6 +240,8 @@ export type CampaignStatus =
 export type CreativeStage = 'internal_review' | 'client_review' | 'locked'
 export type ReviewAction = 'approve' | 'request_change' | 'reject'
 
+// Aligned to backend CampaignResponse.
+// activation_plan is list | null on the backend; updated_at can be null.
 export interface Campaign {
   id: string
   mandate_id: string
@@ -225,12 +249,12 @@ export interface Campaign {
   status: CampaignStatus
   concepts: CampaignConcept[]
   selected_concept_id: string | null
-  activation_plan: Activation[]
+  activation_plan: Activation[] | null
   budget_proposal: BudgetProposal | null
   creative_assets: CreativeAssets | null
   kpi_configs: KpiConfig[]
-  created_at: string
-  updated_at: string
+  created_at: string | null
+  updated_at: string | null
 }
 
 export interface KpiConfig {
