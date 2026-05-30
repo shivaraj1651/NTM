@@ -92,8 +92,8 @@ export function MandateFormPage() {
         objective: existingMandate.objective,
         region: existingMandate.region,
         countries: existingMandate.countries,
-        total_budget: existingMandate.budget.total_budget,
-        currency: existingMandate.budget.currency as typeof CURRENCY_VALUES[number],
+        total_budget: existingMandate.total_budget,
+        currency: existingMandate.currency as typeof CURRENCY_VALUES[number],
         start_date: existingMandate.start_date,
         end_date: existingMandate.end_date,
       })

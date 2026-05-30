@@ -83,7 +83,7 @@ export function CampaignsPage() {
     {
       accessorKey: 'created_at',
       header: 'Created At',
-      cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
+      cell: ({ row }) => row.original.created_at ? new Date(row.original.created_at).toLocaleDateString() : '—',
     },
     {
       id: 'actions',
@@ -145,7 +145,7 @@ export function CampaignsPage() {
               <SelectContent>
                 {allMandates.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    {m.name} — {m.budget.currency} {m.budget.total_budget.toLocaleString()}
+                    {m.name} — {m.currency ?? ''} {(m.total_budget ?? 0).toLocaleString()}
                   </SelectItem>
                 ))}
               </SelectContent>

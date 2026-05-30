@@ -18,6 +18,8 @@ export const mandateHandlers = [
       id,
       name: body.name,
       tenant_id: client.tenant_id,
+      total_budget: body.total_budget,
+      currency: body.currency,
       budget: { total_budget: body.total_budget, currency: body.currency },
       geography: { regions: [body.region], markets: [], country_list: body.countries },
       created_at: new Date().toISOString(),

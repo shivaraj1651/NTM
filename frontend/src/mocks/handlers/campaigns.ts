@@ -87,7 +87,7 @@ export const campaignHandlers = [
     db.campaignStore[campaign.id] = {
       ...campaign,
       status: 'budget_proposed',
-      budget_proposal: db.generateBudgetProposal(campaign.activation_plan),
+      budget_proposal: db.generateBudgetProposal(campaign.activation_plan ?? []),
       updated_at: new Date().toISOString(),
     }
     return HttpResponse.json(db.campaignStore[campaign.id])
@@ -217,7 +217,7 @@ export const campaignHandlers = [
   http.post('/api/v1/campaigns/:id/go-live', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign) return new HttpResponse(null, { status: 404 })
-    const kpi_configs: KpiConfig[] = campaign.activation_plan.flatMap((act) =>
+    const kpi_configs: KpiConfig[] = (campaign.activation_plan ?? []).flatMap((act) =>
       act.kpis.map((kpi) => ({
         activation_id: act.id,
         kpi_name: kpi.name,
@@ -249,7 +249,7 @@ export const campaignHandlers = [
           : achievement_percent >= config.amber_threshold
           ? 'amber'
           : 'red'
-      const act = campaign.activation_plan.find((a) => a.id === config.activation_id)
+      const act = (campaign.activation_plan ?? []).find((a) => a.id === config.activation_id)
       return {
         activation_id: config.activation_id,
         channel: act?.channel ?? '',

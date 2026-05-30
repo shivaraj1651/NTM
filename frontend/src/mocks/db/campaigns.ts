@@ -358,8 +358,8 @@ export function generateConcepts(mandateId: string): CampaignConcept[] {
 
 export function generateActivationPlan(mandateId: string): Activation[] {
   const mandate = mandateStore[mandateId]
-  const total = mandate?.budget.total_budget ?? 50000
-  const currency = mandate?.budget.currency ?? 'USD'
+  const total = mandate?.total_budget ?? mandate?.budget?.total_budget ?? 50000
+  const currency = mandate?.currency ?? mandate?.budget?.currency ?? 'USD'
   return [
     {
       id: 'act-gen-1',
