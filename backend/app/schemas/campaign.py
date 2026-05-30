@@ -11,6 +11,7 @@ class CampaignStatusEnum(str, Enum):
     concepts_ready = "concepts_ready"
     confirmed = "confirmed"
     planned = "planned"
+    budget_pending = "budget_pending"
     budget_proposed = "budget_proposed"
     approved = "approved"
     creative_generating = "creative_generating"
