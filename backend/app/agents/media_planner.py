@@ -141,8 +141,17 @@ Rules:
 class BudgetAllocator:
     """Allocates budget across phases, channels, and geographies."""
 
-    def allocate_by_phase(self, total_budget: float, phase_split: Dict[str, float]) -> Dict[str, float]:
+    def allocate_by_phase(
+        self,
+        total_budget: float,
+        phase_split: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, float]:
         """Allocate budget across phases using provided split ratios."""
+        phase_split = phase_split or {
+            "Awareness": 0.40,
+            "Engagement": 0.40,
+            "Conversion": 0.20,
+        }
         return {phase: total_budget * ratio for phase, ratio in phase_split.items()}
 
     def allocate_by_channel(self, phase_budget: float, channels: List[Dict[str, Any]]) -> Dict[str, float]:

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.pool import NullPool
 
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
+from backend.app.agents.budget_optimizer import budget_optimizer_agent
 from backend.app.agents.media_planner import media_planner_agent
 from backend.app.models.mandate import Mandate
 
@@ -352,10 +353,46 @@ class CampaignService:
         if doc["status"] != "planned":
             raise HTTPException(status_code=409, detail=f"Cannot propose budget from status '{doc['status']}'")
 
-        # Set status to budget_pending; AGT-05 runs as a Celery task (dispatched by router)
+        concept = (doc.get("concepts") or [{}])[0]
+        activations = doc.get("activation_plan") or []
+
+        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
+        if not mandate:
+            mandate = await self._load_mandate_from_postgres(doc["mandate_id"], tenant_id)
+        if not mandate:
+            raise HTTPException(status_code=404, detail="Mandate not found")
+
+        budget_envelope = mandate.get("budget") or {
+            "total_budget": mandate.get("total_budget", 0),
+            "currency": mandate.get("currency", "USD"),
+        }
+        if "total_amount" in budget_envelope and "total_budget" not in budget_envelope:
+            budget_envelope = {**budget_envelope, "total_budget": budget_envelope["total_amount"]}
+
+        campaign_context = {
+            "campaign_id": campaign_id,
+            "campaign_name": concept.get("name", ""),
+            "objective": mandate.get("objective", ""),
+            "description": concept.get("narrative", ""),
+            "target_audience": mandate.get("target_audience", ""),
+            "tone_board": concept.get("tone_board", ""),
+        }
+
+        try:
+            proposal = await budget_optimizer_agent(activations, budget_envelope, campaign_context)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("AGT-05 failed: %s", exc)
+            raise HTTPException(status_code=500, detail=f"Budget proposal generation failed: {exc}")
+
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
-            {"$set": {"status": "budget_pending", "updated_at": _utc_now()}},
+            {"$set": {
+                "status": "budget_proposed",
+                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
+                "updated_at": _utc_now(),
+            }},
             return_document=True,
         )
         return updated

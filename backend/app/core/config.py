@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     and reasonable bounds on token expiration times.
     """
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+    model_config = ConfigDict(case_sensitive=True, extra="ignore")
 
     # Database
     DATABASE_URL: str = Field(..., description="PostgreSQL connection URL with asyncpg driver")
@@ -60,7 +60,7 @@ def get_settings() -> Settings:
     """Get or create the settings singleton instance."""
     global _settings_instance
     if _settings_instance is None:
-        _settings_instance = Settings()
+        _settings_instance = Settings(_env_file=".env")
     return _settings_instance
 
 

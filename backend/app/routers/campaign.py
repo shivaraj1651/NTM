@@ -5,6 +5,7 @@ import os
 
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from kombu.exceptions import OperationalError
 
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
@@ -40,6 +41,15 @@ async def get_db() -> AsyncIOMotorDatabase:
     mongo_db_name = os.getenv("MONGODB_DB", "ntm")
     client = AsyncIOMotorClient(mongo_url)
     return client[mongo_db_name]
+
+
+def _dispatch_task(task, *args) -> None:
+    try:
+        task.delay(*args)
+    except OperationalError as exc:
+        logger.warning("Celery task dispatch skipped: %s", exc)
+    except Exception as exc:
+        logger.warning("Celery task dispatch failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +110,7 @@ async def confirm_campaign(
     svc = CampaignService(db)
     result = await svc.confirm(campaign_id, body.selected_concept_id, tenant_id)
     # Trigger AGT-04 media planner asynchronously after concept confirmation
-    run_media_planning.delay(campaign_id, tenant_id)
+    _dispatch_task(run_media_planning, campaign_id, tenant_id)
     return result
 
 
@@ -125,7 +135,7 @@ async def propose_budget(
     svc = CampaignService(db)
     result = await svc.propose_budget(campaign_id, tenant_id)
     # Dispatch AGT-05 budget optimizer as async Celery task
-    run_budget_optimization.delay(campaign_id, tenant_id)
+    _dispatch_task(run_budget_optimization, campaign_id, tenant_id)
     return result
 
 
@@ -181,7 +191,7 @@ async def generate_creatives(
 ) -> dict:
     svc = CampaignService(db)
     result = await svc.generate_creatives(campaign_id, tenant_id)
-    run_video_generation.delay(campaign_id, tenant_id)
+    _dispatch_task(run_video_generation, campaign_id, tenant_id)
     return result
 
 
