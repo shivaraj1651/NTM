@@ -6,6 +6,7 @@ Includes iterative risk filtering and strict schema validation.
 
 import json
 import logging
+import uuid
 from typing import Dict, List, Any, Optional
 
 from pydantic import ValidationError
@@ -190,17 +191,38 @@ Generate a comprehensive campaign concept that:
     # NTM_STUB_EXTERNAL: stubbed external call
     if stub_enabled():
         logger.info("Campaign strategist LLM stubbed (NTM_STUB_EXTERNAL)")
+        # Must satisfy the CampaignConcept schema so the outer agent keeps it.
         return {
-            "campaign_name": f"Stub Campaign {campaign_number}",
-            "tagline": "Stub tagline",
-            "strategic_narrative": "Stub narrative (NTM_STUB_EXTERNAL).",
-            "theme": "stub",
-            "audience_segments": {"primary": "all", "secondary": None, "tertiary": None},
-            "channel_mix": [],
-            "message_architecture": {"master_message": "Stub message", "channel_adaptations": {}},
-            "campaign_phasing": {},
-            "tone_board": {"adjectives": [], "visual_direction": "stub", "tone": "neutral"},
+            "id": str(uuid.uuid4()),
+            "name": f"Stub Campaign {campaign_number}",
+            "tagline": "Authenticity wins",
+            "strategic_narrative": "Competitors ignore short-form video; this concept leads with authentic, youth-first positioning to exploit that gap.",
+            "campaign_theme": "Authenticity Wins",
+            "audience_segmentation": {
+                "primary": "Gen-Z (16-24), urban, mobile-first",
+                "secondary": "Millennial early adopters",
+                "tertiary": "Gen-X curious about youth trends",
+            },
+            "channel_mix": [
+                {"channel": "TikTok", "rationale": "Highest reach with the primary segment", "competitor_gap": "Rivals are absent from short-form video"},
+                {"channel": "Instagram", "rationale": "Supports retargeting and UGC", "competitor_gap": "Rivals underuse Reels"},
+            ],
+            "message_architecture": {
+                "master_message": "Be real. Be seen.",
+                "channel_adaptations": {"TikTok": "Be real, fast.", "Instagram": "Be seen, daily."},
+            },
+            "campaign_phasing": {
+                "awareness": "Weeks 1-2: teaser drops and creator seeding",
+                "engagement": "Weeks 3-6: UGC challenges and community building",
+                "conversion": "Weeks 7-8: limited offers and retargeting",
+            },
+            "tone_board": {
+                "adjectives": ["bold", "authentic", "youthful", "fresh", "confident"],
+                "visual_direction": "Vibrant, high-contrast, hand-held authenticity",
+            },
             "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+            "mandate_fit_score": 8,
+            "gap_exploitation_score": 7,
         }
 
     for attempt in range(2):  # Max 2 attempts (initial + 1 retry)

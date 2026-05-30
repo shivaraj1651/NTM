@@ -1,13 +1,19 @@
 """Campaign Service — business logic for the campaign lifecycle (TASK-012)."""
 
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy import select as _sa_select
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool
+
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
 from backend.app.agents.media_planner import media_planner_agent
+from backend.app.models.mandate import Mandate
 
 logger = logging.getLogger(__name__)
 
@@ -150,17 +156,43 @@ class CampaignService:
     # create
     # ------------------------------------------------------------------
 
+    @staticmethod
+    async def _load_mandate_from_postgres(mandate_id: str, tenant_id: str) -> dict | None:
+        """Load a mandate from Postgres (where MandateService stores them).
+
+        Bridges the Postgres mandate store to this Mongo-based campaign service.
+        Uses a fresh NullPool engine so it is safe inside any event loop (incl. Celery).
+        """
+        db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+        engine = create_async_engine(db_url, echo=False, poolclass=NullPool)
+        try:
+            factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            async with factory() as session:
+                result = await session.execute(
+                    _sa_select(Mandate).where(
+                        Mandate.id == mandate_id,
+                        Mandate.tenant_id == tenant_id,
+                    )
+                )
+                mandate = result.scalar_one_or_none()
+                return mandate.to_dict() if mandate else None
+        finally:
+            await engine.dispose()
+
     async def create(self, mandate_id: str, tenant_id: str) -> dict:
         mandate = await self._mandates.find_one({"_id": mandate_id, "tenant_id": tenant_id})
         if not mandate:
+            # Mandates are stored in Postgres (MandateService) — fall back to that store.
+            mandate = await self._load_mandate_from_postgres(mandate_id, tenant_id)
+        if not mandate:
             raise HTTPException(status_code=404, detail="Mandate not found")
 
+        # CI report is optional: if the competitive-intel pipeline hasn't produced one,
+        # proceed with empty context (the concept agent is stubbed in dev).
         ci_report = await self._ci_reports.find_one(
             {"mandate_id": mandate_id, "tenant_id": tenant_id},
             sort=[("created_at", -1)],
-        )
-        if not ci_report:
-            raise HTTPException(status_code=404, detail="CI report not found for mandate")
+        ) or {}
 
         mandate_dict = {k: v for k, v in mandate.items() if k != "_id"}
         ci_dict = {k: v for k, v in ci_report.items() if k != "_id"}
@@ -265,15 +297,25 @@ class CampaignService:
         if not concept:
             raise HTTPException(status_code=422, detail="Selected concept not found")
 
-        # Fetch mandate for budget_envelope and geography
+        # Fetch mandate for budget_envelope and geography (Mongo first, then Postgres).
         mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
+        if not mandate:
+            mandate = await self._load_mandate_from_postgres(doc["mandate_id"], tenant_id)
         if not mandate:
             raise HTTPException(status_code=404, detail="Mandate not found")
 
-        budget_envelope = mandate.get("budget", {"total_budget": 0, "currency": "USD"})
+        # Support both the nested (Mongo) and flat (Postgres) mandate shapes.
+        budget_envelope = mandate.get("budget") or {
+            "total_budget": mandate.get("total_budget", 0),
+            "currency": mandate.get("currency", "USD"),
+        }
         if "total_amount" in budget_envelope and "total_budget" not in budget_envelope:
             budget_envelope = {**budget_envelope, "total_budget": budget_envelope["total_amount"]}
-        mandate_geography = mandate.get("geography", {"regions": [], "markets": [], "country_list": []})
+        mandate_geography = mandate.get("geography") or {
+            "regions": [mandate["region"]] if mandate.get("region") else [],
+            "markets": [],
+            "country_list": mandate.get("countries", []),
+        }
 
         try:
             plan_result = await media_planner_agent(concept, budget_envelope, mandate_geography)

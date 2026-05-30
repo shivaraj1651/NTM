@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from celery import shared_task
 from motor.motor_asyncio import AsyncIOMotorClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool
 from sqlalchemy import select
 
 from backend.app.models.mandate import Mandate
@@ -21,18 +22,16 @@ MONGO_DB_NAME = os.getenv("MONGODB_DB", "ntm")
 
 def _make_session_factory() -> async_sessionmaker:
     db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-    engine = create_async_engine(db_url, echo=False)
+    # NullPool + a fresh engine per call: Celery runs each task in its own
+    # asyncio.run() loop, and a cached engine binds asyncpg connections to the
+    # first loop ("another operation is in progress" on later tasks).
+    engine = create_async_engine(db_url, echo=False, poolclass=NullPool)
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-_SESSION_FACTORY: async_sessionmaker | None = None
-
-
 def _get_session_factory() -> async_sessionmaker:
-    global _SESSION_FACTORY
-    if _SESSION_FACTORY is None:
-        _SESSION_FACTORY = _make_session_factory()
-    return _SESSION_FACTORY
+    # Do NOT cache — return a fresh factory bound to the current event loop.
+    return _make_session_factory()
 
 
 async def _run_campaign_strategy(mandate_id: str, tenant_id: str) -> None:
