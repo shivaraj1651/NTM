@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Accordion,
@@ -378,6 +378,7 @@ function AudioTab({
 
 export function CreativesPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { data: campaign, isError } = useCampaign(id ?? '')
   const generateCreatives = useGenerateCreatives(id ?? '')
   const approveAsset = useApproveCreativeAsset(id ?? '')
@@ -413,13 +414,8 @@ export function CreativesPage() {
     )
   }
 
-  if (status === 'creative_generating' && !creative_assets) {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground text-sm">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Generating assets…
-      </div>
-    )
+  if (campaign?.status === 'creative_generating') {
+    return <p className="text-muted-foreground text-sm">Generating creatives… this may take a minute.</p>
   }
 
   if (status !== 'creative_ready' || !creative_assets) {
@@ -469,6 +465,13 @@ export function CreativesPage() {
           />
         </TabsContent>
       </Tabs>
+      {status === 'creative_ready' && (
+        <div className="mt-6">
+          <Button onClick={() => navigate(`/campaigns/${id}/go-live`)}>
+            Proceed to Go Live →
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

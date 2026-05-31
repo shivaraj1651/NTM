@@ -215,6 +215,21 @@ describe('CreativesPage', () => {
     renderCampaignPage(<CreativesPage />, 'c-003')
     await waitFor(() => expect(screen.getByText('Social Caption')).toBeInTheDocument())
   })
+
+  it('shows generating state while creatives are being generated', async () => {
+    server.use(http.get('/api/v1/campaigns/:id', () =>
+      HttpResponse.json({ id: 'c-cgen', mandate_id: 'm', tenant_id: 't1',
+        status: 'creative_generating', concepts: [], selected_concept_id: null,
+        activation_plan: null, budget_proposal: null, creative_assets: null,
+        kpi_configs: [], created_at: '2026-05-31T00:00:00Z', updated_at: '2026-05-31T00:00:00Z' })))
+    renderCampaignPage(<CreativesPage />, 'c-cgen')
+    expect(await screen.findByText(/generating creatives/i)).toBeInTheDocument()
+  })
+
+  it('shows Proceed to Go Live button when creatives are ready', async () => {
+    renderCampaignPage(<CreativesPage />, 'c-003')
+    expect(await screen.findByRole('button', { name: /proceed to go live/i })).toBeInTheDocument()
+  })
 })
 
 // ── GoLivePage (c-003 — creative_ready) ───────────────────────────────────────
