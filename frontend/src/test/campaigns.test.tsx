@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import { server } from './setup'
 import { CampaignsPage } from '@/pages/Admin/Campaigns/CampaignsPage'
 import { CampaignDetailPage } from '@/pages/Admin/Campaigns/CampaignDetailPage'
 import { ConceptsPage } from '@/pages/Admin/Campaigns/ConceptsPage'
@@ -106,6 +108,30 @@ describe('ConceptsPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /confirm selection/i })).toBeInTheDocument()
     )
+  })
+
+  it('renders backend rich-shape concepts (channel_mix / tone_board object) without crashing', async () => {
+    const richCampaign = {
+      id: 'c-rich', mandate_id: 'm-x', tenant_id: 't1', status: 'concepts_ready',
+      concepts: [{
+        id: 'cc-1', name: 'Authenticity Wins', tagline: 'Be real, be seen',
+        channel_mix: [
+          { channel: 'TikTok', rationale: 'reach', competitor_gap: 'absent' },
+          { channel: 'Instagram' },
+        ],
+        tone_board: { adjectives: ['bold', 'authentic'], visual_direction: 'vibrant, high-contrast' },
+        audience_segmentation: { primary: 'Gen-Z', secondary: 'Millennials' },
+        risk_flags: { legal: null, regulatory: null, sensitivity: null },
+      }],
+      selected_concept_id: null, activation_plan: null, budget_proposal: null,
+      creative_assets: null, kpi_configs: [], created_at: '2026-05-31T00:00:00Z', updated_at: '2026-05-31T00:00:00Z',
+    }
+    server.use(http.get('/api/v1/campaigns/:id', () => HttpResponse.json(richCampaign)))
+    renderCampaignPage(<ConceptsPage />, 'c-rich')
+    await waitFor(() => {
+      expect(screen.getByText('Authenticity Wins')).toBeInTheDocument()
+      expect(screen.getByText('TikTok')).toBeInTheDocument()
+    })
   })
 })
 

@@ -1,9 +1,21 @@
 import { describe, it, expect } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { MandatesPage } from '@/pages/Mandate/MandatesPage'
 import { MandateSummaryPage } from '@/pages/Mandate/MandateSummaryPage'
 import { MandateFormPage } from '@/pages/Mandate/MandateFormPage'
 import { renderWithProviders, CAMPAIGN_MANAGER_USER } from './utils'
+import { server } from './setup'
+
+function summaryCard(overrides: Record<string, unknown>) {
+  return {
+    id: 'm-x', name: 'Sample', tenant_id: 't1',
+    total_budget: 1000, currency: 'USD', objective: 'awareness',
+    region: 'EMEA', countries: ['DE'], start_date: '2026-07-01',
+    end_date: '2026-09-30', created_at: '2026-05-31T00:00:00Z',
+    ...overrides,
+  }
+}
 
 describe('MandatesPage', () => {
   it('renders without crashing', () => {
@@ -79,6 +91,36 @@ describe('MandateSummaryPage', () => {
       expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument()
     })
+  })
+
+  it('disables Confirm while analysis is still pending', async () => {
+    server.use(
+      http.get('/api/v1/mandates/:id/summary-card', () =>
+        HttpResponse.json(summaryCard({ id: 'm-analyzing', status: 'analyzing' })),
+      ),
+    )
+    renderWithProviders(<MandateSummaryPage />, {
+      route: '/admin/mandates/m-analyzing/summary',
+      path: '/admin/mandates/:id/summary',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+    const btn = await screen.findByRole('button', { name: /confirm/i })
+    expect(btn).toBeDisabled()
+  })
+
+  it('enables Confirm once the mandate is analyzed', async () => {
+    server.use(
+      http.get('/api/v1/mandates/:id/summary-card', () =>
+        HttpResponse.json(summaryCard({ id: 'm-analyzed', status: 'analyzed' })),
+      ),
+    )
+    renderWithProviders(<MandateSummaryPage />, {
+      route: '/admin/mandates/m-analyzed/summary',
+      path: '/admin/mandates/:id/summary',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+    const btn = await screen.findByRole('button', { name: /confirm/i })
+    expect(btn).toBeEnabled()
   })
 })
 

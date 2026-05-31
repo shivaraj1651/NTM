@@ -37,6 +37,12 @@ export function useMandateSummary(id: string) {
     queryKey: ['mandate-summary', id],
     queryFn: () => getMandateSummaryCard(id),
     enabled: !!id,
+    // The AGT-01 analysis runs asynchronously after create; poll until the
+    // mandate leaves the pre-analysis states so the page reflects readiness.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'draft' || status === 'analyzing' ? 3000 : false
+    },
   })
 }
 

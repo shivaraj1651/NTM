@@ -17,6 +17,18 @@ export function ConceptsPage() {
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (!campaign) return null
 
+  // The backend (AGT-03) and the MSW mock return different concept shapes.
+  // Normalize both into the fields this page renders.
+  const conceptChannels = (c: (typeof campaign.concepts)[number]): string[] =>
+    c.channels ?? c.channel_mix?.map((cm) => cm.channel) ?? []
+  const conceptTone = (c: (typeof campaign.concepts)[number]): string => {
+    if (typeof c.tone_board === 'string') return c.tone_board
+    const parts = [c.tone_board?.visual_direction, c.tone_board?.adjectives?.join(', ')].filter(Boolean)
+    return parts.join(' — ') || '—'
+  }
+  const conceptAudience = (c: (typeof campaign.concepts)[number]): string =>
+    c.target_audience ?? c.audience_segmentation?.primary ?? '—'
+
   const handleConfirm = async () => {
     if (!selectedId) return
     await confirmConcept.mutateAsync(selectedId)
@@ -45,7 +57,7 @@ export function ConceptsPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex flex-wrap gap-1">
-                  {concept.channels.map((ch) => (
+                  {conceptChannels(concept).map((ch) => (
                     <Badge key={ch} variant="secondary" className="text-xs">{ch}</Badge>
                   ))}
                 </div>
@@ -63,10 +75,10 @@ export function ConceptsPage() {
                 {isExpanded && (
                   <div className="space-y-2 text-sm">
                     <div>
-                      <span className="font-medium">Tone:</span> {concept.tone_board}
+                      <span className="font-medium">Tone:</span> {conceptTone(concept)}
                     </div>
                     <div>
-                      <span className="font-medium">Audience:</span> {concept.target_audience}
+                      <span className="font-medium">Audience:</span> {conceptAudience(concept)}
                     </div>
                     <div className="space-y-1">
                       <span className="font-medium">Risk Flags:</span>

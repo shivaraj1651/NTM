@@ -127,7 +127,13 @@ export type MandateObjective =
   | 'loyalty'
   | 'engagement'
 
-export type MandateStatus = 'draft' | 'pending_review' | 'confirmed' | 'rejected'
+export type MandateStatus =
+  | 'draft'
+  | 'analyzing'
+  | 'analyzed'
+  | 'pending_review'
+  | 'confirmed'
+  | 'rejected'
 
 // Aligned to backend MandateResponse (flat fields).
 // `budget` and `geography` kept optional for MSW mock compatibility.
@@ -198,9 +204,14 @@ export interface CampaignConcept {
   id: string
   name: string
   tagline: string
-  channels: string[]
-  tone_board: string
-  target_audience: string
+  // Simple shape (MSW / legacy)
+  channels?: string[]
+  target_audience?: string
+  // tone_board is a string in the simple shape, an object in the backend AGT-03 shape
+  tone_board?: string | { adjectives?: string[]; visual_direction?: string }
+  // Rich backend (AGT-03) shape
+  channel_mix?: { channel: string; rationale?: string; competitor_gap?: string }[]
+  audience_segmentation?: { primary?: string; secondary?: string; tertiary?: string }
   risk_flags: { legal: string | null; regulatory: string | null; sensitivity: string | null }
 }
 

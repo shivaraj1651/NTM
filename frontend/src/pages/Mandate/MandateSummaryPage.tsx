@@ -16,6 +16,10 @@ export function MandateSummaryPage() {
   if (isError || !mandate) return <p className="text-destructive text-sm">Failed to load mandate.</p>
 
   const isConfirmed = mandate.status === 'confirmed'
+  // The mandate must finish async AGT-01 analysis before it can be confirmed
+  // (the backend rejects confirm from draft/analyzing with a 400).
+  const isAwaitingAnalysis = mandate.status === 'draft' || mandate.status === 'analyzing'
+  const canConfirm = !isAwaitingAnalysis && !isConfirmed && mandate.status !== 'rejected'
 
   const handleConfirm = async () => {
     try {
@@ -85,6 +89,16 @@ export function MandateSummaryPage() {
               </div>
             )}
           </div>
+          {isAwaitingAnalysis && (
+            <p className="text-sm text-muted-foreground pt-2">
+              Analyzing mandate… Confirm will enable automatically once analysis completes.
+            </p>
+          )}
+          {confirm.isError && (
+            <p className="text-sm text-destructive pt-2">
+              Could not confirm the mandate. Please try again.
+            </p>
+          )}
           <div className="flex gap-2 pt-2">
             <Button
               variant="outline"
@@ -93,7 +107,7 @@ export function MandateSummaryPage() {
             >
               Reject
             </Button>
-            <Button onClick={handleConfirm} disabled={isConfirmed || confirm.isPending}>
+            <Button onClick={handleConfirm} disabled={!canConfirm || confirm.isPending}>
               {confirm.isPending ? 'Confirming…' : 'Confirm →'}
             </Button>
           </div>
