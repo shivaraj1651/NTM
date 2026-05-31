@@ -11,6 +11,7 @@ TASK-021
 
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 from typing import Any, Dict, List, Tuple
 from backend.app.external.stubs import stub_enabled
 
@@ -170,7 +171,7 @@ class LLMEnricher:
                 messages=[{"role": "user", "content": user_message}],
             )
             raw = response.content[0].text
-            parsed: List[Dict[str, Any]] = json.loads(raw)
+            parsed: List[Dict[str, Any]] = extract_json(raw)
             enriched_index = {item["activation_id"]: item for item in parsed}
         except Exception as exc:
             logger.warning("LLM enrichment failed (%s) — applying fallback strings", exc)

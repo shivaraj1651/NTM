@@ -8,6 +8,7 @@ and synthesizing whitespace opportunities via LLM.
 import asyncio
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -378,7 +379,7 @@ Identify untapped channels, messaging gaps, and geographic gaps. Also assess mar
 
     response_text = response.content[0].text
     try:
-        result = json.loads(response_text)
+        result = extract_json(response_text)
         # Validate against Pydantic model
         validated = SynthesisResponse(**result)
         return validated.model_dump()

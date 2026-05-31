@@ -7,6 +7,7 @@ budget allocation framework: phases → channels → geographies.
 
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 from typing import Dict, List, Any, Optional
 from datetime import date, timedelta
 from pydantic import ValidationError
@@ -112,7 +113,7 @@ Rules:
             messages=[{"role": "user", "content": prompt}],
         )
         raw = response.content[0].text.strip()
-        intelligence = json.loads(raw)
+        intelligence = extract_json(raw)
         logger.info("Media planner LLM intelligence generated successfully")
         return intelligence
     except Exception as e:

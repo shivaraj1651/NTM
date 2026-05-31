@@ -7,6 +7,7 @@ radio, and social video formats via a single Claude API call per format.
 import asyncio
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional
@@ -374,7 +375,7 @@ Return ONLY valid JSON — no markdown fences, no commentary."""
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_message}],
                 )
-                return json.loads(response.content[0].text)
+                return extract_json(response.content[0].text)
             except Exception as exc:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:

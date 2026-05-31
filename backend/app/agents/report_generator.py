@@ -8,6 +8,7 @@ TASK-022
 
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -193,7 +194,7 @@ class LLMNarrator:
                 messages=[{"role": "user", "content": user_message}],
             )
             raw = response.content[0].text
-            parsed = json.loads(raw)
+            parsed = extract_json(raw)
             return {
                 "executive_summary": parsed.get("executive_summary", "Summary unavailable"),
                 "key_insights": parsed.get("key_insights", []),

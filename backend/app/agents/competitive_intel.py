@@ -9,6 +9,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
+from backend.app.agents.json_parsing import extract_json
 from typing import Any, Dict, List
 
 from anthropic import AsyncAnthropic
@@ -103,7 +104,7 @@ Return 5-15 competitors with confidence scores."""
 
     response_text = response.content[0].text
     try:
-        parsed = json.loads(response_text)
+        parsed = extract_json(response_text)
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse LLM JSON response: {response_text}")
         raise ValueError(f"LLM response was not valid JSON: {str(e)}")

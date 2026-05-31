@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import uuid
+from backend.app.agents.json_parsing import extract_json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -274,7 +275,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_message}],
                 )
-                return json.loads(response.content[0].text)
+                return extract_json(response.content[0].text)
             except Exception as exc:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:

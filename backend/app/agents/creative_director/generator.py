@@ -10,6 +10,7 @@ Implements async methods for:
 import asyncio
 import json
 import logging
+from backend.app.agents.json_parsing import extract_json
 from typing import Dict, List, Optional
 from anthropic import AsyncAnthropic
 from backend.app.external.stubs import stub_enabled
@@ -186,7 +187,7 @@ class CreativeGenerator:
 
         # Parse JSON from response
         try:
-            parsed = json.loads(response_text)
+            parsed = extract_json(response_text)
             return parsed
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from Claude response: {response_text}")

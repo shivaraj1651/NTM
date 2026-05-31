@@ -4,9 +4,11 @@ Generates 3 comprehensive campaign concepts from mandate summary + competitive i
 Includes iterative risk filtering and strict schema validation.
 """
 
+import asyncio
 import json
 import logging
 import uuid
+from backend.app.agents.json_parsing import extract_json
 from typing import Dict, List, Any, Optional
 
 from pydantic import ValidationError
@@ -236,7 +238,7 @@ Generate a comprehensive campaign concept that:
 
             # Extract JSON response
             response_text = message.content[0].text
-            concept_dict = json.loads(response_text)
+            concept_dict = extract_json(response_text)
 
             logger.info(f"Campaign #{campaign_number} generated successfully (attempt {attempt + 1})")
             return concept_dict
@@ -276,13 +278,13 @@ async def campaign_strategist_agent(
     validator = CampaignConceptValidator()
     risk_filter = RiskFilter()
 
-    # Generate 3 campaigns
-    for campaign_num in range(1, 4):
-        logger.info(f"Generating campaign #{campaign_num}...")
+    # Generate 3 campaigns concurrently (independent LLM calls) to stay within request timeouts
+    logger.info("Generating 3 campaign concepts concurrently...")
+    generated = await asyncio.gather(*[
+        generate_campaign(mandate, ci_report, n) for n in range(1, 4)
+    ])
 
-        # Generate campaign
-        concept = await generate_campaign(mandate, ci_report, campaign_num)
-
+    for campaign_num, concept in enumerate(generated, start=1):
         if concept is None:
             regeneration_log.append(f"Campaign #{campaign_num} skipped: LLM generation failed")
             continue
