@@ -122,6 +122,14 @@ async def _run_concept_generation(campaign_id: str, tenant_id: str) -> None:
         logger.info("[run_concept_generation] running AGT-03 for campaign_id=%s", campaign_id)
         output = await campaign_strategist_agent(mandate=mandate_dict, ci_report=ci_report)
 
+        val_errs = output.get("validation_errors", [])
+        regen_log = output.get("regeneration_log", [])
+        if val_errs:
+            logger.warning("[run_concept_generation] %d concepts dropped by validation for %s: %s",
+                           len(val_errs), campaign_id, val_errs)
+        if regen_log:
+            logger.info("[run_concept_generation] regen log for %s: %s", campaign_id, regen_log)
+
         await db["campaigns"].find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {

@@ -147,7 +147,7 @@ Return valid JSON matching this structure. Include all required fields. Format a
   "campaign_theme": "string",
   "audience_segmentation": {"primary": "string", "secondary": "string", "tertiary": "string"},
   "channel_mix": [{"channel": "string", "rationale": "string", "competitor_gap": "string"}],
-  "message_architecture": {"master_message": "string", "channel_adaptations": {"channel": "string"}},
+  "message_architecture": {"master_message": "string", "channel_adaptations": {"TikTok": "ad copy adapted for TikTok", "Instagram": "ad copy adapted for Instagram"}},
   "campaign_phasing": {"awareness": "string", "engagement": "string", "conversion": "string"},
   "tone_board": {"adjectives": ["adj1", "adj2", "adj3", "adj4", "adj5"], "visual_direction": "string"},
   "risk_flags": {"legal": null, "regulatory": null, "sensitivity": null},
@@ -158,14 +158,16 @@ Return valid JSON matching this structure. Include all required fields. Format a
 
     # Format mandate and CI report for context
     mandate_summary = f"""
-Mandate Summary:
-- Campaign Name: {mandate.get('campaign_name')}
-- Objective: {mandate.get('objective')}
-- Target Audience: {mandate.get('target_audience')}
-- Timeline: {mandate.get('timeline')}
-- Budget: ${mandate.get('budget', {}).get('total_amount')} {mandate.get('budget', {}).get('currency')}
-- Geography: {', '.join(mandate.get('geography', {}).get('regions', []))}
-- Brand Tone: {mandate.get('brand_guidelines', {}).get('tone')}
+Mandate Context:
+- Campaign Objective: {mandate.get('objective') or mandate.get('campaign_objective') or 'N/A'}
+- Campaign Name: {mandate.get('name') or mandate.get('campaign_name') or 'N/A'}
+- Total Budget: {mandate.get('total_budget') or mandate.get('budget', {}).get('total_amount', 'N/A')} {mandate.get('currency') or mandate.get('budget', {}).get('currency', 'USD')}
+- Start Date: {mandate.get('start_date') or 'N/A'}
+- End Date: {mandate.get('end_date') or 'N/A'}
+- Region: {mandate.get('region') or ', '.join(mandate.get('geography', {}).get('regions', [])) or 'N/A'}
+- Countries: {', '.join(mandate.get('countries', []) or mandate.get('geography', {}).get('country_list', [])) or 'N/A'}
+- Target Audience: {mandate.get('target_audience') or mandate.get('audience') or 'Derived from mandate objective'}
+- Brand Tone: {mandate.get('brand_tone') or mandate.get('brand_guidelines', {}).get('tone') or 'Professional and engaging'}
 """
 
     whitespace = ci_report.get("whitespace_opportunities", {})
@@ -284,49 +286,37 @@ async def campaign_strategist_agent(
         generate_campaign(mandate, ci_report, n) for n in range(1, 4)
     ])
 
-    for campaign_num, concept in enumerate(generated, start=1):
+    async def _retry_if_risky(campaign_num: int, concept):
         if concept is None:
-            regeneration_log.append(f"Campaign #{campaign_num} skipped: LLM generation failed")
-            continue
-
-        # Check for risks
+            return campaign_num, None, f"Campaign #{campaign_num} skipped: LLM generation failed"
         risk_flags = concept.get("risk_flags", {})
+        if not risk_filter.should_regenerate(risk_flags):
+            return campaign_num, concept, None
+        for risk_type in ["legal", "regulatory", "sensitivity"]:
+            if risk_flags.get(risk_type) is not None:
+                log_msg = f"Campaign #{campaign_num} regenerated: {risk_type} risk - {risk_flags[risk_type]}"
+                retried = await generate_campaign(mandate, ci_report, campaign_num)
+                if retried is None:
+                    return campaign_num, None, f"Campaign #{campaign_num} skipped: regeneration failed"
+                if risk_filter.should_regenerate(retried.get("risk_flags", {})):
+                    return campaign_num, None, f"Campaign #{campaign_num} skipped: {risk_type} risk persisted"
+                return campaign_num, retried, log_msg
+        return campaign_num, concept, None
 
-        if risk_filter.should_regenerate(risk_flags):
-            # Determine which risk to address
-            for risk_type in ["legal", "regulatory", "sensitivity"]:
-                if risk_flags.get(risk_type) is not None:
-                    regeneration_log.append(
-                        f"Campaign #{campaign_num} regenerated: {risk_type} risk flagged - {risk_flags[risk_type]}"
-                    )
+    retry_results = await asyncio.gather(*[_retry_if_risky(n, c) for n, c in enumerate(generated, 1)])
 
-                    # Regenerate with risk mitigation prompt
-                    concept = await generate_campaign(mandate, ci_report, campaign_num)
-
-                    if concept is None:
-                        regeneration_log.append(f"Campaign #{campaign_num} skipped: regeneration failed")
-                        concept = None
-                        break
-
-                    # Re-check risks
-                    risk_flags = concept.get("risk_flags", {})
-                    if risk_filter.should_regenerate(risk_flags):
-                        regeneration_log.append(
-                            f"Campaign #{campaign_num} skipped: {risk_type} risk persisted after retry"
-                        )
-                        concept = None
-                    break
-
-        # Validate schema
-        if concept is not None:
-            errors = validator.validate_schema(concept)
-
-            if errors:
-                validation_errors.extend([f"Campaign #{campaign_num}: {e}" for e in errors])
-                regeneration_log.append(f"Campaign #{campaign_num} skipped: schema validation failed")
-            else:
-                campaigns.append(concept)
-                logger.info(f"Campaign #{campaign_num} added to results")
+    for campaign_num, concept, log_msg in retry_results:
+        if log_msg:
+            regeneration_log.append(log_msg)
+        if concept is None:
+            continue
+        errors = validator.validate_schema(concept)
+        if errors:
+            validation_errors.extend([f"Campaign #{campaign_num}: {e}" for e in errors])
+            regeneration_log.append(f"Campaign #{campaign_num} skipped: schema validation failed")
+        else:
+            campaigns.append(concept)
+            logger.info(f"Campaign #{campaign_num} added to results")
 
     return {
         "campaigns": campaigns,

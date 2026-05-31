@@ -368,6 +368,57 @@ async def test_campaign_strategist_malformed_llm_json():
     assert "regeneration_log" in result
 
 
+def test_generate_campaign_injects_flat_mandate_fields():
+    """Prompt must contain real flat-mandate field values (name, total_budget, region, countries)."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    captured_messages = []
+
+    class FakeContent:
+        text = json.dumps({
+            "name": "Bold EMEA Launch", "tagline": "Feel the energy",
+            "strategic_narrative": "Exploit RedBull's absence in DE social",
+            "campaign_theme": "Urban Energy",
+            "audience_segmentation": {"primary": "Gen-Z DE", "secondary": "Millennial", "tertiary": "Gen-X"},
+            "channel_mix": [{"channel": "TikTok", "rationale": "reach", "competitor_gap": "RedBull absent"}],
+            "message_architecture": {"master_message": "Be Bold", "channel_adaptations": {"TikTok": "Short bold clips"}},
+            "campaign_phasing": {"awareness": "wk1-2", "engagement": "wk3-6", "conversion": "wk7-8"},
+            "tone_board": {"adjectives": ["bold", "fresh", "urban", "dynamic", "authentic"], "visual_direction": "High contrast street"},
+            "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+            "mandate_fit_score": 8, "gap_exploitation_score": 7,
+        })
+
+    class FakeResponse:
+        content = [FakeContent()]
+
+    class FakeMessages:
+        async def create(self, **kwargs):
+            captured_messages.append(kwargs)
+            return FakeResponse()
+
+    class FakeClient:
+        messages = FakeMessages()
+
+    mandate = {
+        "name": "Spring Launch", "objective": "awareness",
+        "total_budget": 50000, "currency": "EUR",
+        "start_date": "2026-09-01", "end_date": "2026-11-30",
+        "region": "EMEA", "countries": ["DE", "FR"],
+    }
+
+    with patch("backend.app.agents.campaign_strategist.AsyncAnthropic", return_value=FakeClient()):
+        from backend.app.agents.campaign_strategist import generate_campaign
+        asyncio.run(generate_campaign(mandate, {}, 1))
+
+    assert len(captured_messages) > 0, "LLM was not called"
+    user_content = captured_messages[0]["messages"][0]["content"]
+    assert "Spring Launch" in user_content, f"mandate.name not in prompt. Got: {user_content[:500]}"
+    assert "50000" in user_content, f"total_budget not in prompt. Got: {user_content[:500]}"
+    assert "EMEA" in user_content, f"region not in prompt. Got: {user_content[:500]}"
+    assert "DE" in user_content, f"countries not in prompt. Got: {user_content[:500]}"
+
+
 @pytest.mark.asyncio
 async def test_campaign_strategist_empty_llm_response():
     """Agent must handle empty LLM response content gracefully (IndexError avoided)."""
