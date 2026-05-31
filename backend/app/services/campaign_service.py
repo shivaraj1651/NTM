@@ -11,9 +11,6 @@ from sqlalchemy import select as _sa_select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
 
-from backend.app.agents.campaign_strategist import campaign_strategist_agent
-from backend.app.agents.budget_optimizer import budget_optimizer_agent
-from backend.app.agents.media_planner import media_planner_agent
 from backend.app.models.mandate import Mandate
 
 logger = logging.getLogger(__name__)
@@ -193,39 +190,30 @@ class CampaignService:
         if not mandate:
             raise HTTPException(status_code=404, detail="Mandate not found")
 
-        # CI report is optional: if the competitive-intel pipeline hasn't produced one,
-        # proceed with empty context (the concept agent is stubbed in dev).
-        ci_report = await self._ci_reports.find_one(
-            {"mandate_id": mandate_id, "tenant_id": tenant_id},
-            sort=[("created_at", -1)],
-        ) or {}
-
-        mandate_dict = {k: v for k, v in mandate.items() if k != "_id"}
-        ci_dict = {k: v for k, v in ci_report.items() if k != "_id"}
-
-        try:
-            result = await campaign_strategist_agent(mandate_dict, ci_dict)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.error("AGT-03 failed: %s", exc)
-            raise HTTPException(status_code=500, detail=f"Campaign generation failed: {exc}")
-
-        concepts = result.get("campaigns", [])
         now = _utc_now()
         doc = {
             "_id": str(uuid.uuid4()),
             "tenant_id": tenant_id,
             "mandate_id": mandate_id,
-            "status": "concepts_ready",
-            "concepts": [c if isinstance(c, dict) else c.model_dump(mode="json") for c in concepts],
+            "status": "pending",
+            "concepts": [],
             "selected_concept_id": None,
             "activation_plan": None,
             "budget_proposal": None,
+            "creative_assets": None,
+            "kpi_configs": [],
             "created_at": now,
             "updated_at": now,
         }
         await self._campaigns.insert_one(doc)
+
+        # Dispatch background concept generation (AGT-03)
+        from backend.app.tasks.campaign_tasks import run_concept_generation
+        try:
+            run_concept_generation.delay(doc["_id"], tenant_id)
+        except Exception as exc:
+            logger.error("Failed to dispatch run_concept_generation for %s: %s", doc["_id"], exc)
+
         return doc
 
     # ------------------------------------------------------------------
@@ -280,6 +268,14 @@ class CampaignService:
             }},
             return_document=True,
         )
+
+        # Dispatch background media planning (AGT-04)
+        from backend.app.tasks.campaign_tasks import run_media_planning
+        try:
+            run_media_planning.delay(campaign_id, tenant_id)
+        except Exception as exc:
+            logger.error("Failed to dispatch run_media_planning for %s: %s", campaign_id, exc)
+
         return updated
 
     # ------------------------------------------------------------------
@@ -287,61 +283,7 @@ class CampaignService:
     # ------------------------------------------------------------------
 
     async def get_activation_plan(self, campaign_id: str, tenant_id: str) -> dict:
-        doc = await self.get(campaign_id, tenant_id)
-
-        if not _status_gte(doc["status"], "confirmed"):
-            raise HTTPException(status_code=409, detail=f"Cannot generate activation plan from status '{doc['status']}'")
-
-        if doc.get("activation_plan"):
-            return doc
-
-        # Find selected concept
-        concept = next(
-            (c for c in doc.get("concepts", []) if str(c.get("id", "")) == doc.get("selected_concept_id")),
-            None,
-        )
-        if not concept:
-            raise HTTPException(status_code=422, detail="Selected concept not found")
-
-        # Fetch mandate for budget_envelope and geography (Mongo first, then Postgres).
-        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
-        if not mandate:
-            mandate = await self._load_mandate_from_postgres(doc["mandate_id"], tenant_id)
-        if not mandate:
-            raise HTTPException(status_code=404, detail="Mandate not found")
-
-        # Support both the nested (Mongo) and flat (Postgres) mandate shapes.
-        budget_envelope = mandate.get("budget") or {
-            "total_budget": mandate.get("total_budget", 0),
-            "currency": mandate.get("currency", "USD"),
-        }
-        if "total_amount" in budget_envelope and "total_budget" not in budget_envelope:
-            budget_envelope = {**budget_envelope, "total_budget": budget_envelope["total_amount"]}
-        mandate_geography = mandate.get("geography") or {
-            "regions": [mandate["region"]] if mandate.get("region") else [],
-            "markets": [],
-            "country_list": mandate.get("countries", []),
-        }
-
-        try:
-            plan_result = await media_planner_agent(concept, budget_envelope, mandate_geography)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.error("AGT-04 failed: %s", exc)
-            raise HTTPException(status_code=500, detail=f"Activation plan generation failed: {exc}")
-
-        activations = plan_result.get("activations", [])
-        updated = await self._campaigns.find_one_and_update(
-            {"_id": campaign_id, "tenant_id": tenant_id},
-            {"$set": {
-                "status": "planned",
-                "activation_plan": [a if isinstance(a, dict) else a.model_dump(mode="json") for a in activations],
-                "updated_at": _utc_now(),
-            }},
-            return_document=True,
-        )
-        return updated
+        return await self.get(campaign_id, tenant_id)
 
     # ------------------------------------------------------------------
     # propose_budget
@@ -353,48 +295,22 @@ class CampaignService:
         if doc["status"] != "planned":
             raise HTTPException(status_code=409, detail=f"Cannot propose budget from status '{doc['status']}'")
 
-        concept = (doc.get("concepts") or [{}])[0]
-        activations = doc.get("activation_plan") or []
-
-        mandate = await self._mandates.find_one({"_id": doc["mandate_id"], "tenant_id": tenant_id})
-        if not mandate:
-            mandate = await self._load_mandate_from_postgres(doc["mandate_id"], tenant_id)
-        if not mandate:
-            raise HTTPException(status_code=404, detail="Mandate not found")
-
-        budget_envelope = mandate.get("budget") or {
-            "total_budget": mandate.get("total_budget", 0),
-            "currency": mandate.get("currency", "USD"),
-        }
-        if "total_amount" in budget_envelope and "total_budget" not in budget_envelope:
-            budget_envelope = {**budget_envelope, "total_budget": budget_envelope["total_amount"]}
-
-        campaign_context = {
-            "campaign_id": campaign_id,
-            "campaign_name": concept.get("name", ""),
-            "objective": mandate.get("objective", ""),
-            "description": concept.get("narrative", ""),
-            "target_audience": mandate.get("target_audience", ""),
-            "tone_board": concept.get("tone_board", ""),
-        }
-
-        try:
-            proposal = await budget_optimizer_agent(activations, budget_envelope, campaign_context)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except Exception as exc:
-            logger.error("AGT-05 failed: %s", exc)
-            raise HTTPException(status_code=500, detail=f"Budget proposal generation failed: {exc}")
-
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
-                "status": "budget_proposed",
-                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
+                "status": "budget_pending",
                 "updated_at": _utc_now(),
             }},
             return_document=True,
         )
+
+        # Dispatch background budget optimization (AGT-05)
+        from backend.app.tasks.campaign_tasks import run_budget_optimization
+        try:
+            run_budget_optimization.delay(campaign_id, tenant_id)
+        except Exception as exc:
+            logger.error("Failed to dispatch run_budget_optimization for %s: %s", campaign_id, exc)
+
         return updated
 
     # ------------------------------------------------------------------

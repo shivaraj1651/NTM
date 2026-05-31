@@ -106,17 +106,14 @@ async def test_create_campaign_inserts_doc():
     db, campaign_col, _, __ = make_db(campaigns=CAMPAIGN_DOC, mandates=MANDATE_DOC, ci_reports=CI_REPORT_DOC)
     svc = CampaignService(db)
 
-    mock_strategy_result = {
-        "campaigns": [{"id": "concept-001", "theme": "Test Theme", "name_options": ["Name A"]}]
-    }
-    with patch("backend.app.services.campaign_service.campaign_strategist_agent",
-               new=AsyncMock(return_value=mock_strategy_result)):
+    with patch("backend.app.tasks.campaign_tasks.run_concept_generation") as mock_task:
+        mock_task.delay = MagicMock()
         result = await svc.create("mand-001", "tenant-001")
 
     campaign_col.insert_one.assert_called_once()
     assert result["mandate_id"] == "mand-001"
     assert result["tenant_id"] == "tenant-001"
-    assert result["status"] == "concepts_ready"
+    assert result["status"] == "pending"
 
 
 @pytest.mark.asyncio
@@ -157,3 +154,104 @@ async def test_list_returns_tenant_campaigns():
     rows = await svc.list("tenant-001")
     assert rows == [CAMPAIGN_DOC]
     campaign_col.find.assert_called_once_with({"tenant_id": "tenant-001"})
+
+
+# ── TASK 1: create → background task ──────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_create_campaign_status_pending_no_agent():
+    """create() returns status=pending, concepts=[], dispatches run_concept_generation without calling agent."""
+    db, campaign_col, _, __ = make_db(campaigns=CAMPAIGN_DOC, mandates=MANDATE_DOC, ci_reports=CI_REPORT_DOC)
+    svc = CampaignService(db)
+
+    mock_delay = MagicMock()
+
+    with patch("backend.app.tasks.campaign_tasks.run_concept_generation") as mock_task:
+        mock_task.delay = mock_delay
+        result = await svc.create("mand-001", "tenant-001")
+
+    campaign_col.insert_one.assert_called_once()
+    assert result["status"] == "pending"
+    assert result["concepts"] == []
+    mock_task.delay.assert_called_once()
+    call_args = mock_task.delay.call_args[0]
+    assert call_args[1] == "tenant-001"
+
+
+@pytest.mark.asyncio
+async def test_create_campaign_missing_mandate_still_404():
+    """create() still raises 404 when mandate not found (guard preserved)."""
+    db, _, mandate_col, __ = make_db(campaigns=None, mandates=None, ci_reports=None)
+    svc = CampaignService(db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        with patch.object(svc, "_load_mandate_from_postgres", new=AsyncMock(return_value=None)):
+            await svc.create("missing-mand", "tenant-001")
+
+    assert exc_info.value.status_code == 404
+
+
+# ── TASK 2: confirm → dispatches run_media_planning ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_confirm_dispatches_media_planning():
+    """confirm() sets status=confirmed and dispatches run_media_planning."""
+    confirmed_doc = {**CAMPAIGN_DOC, "status": "confirmed", "selected_concept_id": "concept-001"}
+    db, campaign_col, _, __ = make_db(campaigns=CAMPAIGN_DOC)
+    campaign_col.find_one_and_update = AsyncMock(return_value=confirmed_doc)
+    svc = CampaignService(db)
+
+    mock_delay = MagicMock()
+
+    with patch("backend.app.tasks.campaign_tasks.run_media_planning") as mock_task:
+        mock_task.delay = mock_delay
+        result = await svc.confirm("camp-001", "concept-001", "tenant-001")
+
+    assert result["status"] == "confirmed"
+    mock_task.delay.assert_called_once_with("camp-001", "tenant-001")
+
+
+@pytest.mark.asyncio
+async def test_confirm_wrong_status_raises_409():
+    """confirm() raises 409 if status is not concepts_ready."""
+    pending_doc = {**CAMPAIGN_DOC, "status": "pending"}
+    db, _, __, ___ = make_db(campaigns=pending_doc)
+    svc = CampaignService(db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await svc.confirm("camp-001", "concept-001", "tenant-001")
+
+    assert exc_info.value.status_code == 409
+
+
+# ── TASK 3: propose_budget → background task ──────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_propose_budget_status_budget_pending_dispatches_task():
+    """propose_budget() sets status=budget_pending and dispatches run_budget_optimization."""
+    planned_doc = {**CAMPAIGN_DOC, "status": "planned", "activation_plan": []}
+    budget_pending_doc = {**planned_doc, "status": "budget_pending"}
+    db, campaign_col, mandate_col, __ = make_db(campaigns=planned_doc)
+    campaign_col.find_one_and_update = AsyncMock(return_value=budget_pending_doc)
+    svc = CampaignService(db)
+
+    mock_delay = MagicMock()
+
+    with patch("backend.app.tasks.campaign_tasks.run_budget_optimization") as mock_task:
+        mock_task.delay = mock_delay
+        result = await svc.propose_budget("camp-001", "tenant-001")
+
+    assert result["status"] == "budget_pending"
+    mock_task.delay.assert_called_once_with("camp-001", "tenant-001")
+
+
+@pytest.mark.asyncio
+async def test_propose_budget_wrong_status_raises_409():
+    """propose_budget() raises 409 if status is not planned."""
+    db, _, __, ___ = make_db(campaigns=CAMPAIGN_DOC)  # status=concepts_ready
+    svc = CampaignService(db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await svc.propose_budget("camp-001", "tenant-001")
+
+    assert exc_info.value.status_code == 409

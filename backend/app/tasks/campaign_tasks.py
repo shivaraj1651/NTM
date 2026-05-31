@@ -100,6 +100,71 @@ def run_campaign_strategy(self, mandate_id: str, tenant_id: str) -> None:
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
 
 
+async def _run_concept_generation(campaign_id: str, tenant_id: str) -> None:
+    """Async: fetch campaign doc + mandate + CI report, run AGT-03, store concepts."""
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        campaign_doc = await db["campaigns"].find_one({"_id": campaign_id, "tenant_id": tenant_id})
+        if not campaign_doc:
+            logger.error("[run_concept_generation] campaign not found: %s", campaign_id)
+            return
+
+        mandate_id = campaign_doc.get("mandate_id")
+
+        # Try Mongo mandates first, then mandate_analyses for CI report
+        mandate = await db["mandates"].find_one({"_id": mandate_id, "tenant_id": tenant_id}) or {}
+        ci_doc = await db["mandate_analyses"].find_one({"mandate_id": mandate_id, "tenant_id": tenant_id})
+        ci_report = ci_doc.get("analysis", {}) if ci_doc else {}
+
+        mandate_dict = {k: v for k, v in mandate.items() if k != "_id"} if mandate else {}
+
+        logger.info("[run_concept_generation] running AGT-03 for campaign_id=%s", campaign_id)
+        output = await campaign_strategist_agent(mandate=mandate_dict, ci_report=ci_report)
+
+        await db["campaigns"].find_one_and_update(
+            {"_id": campaign_id, "tenant_id": tenant_id},
+            {"$set": {
+                "status": "concepts_ready",
+                "concepts": output.get("campaigns", []),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+        logger.info("[run_concept_generation] stored concepts for campaign %s", campaign_id)
+    except Exception as exc:
+        logger.error("[run_concept_generation] error for %s: %s", campaign_id, exc)
+        try:
+            mongo_client2 = AsyncIOMotorClient(MONGO_DB_URL)
+            try:
+                db2 = mongo_client2[MONGO_DB_NAME]
+                await db2["campaigns"].find_one_and_update(
+                    {"_id": campaign_id, "tenant_id": tenant_id},
+                    {"$set": {
+                        "error": f"concept generation failed: {exc}",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                )
+            finally:
+                mongo_client2.close()
+        except Exception:
+            pass
+        raise
+    finally:
+        mongo_client.close()
+
+
+@shared_task(bind=True, max_retries=2)
+def run_concept_generation(self, campaign_id: str, tenant_id: str) -> None:
+    """Celery task: run AGT-03 campaign strategist for a new campaign (background)."""
+    logger.info("[run_concept_generation] start campaign_id=%s tenant_id=%s", campaign_id, tenant_id)
+    try:
+        asyncio.run(_run_concept_generation(campaign_id, tenant_id))
+        logger.info("[run_concept_generation] complete campaign_id=%s", campaign_id)
+    except Exception as exc:
+        logger.error("[run_concept_generation] error for %s: %s", campaign_id, exc)
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+
 async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
     """Async implementation: fetch campaign concept, run AGT-04, store media plan."""
     from backend.app.agents.media_planner import media_planner_agent
@@ -139,10 +204,12 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
         await db["campaigns"].update_one(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
+                "status": "planned",
                 "activation_plan": output.get("activations", []),
                 "budget_summary": output.get("budget_summary", {}),
                 "media_plan_status": output.get("status", "generated"),
                 "media_plan_generated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
         logger.info(f"[run_media_planning] stored media plan for campaign {campaign_id}")
@@ -264,8 +331,8 @@ async def _run_budget_optimization(campaign_id: str, tenant_id: str) -> None:
 
         activations = campaign_doc.get("activation_plan", []) or []
         mandate = await db["mandates"].find_one({"_id": campaign_doc.get("mandate_id"), "tenant_id": tenant_id}) or {}
-        b = mandate.get("budget", {})
-        budget_env = {"total_budget": b.get("total_amount", 0), "currency": b.get("currency", "USD")}
+        b = mandate.get("budget") or {"total_amount": mandate.get("total_budget", 0), "currency": mandate.get("currency", "USD")}
+        budget_env = {"total_budget": b.get("total_amount", b.get("total_budget", 0)), "currency": b.get("currency", "USD")}
         concept = (campaign_doc.get("concepts") or [{}])[0]
         campaign_context = {
             "campaign_id": campaign_id,
