@@ -3,8 +3,9 @@
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.core.dependencies import require_role
 from backend.app.core.models import User, Tenant, Role, UserRole
@@ -13,9 +14,12 @@ from backend.app.db import get_db
 from backend.app.schemas.admin import (  # noqa: F401 — re-exported for router use
     TenantCreate,
     TenantResponse,
+    TenantUpdate,
     UserCreate,
     UserResponse,
+    UserUpdate,
     RoleUpdate,
+    RoleResponse,
     AuditLogResponse,
 )
 
@@ -155,3 +159,105 @@ async def get_audit_log(
         )
         for log in logs
     ]
+
+
+# ── TASK 1: PATCH /tenants/{tenant_id} ───────────────────────────────────────
+
+@router.patch("/tenants/{tenant_id}", response_model=TenantResponse)
+async def update_tenant(
+    tenant_id: str,
+    body: TenantUpdate,
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
+    db: AsyncSession = Depends(get_db),
+) -> TenantResponse:
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tenant.is_active = body.is_active
+    await db.commit()
+    await db.refresh(tenant)
+    return TenantResponse(
+        id=tenant.id,
+        name=tenant.name,
+        is_active=tenant.is_active,
+        created_at=tenant.created_at.isoformat(),
+    )
+
+
+# ── TASK 2: GET /tenants/{tenant_id}/users ────────────────────────────────────
+
+@router.get("/tenants/{tenant_id}/users", response_model=list[UserResponse])
+async def list_tenant_users(
+    tenant_id: str,
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
+    db: AsyncSession = Depends(get_db),
+) -> list[UserResponse]:
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(User.tenant_id == tenant_id)
+    )
+    users = result.scalars().all()
+    return [
+        UserResponse(
+            id=u.id,
+            email=u.email,
+            tenant_id=u.tenant_id,
+            is_active=u.is_active,
+            role=(u.role.name if u.role else None),
+            created_at=u.created_at.isoformat(),
+        )
+        for u in users
+    ]
+
+
+# ── TASK 3: PATCH /users/{user_id} ───────────────────────────────────────────
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    body: UserUpdate,
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(User.id == user_id)
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.is_active = body.is_active
+    await db.commit()
+    await db.refresh(target)
+    return UserResponse(
+        id=target.id,
+        email=target.email,
+        tenant_id=target.tenant_id,
+        is_active=target.is_active,
+        role=(target.role.name if target.role else None),
+        created_at=target.created_at.isoformat(),
+    )
+
+
+# ── TASK 4: GET /roles ────────────────────────────────────────────────────────
+
+@router.get("/roles", response_model=list[RoleResponse])
+async def list_roles(
+    _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
+    db: AsyncSession = Depends(get_db),
+) -> list[RoleResponse]:
+    result = await db.execute(select(Role).order_by(Role.name))
+    roles = result.scalars().all()
+    out: list[RoleResponse] = []
+    for role in roles:
+        count_result = await db.execute(
+            select(func.count()).select_from(User).where(User.role_id == role.id)
+        )
+        out.append(
+            RoleResponse(
+                id=role.id,
+                name=role.name,
+                permissions=list(role.permissions or []),
+                user_count=count_result.scalar() or 0,
+            )
+        )
+    return out

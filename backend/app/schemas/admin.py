@@ -17,6 +17,10 @@ class TenantResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TenantUpdate(BaseModel):
+    is_active: bool
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -29,13 +33,25 @@ class UserResponse(BaseModel):
     email: str
     tenant_id: str
     is_active: bool
+    role: Optional[str] = None
     created_at: str
 
     model_config = {"from_attributes": True}
 
 
+class UserUpdate(BaseModel):
+    is_active: bool
+
+
 class RoleUpdate(BaseModel):
     role_name: str
+
+
+class RoleResponse(BaseModel):
+    id: str
+    name: str
+    permissions: list[str]
+    user_count: int
 
 
 class AuditLogResponse(BaseModel):

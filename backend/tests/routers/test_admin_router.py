@@ -223,3 +223,161 @@ def test_non_admin_cannot_create_tenant():
     )
 
     assert response.status_code == 403
+
+
+# ── TASK 1: PATCH /api/v1/admin/tenants/{id} ─────────────────────────────────
+
+def test_update_tenant_deactivate():
+    app, mock_db = make_app()
+
+    mock_tenant = MagicMock()
+    mock_tenant.id = "tenant-001"
+    mock_tenant.name = "Acme Corp"
+    mock_tenant.is_active = False
+    mock_tenant.created_at = _TS
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = mock_tenant
+    mock_db.execute = AsyncMock(return_value=result)
+    mock_db.commit = AsyncMock()
+    mock_db.refresh = AsyncMock()
+
+    client = TestClient(app)
+    response = client.patch(
+        "/api/v1/admin/tenants/tenant-001",
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_active"] is False
+    mock_db.commit.assert_awaited_once()
+
+
+def test_update_tenant_not_found():
+    app, mock_db = make_app()
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=result)
+
+    client = TestClient(app)
+    response = client.patch(
+        "/api/v1/admin/tenants/nonexistent",
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 404
+
+
+# ── TASK 2: GET /api/v1/admin/tenants/{id}/users ─────────────────────────────
+
+def test_list_tenant_users():
+    app, mock_db = make_app()
+
+    mock_role = MagicMock()
+    mock_role.name = "editor"
+
+    mock_user = MagicMock()
+    mock_user.id = "user-001"
+    mock_user.email = "alice@ntm.io"
+    mock_user.tenant_id = "tenant-001"
+    mock_user.is_active = True
+    mock_user.role = mock_role
+    mock_user.created_at = _TS
+
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [mock_user]
+    mock_db.execute = AsyncMock(return_value=result)
+
+    client = TestClient(app)
+    response = client.get("/api/v1/admin/tenants/tenant-001/users")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["email"] == "alice@ntm.io"
+    assert body[0]["role"] == "editor"
+
+
+# ── TASK 3: PATCH /api/v1/admin/users/{id} ───────────────────────────────────
+
+def test_update_user_deactivate():
+    app, mock_db = make_app()
+
+    mock_role = MagicMock()
+    mock_role.name = "viewer"
+
+    mock_target = MagicMock()
+    mock_target.id = "user-001"
+    mock_target.email = "bob@ntm.io"
+    mock_target.tenant_id = "tenant-001"
+    mock_target.is_active = False
+    mock_target.role = mock_role
+    mock_target.created_at = _TS
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = mock_target
+    mock_db.execute = AsyncMock(return_value=result)
+    mock_db.commit = AsyncMock()
+    mock_db.refresh = AsyncMock()
+
+    client = TestClient(app)
+    response = client.patch(
+        "/api/v1/admin/users/user-001",
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_active"] is False
+    mock_db.commit.assert_awaited_once()
+
+
+def test_update_user_not_found():
+    app, mock_db = make_app()
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=result)
+
+    client = TestClient(app)
+    response = client.patch(
+        "/api/v1/admin/users/nonexistent",
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 404
+
+
+# ── TASK 4: GET /api/v1/admin/roles ──────────────────────────────────────────
+
+def test_list_roles():
+    app, mock_db = make_app()
+
+    mock_role = MagicMock()
+    mock_role.id = "role-001"
+    mock_role.name = "editor"
+    mock_role.permissions = ["read", "write"]
+
+    # First execute → scalars().all() returns [mock_role]
+    roles_result = MagicMock()
+    roles_result.scalars.return_value.all.return_value = [mock_role]
+
+    # Second execute → .scalar() returns 3 (user count)
+    count_result = MagicMock()
+    count_result.scalar.return_value = 3
+
+    mock_db.execute = AsyncMock(side_effect=[roles_result, count_result])
+
+    client = TestClient(app)
+    response = client.get("/api/v1/admin/roles")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["name"] == "editor"
+    assert body[0]["permissions"] == ["read", "write"]
+    assert body[0]["user_count"] == 3
