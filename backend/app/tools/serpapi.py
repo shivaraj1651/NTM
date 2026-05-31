@@ -5,7 +5,7 @@ import os
 from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
-SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY")
 
 def _extract_channels_from_result(result_text: str) -> List[str]:
     """Parse text for advertising channels (google_ads, facebook, linkedin, tiktok, youtube)."""

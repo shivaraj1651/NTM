@@ -136,7 +136,7 @@ class GenerationMetadata(BaseModel):
     validation_summary: Optional[str] = None
     refinement_attempts: int = 0
     generation_time_ms: float = 0.0
-    model_used: str = "claude-opus-4.7"
+    model_used: str = "claude-opus-4-7"
     errors: List[str] = Field(default_factory=list)
 
 

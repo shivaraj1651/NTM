@@ -6,13 +6,40 @@ Validates mandates for completeness and contradictions, produces structured summ
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from anthropic import AsyncAnthropic
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> Optional[dict]:
+    """Parse JSON from a real LLM response.
+
+    Production models often wrap JSON in ```json fences or add stray prose despite
+    instructions, which breaks a bare json.loads(). Strip fences, then fall back to
+    extracting the outermost {...} object. Returns None only if no JSON is recoverable.
+    """
+    if not text:
+        return None
+    s = text.strip()
+    if s.startswith("```"):
+        # drop the opening fence (``` or ```json) and any closing fence
+        s = re.sub(r"^```[a-zA-Z]*\s*", "", s)
+        s = re.sub(r"\s*```$", "", s).strip()
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", s, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                return None
+        return None
 
 
 class MandateValidator:
@@ -165,9 +192,8 @@ Mandate data:
         }
 
     response_text = response.content[0].text
-    try:
-        result = json.loads(response_text)
-    except json.JSONDecodeError:
+    result = _extract_json(response_text)
+    if result is None:
         # Fallback if LLM response isn't valid JSON
         return {
             "contradictions": [],

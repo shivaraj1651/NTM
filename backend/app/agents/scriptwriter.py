@@ -17,7 +17,7 @@ from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-6"
 TEMPERATURE = 0.7
 MAX_TOKENS = 4000
 MAX_RETRIES = 3

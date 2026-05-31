@@ -34,7 +34,7 @@ MONGO_DB_NAME = os.getenv("MONGODB_DB", "ntm")
 MONGO_COLLECTION_CI_REPORTS = os.getenv("MONGO_COLLECTION_CI_REPORTS", "ci_reports")
 MONGO_COLLECTION_COMPETITOR_CACHE = os.getenv("MONGO_COLLECTION_COMPETITOR_CACHE", "competitor_cache")
 CACHE_TTL_METRICS_DAYS = int(os.getenv("CACHE_TTL_METRICS_DAYS", "7"))
-LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 
 
 # Pydantic model for LLM synthesis response validation

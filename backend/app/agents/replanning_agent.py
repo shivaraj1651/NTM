@@ -104,7 +104,7 @@ class RecommendationMapper:
 class LLMEnricher:
     """Fires one Anthropic call to fill rationale + expected_impact for all candidates."""
 
-    _MODEL = "claude-sonnet-4-20250514"
+    _MODEL = "claude-sonnet-4-6"
     _MAX_TOKENS = 1024
     _SYSTEM = (
         "You are a media campaign performance analyst. "

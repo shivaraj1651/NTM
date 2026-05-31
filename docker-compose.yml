@@ -85,7 +85,7 @@ services:
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
       S3_ENDPOINT_URL: http://ntm-minio:9000
-      NTM_STUB_EXTERNAL: "1"
+      NTM_STUB_EXTERNAL: "0"
     volumes:
       - ./backend:/app/backend
       - ./alembic:/app/alembic
@@ -121,7 +121,7 @@ services:
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
       S3_ENDPOINT_URL: http://ntm-minio:9000
-      NTM_STUB_EXTERNAL: "1"
+      NTM_STUB_EXTERNAL: "0"
     volumes:
       - ./backend:/app/backend
       - ./alembic:/app/alembic
@@ -146,7 +146,7 @@ services:
       REDIS_URL: redis://ntm-redis:6379/0
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
-      NTM_STUB_EXTERNAL: "1"
+      NTM_STUB_EXTERNAL: "0"
     depends_on:
       ntm-redis:
         condition: service_healthy
