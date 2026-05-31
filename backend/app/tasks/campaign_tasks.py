@@ -245,18 +245,26 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
             mandate_context=mandate_context,
         )
 
+        # Serialize Pydantic Activation models → plain dicts for Motor/BSON
+        raw_activations = output.get("activations", [])
+        activations_serialized = [
+            a.model_dump(mode="json") if hasattr(a, "model_dump")
+            else (a.dict() if hasattr(a, "dict") else dict(a))
+            for a in raw_activations
+        ]
         await db["campaigns"].update_one(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
                 "status": "planned",
-                "activation_plan": output.get("activations", []),
+                "activation_plan": activations_serialized,
                 "budget_summary": output.get("budget_summary", {}),
                 "media_plan_status": output.get("status", "generated"),
                 "media_plan_generated_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
-        logger.info(f"[run_media_planning] stored media plan for campaign {campaign_id}")
+        logger.info(f"[run_media_planning] stored %d activations for campaign %s",
+                    len(activations_serialized), campaign_id)
     finally:
         mongo_client.close()
 
