@@ -194,19 +194,47 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
         else:
             concept = concepts[0] if concepts else {}
 
-        budget_envelope = campaign_doc.get("budget_envelope", {
-            "total_budget": campaign_doc.get("total_budget", 10000),
-            "currency": "USD",
-            "contingency_pct": 10,
-        })
-        mandate_geography = campaign_doc.get("geography", {"regions": [], "markets": [], "countries": []})
+        # Load the mandate for budget and geography — the campaign doc itself does not
+        # carry these; they live on the mandate (Mongo mirror or Postgres-flat shape).
+        mandate_doc = await db["mandates"].find_one(
+            {"_id": campaign_doc.get("mandate_id"), "tenant_id": tenant_id}
+        ) or {}
 
-        logger.info(f"[run_media_planning] running AGT-04 for campaign_id={campaign_id}")
+        # Budget: support both nested {budget:{total_amount,currency}} and flat {total_budget,currency}
+        _b = mandate_doc.get("budget") or {}
+        budget_envelope = {
+            "total_budget": _b.get("total_amount") or mandate_doc.get("total_budget") or 10000,
+            "currency":     _b.get("currency")     or mandate_doc.get("currency")     or "USD",
+            "contingency_pct": 0.10,
+        }
+
+        # Geography: support {country_list:[...]} (Mongo mirror) and {countries:[...]} (flat Postgres)
+        countries = (mandate_doc.get("country_list") or
+                     mandate_doc.get("countries") or
+                     mandate_doc.get("geography", {}).get("country_list") or
+                     mandate_doc.get("geography", {}).get("markets") or [])
+        mandate_geography = {
+            "regions":      mandate_doc.get("geography", {}).get("regions") or
+                            ([mandate_doc["region"]] if mandate_doc.get("region") else []),
+            "country_list": countries,
+            "markets":      countries,   # media_planner reads 'markets' key
+            "countries":    countries,
+        }
+
+        # Mandate context for the LLM intelligence layer
+        mandate_context = {
+            "objective":       mandate_doc.get("objective", ""),
+            "description":     mandate_doc.get("description", "") or mandate_doc.get("name", ""),
+            "target_audience": mandate_doc.get("target_audience", "general consumers"),
+        }
+
+        logger.info(f"[run_media_planning] running AGT-04 for campaign_id={campaign_id} "
+                    f"budget={budget_envelope['total_budget']} countries={countries}")
         output = await media_planner_agent(
             campaign_concept=concept,
             budget_envelope=budget_envelope,
             mandate_geography=mandate_geography,
-            mandate_context=campaign_doc.get("mandate_context"),
+            mandate_context=mandate_context,
         )
 
         await db["campaigns"].update_one(
