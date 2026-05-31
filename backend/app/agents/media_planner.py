@@ -40,9 +40,16 @@ async def _generate_plan_intelligence(
     audience     = mandate_context.get("target_audience", "general consumers")
     total_budget = budget_envelope.get("total_budget", 100000)
     currency     = budget_envelope.get("currency", "USD")
-    markets      = mandate_geography.get("markets", [])
+    # geography: real mandate uses country_list / countries; legacy uses markets
+    markets      = (mandate_geography.get("markets") or
+                    mandate_geography.get("country_list") or
+                    mandate_geography.get("countries") or [])
     channels     = [c.get("channel", "") for c in campaign_concept.get("channel_mix", [])]
-    tone         = campaign_concept.get("tone_board", {}).get("tone", "professional")
+    # tone_board: real shape is {adjectives:[...], visual_direction:"..."}; legacy has {tone:"..."}
+    _tone_board  = campaign_concept.get("tone_board", {})
+    tone         = (_tone_board.get("tone") or
+                    ", ".join(_tone_board.get("adjectives", [])) or
+                    "professional")
     message_arch = campaign_concept.get("message_architecture", {})
 
     prompt = f"""You are a senior media strategist. Analyse the following campaign brief and return
@@ -339,7 +346,10 @@ async def media_planner_agent(
     total_budget    = budget_envelope.get("total_budget", 100000.0)
     currency        = budget_envelope.get("currency", "USD")
     contingency_pct = budget_envelope.get("contingency_pct", 0.10)
-    markets         = mandate_geography.get("markets", [])
+    # geography: real mandate uses country_list / countries; legacy uses markets
+    markets         = (mandate_geography.get("markets") or
+                       mandate_geography.get("country_list") or
+                       mandate_geography.get("countries") or [])
     channels        = campaign_concept.get("channel_mix", [])
     campaign_phasing = campaign_concept.get("campaign_phasing", {})
     tone_board      = campaign_concept.get("tone_board", {})
@@ -380,8 +390,18 @@ async def media_planner_agent(
             })
             channel_breakdown_tracking[channel_name]["allocated"] += channel_budget
 
-            phase_dates  = campaign_phasing.get(phase_name, {})
-            phase_start  = phase_dates.get("start", date.today())
+            # campaign_phasing values may be strings ("Weeks 1-2: teaser...") or
+            # dicts with a "start" key — tolerate both shapes.
+            _phase_val   = campaign_phasing.get(phase_name, {})
+            if isinstance(_phase_val, dict):
+                _start = _phase_val.get("start")
+                try:
+                    from datetime import datetime as _dt
+                    phase_start = _dt.fromisoformat(str(_start)).date() if _start else date.today()
+                except Exception:
+                    phase_start = date.today()
+            else:
+                phase_start = date.today()
 
             for market in markets:
                 market_budget  = channel_budget / len(markets) if markets else 0.0
@@ -406,9 +426,15 @@ async def media_planner_agent(
                 segment_str = ch_intel.get("audience_segment", "Primary")
                 audience_segment = _SEGMENT_MAP.get(segment_str, AudienceSegmentEnum.PRIMARY)
 
-                # Message version reference
-                tone_str    = tone_board.get("tone", "professional")
-                message_str = message_architecture.get("primary", "brand message")
+                # Message version reference — real tone_board has adjectives not a "tone" key;
+                # real message_architecture has master_message not "primary"
+                _tb = tone_board if isinstance(tone_board, dict) else {}
+                tone_str    = (_tb.get("tone") or
+                               ", ".join(_tb.get("adjectives", [])) or
+                               "professional")
+                message_str = (message_architecture.get("master_message") or
+                               message_architecture.get("primary") or
+                               "brand message")
                 message_version_ref = f"{channel_name} | {tone_str} | {message_str}"
 
                 activation_dict = {
@@ -481,10 +507,16 @@ async def media_planner_agent(
 
 
 def _campaign_duration_days(campaign_phasing: Dict[str, Any], phase_name: str) -> int:
-    """Derive phase duration from phasing dates, default 14 days."""
-    phase_dates = campaign_phasing.get(phase_name, {})
-    start = phase_dates.get("start")
-    end   = phase_dates.get("end")
+    """Derive phase duration from phasing dates, default 14 days.
+
+    Tolerates both dict shape ({"start":..., "end":...}) and string shape
+    ("Weeks 1-2: teaser drops...") produced by real LLM campaign concepts.
+    """
+    phase_val = campaign_phasing.get(phase_name, {})
+    if not isinstance(phase_val, dict):
+        return 14  # string phasing — default duration
+    start = phase_val.get("start")
+    end   = phase_val.get("end")
     if start and end:
         try:
             if isinstance(start, str):

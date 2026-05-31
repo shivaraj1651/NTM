@@ -296,3 +296,55 @@ class TestMediaPlannerAgent:
         )
 
         assert isinstance(result, dict)
+
+
+@pytest.mark.asyncio
+async def test_media_planner_uses_real_concept_and_geography_shapes():
+    """
+    media_planner_agent must produce activations when given the real flat shapes:
+    - mandate_geography with country_list (not markets)
+    - campaign_concept with tone_board {adjectives, visual_direction} and
+      campaign_phasing {phase_name: "string description"}
+    """
+    real_concept = {
+        "name": "Bold EMEA Launch",
+        "campaign_theme": "Urban Energy",
+        "channel_mix": [
+            {"channel": "TikTok", "rationale": "reach", "competitor_gap": "absent"},
+            {"channel": "Instagram", "rationale": "retargeting", "competitor_gap": "underused"},
+        ],
+        "message_architecture": {
+            "master_message": "Feel the energy",
+            "channel_adaptations": {"TikTok": "Short bold clips", "Instagram": "Reels"},
+        },
+        "campaign_phasing": {
+            "Awareness":  "Weeks 1-2: teaser drops and creator seeding",
+            "Engagement": "Weeks 3-6: UGC challenges and community building",
+            "Conversion": "Weeks 7-8: limited offers and retargeting",
+        },
+        "tone_board": {
+            "adjectives": ["bold", "fresh", "urban", "dynamic", "authentic"],
+            "visual_direction": "High contrast street photography",
+        },
+        "risk_flags": {"legal": None, "regulatory": None, "sensitivity": None},
+        "mandate_fit_score": 8,
+        "gap_exploitation_score": 7,
+    }
+    real_geography = {
+        "regions": ["EMEA"],
+        "country_list": ["DE", "FR"],
+    }
+    budget = {"total_budget": 50000, "currency": "EUR", "contingency_pct": 0.10}
+    mandate_ctx = {"objective": "awareness", "description": "Energy drink launch", "target_audience": "Gen-Z"}
+
+    import os
+    os.environ["NTM_STUB_EXTERNAL"] = "1"  # stub the LLM so the test is offline
+    result = await media_planner_agent(real_concept, budget, real_geography, mandate_ctx)
+
+    assert isinstance(result, dict), "should return a dict"
+    activations = result.get("activations", [])
+    # With country_list=["DE","FR"] and 2 channels and 3 phases, expect >0 activations
+    assert len(activations) > 0, (
+        f"Expected activations but got 0. markets resolved from country_list must be non-empty. "
+        f"allocation_log={result.get('allocation_log', [])[:3]}"
+    )
