@@ -340,17 +340,16 @@ class CampaignService:
         if doc["status"] != "approved":
             raise HTTPException(status_code=409, detail=f"Cannot generate creatives from status '{doc['status']}'")
 
-        creative_assets = _make_stub_creative_assets(campaign_id)
-
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
-            {"$set": {
-                "status": "creative_ready",
-                "creative_assets": creative_assets,
-                "updated_at": _utc_now(),
-            }},
+            {"$set": {"status": "creative_generating", "updated_at": _utc_now()}},
             return_document=True,
         )
+        from backend.app.tasks.campaign_tasks import run_creative_generation
+        try:
+            run_creative_generation.delay(campaign_id, tenant_id)
+        except Exception as exc:
+            logger.warning("creative generation task dispatch failed: %s", exc)
         return updated
 
     # ------------------------------------------------------------------

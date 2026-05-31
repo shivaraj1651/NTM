@@ -377,3 +377,146 @@ def run_budget_optimization(self, campaign_id: str, tenant_id: str) -> None:
     except Exception as exc:
         logger.error("[run_budget_optimization] error for %s: %s", campaign_id, exc)
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+
+# ---------------------------------------------------------------------------
+# Creative generation: AGT-07 (Copywriter) + AGT-08 (Scriptwriter)
+# ---------------------------------------------------------------------------
+
+async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
+    from backend.app.agents.copywriter import CopywriterAgent, CreativeBrief
+    from backend.app.agents.scriptwriter import ScriptwriterAgent, ScriptwriterBrief
+
+    mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+    try:
+        db = mongo_client[MONGO_DB_NAME]
+        doc = await db["campaigns"].find_one({"_id": campaign_id, "tenant_id": tenant_id})
+        if not doc:
+            logger.error("[run_creative_generation] campaign not found: %s", campaign_id)
+            return
+
+        concepts = doc.get("concepts", [])
+        selected_id = doc.get("selected_concept_id")
+        concept = next(
+            (c for c in concepts if str(c.get("id", "")) == selected_id),
+            concepts[0] if concepts else {},
+        )
+        mandate = await db["mandates"].find_one(
+            {"_id": doc.get("mandate_id"), "tenant_id": tenant_id}
+        ) or {}
+
+        # Extract shared brief fields from concept + mandate
+        tone_board = concept.get("tone_board", {})
+        tone_adjectives = (
+            tone_board.get("adjectives", [])
+            if isinstance(tone_board, dict)
+            else ([tone_board] if isinstance(tone_board, str) else [])
+        )
+        messaging = concept.get("message_architecture", {})
+        channels = [m.get("channel", "") for m in concept.get("channel_mix", [])]
+
+        copy_brief = CreativeBrief(
+            campaign_id=campaign_id,
+            tenant_id=tenant_id,
+            core_concept=concept.get("name", ""),
+            campaign_theme=concept.get("campaign_theme", ""),
+            tone_adjectives=tone_adjectives,
+            visual_direction=concept.get("visual_direction", ""),
+            brand_voice=mandate.get("brand_voice", ""),
+            primary_cta=messaging.get("primary_cta", ""),
+            target_audience=str(
+                concept.get("audience_segmentation", {}).get("primary", mandate.get("target_audience", ""))
+            ),
+            product_details=mandate.get("product_details", ""),
+            messaging_rules=messaging.get("messaging_rules", []),
+        )
+
+        script_brief = ScriptwriterBrief(
+            campaign_id=campaign_id,
+            tenant_id=tenant_id,
+            script_format="tvc",
+            core_concept=copy_brief.core_concept,
+            campaign_theme=copy_brief.campaign_theme,
+            tone_adjectives=copy_brief.tone_adjectives,
+            visual_direction=copy_brief.visual_direction,
+            brand_voice=copy_brief.brand_voice,
+            target_audience=copy_brief.target_audience,
+            product_details=copy_brief.product_details,
+            primary_cta=copy_brief.primary_cta,
+            messaging_rules=copy_brief.messaging_rules,
+        )
+
+        copywriter = CopywriterAgent()
+        scriptwriter = ScriptwriterAgent()
+
+        try:
+            copy_result, script_result = await asyncio.gather(
+                copywriter.generate(copy_brief),
+                scriptwriter.generate(script_brief),
+                return_exceptions=True,
+            )
+
+            if isinstance(copy_result, Exception):
+                logger.error("[run_creative_generation] copywriter error for %s: %s", campaign_id, copy_result)
+                copy_assets = []
+            else:
+                raw = copy_result.model_dump(mode="json") if hasattr(copy_result, "model_dump") else copy_result
+                copy_assets = raw.get("assets", []) if isinstance(raw, dict) else []
+
+            if isinstance(script_result, Exception):
+                logger.error("[run_creative_generation] scriptwriter error for %s: %s", campaign_id, script_result)
+                script_assets = []
+            else:
+                raw = script_result.model_dump(mode="json") if hasattr(script_result, "model_dump") else script_result
+                def _to_list(val):
+                    if isinstance(val, list):
+                        return val
+                    if isinstance(val, dict):
+                        for k in ("scripts", "tvc_scripts", "radio_scripts", "social_video_scripts", "items", "results"):
+                            if k in val and isinstance(val[k], list):
+                                return val[k]
+                        return [val]
+                    return []
+                script_assets = _to_list(raw)
+
+            await db["campaigns"].update_one(
+                {"_id": campaign_id, "tenant_id": tenant_id},
+                {"$set": {
+                    "status": "creative_ready",
+                    "creative_assets": {
+                        "campaign_id": campaign_id,
+                        "stage": "internal_review",
+                        "copy": copy_assets,
+                        "scripts": script_assets,
+                        "images": [],
+                        "audio": [],
+                    },
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+            logger.info(
+                "[run_creative_generation] complete for %s copy=%d scripts=%d",
+                campaign_id, len(copy_assets), len(script_assets),
+            )
+        except Exception as exc:
+            logger.error("[run_creative_generation] failed for %s: %s", campaign_id, exc)
+            await db["campaigns"].update_one(
+                {"_id": campaign_id, "tenant_id": tenant_id},
+                {"$set": {
+                    "error": f"creative generation failed: {exc}",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+    finally:
+        mongo_client.close()
+
+
+@shared_task(bind=True, max_retries=2)
+def run_creative_generation(self, campaign_id: str, tenant_id: str) -> None:
+    """Celery task: run AGT-07 + AGT-08 to generate creative assets for a campaign."""
+    logger.info("[run_creative_generation] start campaign_id=%s", campaign_id)
+    try:
+        asyncio.run(_run_creative_generation(campaign_id, tenant_id))
+    except Exception as exc:
+        logger.error("[run_creative_generation] error %s: %s", campaign_id, exc)
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)

@@ -255,3 +255,52 @@ async def test_propose_budget_wrong_status_raises_409():
         await svc.propose_budget("camp-001", "tenant-001")
 
     assert exc_info.value.status_code == 409
+
+
+# ── generate_creatives → background task ─────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_generate_creatives_dispatches_task_sets_creative_generating(monkeypatch):
+    """generate_creatives() sets status=creative_generating and dispatches run_creative_generation."""
+    approved_doc = {
+        "_id": "c1",
+        "tenant_id": "t1",
+        "status": "approved",
+        "concepts": [{"id": "k1"}],
+        "selected_concept_id": "k1",
+    }
+    creative_generating_doc = {**approved_doc, "status": "creative_generating"}
+    db, campaign_col, _, __ = make_db(campaigns=approved_doc)
+    campaign_col.find_one_and_update = AsyncMock(return_value=creative_generating_doc)
+    svc = CampaignService(db)
+
+    called = {}
+
+    import backend.app.tasks.campaign_tasks as ct
+    original = getattr(ct, "run_creative_generation", None)
+
+    class FakeTask:
+        @staticmethod
+        def delay(cid, tid):
+            called["cid"] = cid
+
+    ct.run_creative_generation = FakeTask()
+    try:
+        doc = await svc.generate_creatives("c1", "t1")
+        assert doc["status"] == "creative_generating", f"expected creative_generating, got {doc['status']}"
+        assert called.get("cid") == "c1", f"task not dispatched, called={called}"
+    finally:
+        if original is not None:
+            ct.run_creative_generation = original
+
+
+@pytest.mark.asyncio
+async def test_generate_creatives_wrong_status_raises_409():
+    """generate_creatives() raises 409 if status is not approved."""
+    db, _, __, ___ = make_db(campaigns=CAMPAIGN_DOC)  # status=concepts_ready
+    svc = CampaignService(db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await svc.generate_creatives("camp-001", "tenant-001")
+
+    assert exc_info.value.status_code == 409
