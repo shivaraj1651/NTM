@@ -74,13 +74,11 @@ export const getTenants = () =>
 export const createTenant = (name: string) =>
   apiClient.post('/admin/tenants', { name }).then((r) => r.data)
 
-// backend route not implemented: PATCH /admin/tenants/{id} does not exist
-export const toggleTenant = (_id: string, _is_active: boolean): Promise<void> =>
-  Promise.resolve()
+export const toggleTenant = (id: string, is_active: boolean): Promise<void> =>
+  apiClient.patch(`/admin/tenants/${id}`, { is_active }).then(() => undefined)
 
-// backend route not implemented: GET /admin/tenants/{id}/users does not exist
-export const getUsersByTenant = (_tenantId: string): Promise<[]> =>
-  Promise.resolve([])
+export const getUsersByTenant = (tenantId: string) =>
+  apiClient.get(`/admin/tenants/${tenantId}/users`).then((r) => r.data)
 
 export const createUser = (
   tenantId: string,
@@ -96,21 +94,11 @@ export const createUser = (
     })
     .then((r) => r.data)
 
-// backend route not implemented: PATCH /admin/users/{id} does not exist
-export const deactivateUser = (_userId: string): Promise<void> =>
-  Promise.resolve()
+export const deactivateUser = (userId: string): Promise<void> =>
+  apiClient.patch(`/admin/users/${userId}`, { is_active: false }).then(() => undefined)
 
-// backend route not implemented: GET /admin/roles does not exist — return static list
 export const getRoles = (): Promise<Role[]> =>
-  Promise.resolve([
-    { id: 'platform_admin',   name: 'platform_admin',   permissions: ['*'],                                                   user_count: 0 },
-    { id: 'tenant_admin',     name: 'tenant_admin',     permissions: ['manage_users', 'manage_mandates'],                      user_count: 0 },
-    { id: 'brand_manager',    name: 'brand_manager',    permissions: ['create_mandate', 'view_reports'],                       user_count: 0 },
-    { id: 'cmo',              name: 'cmo',              permissions: ['view_analytics', 'approve_budget'],                     user_count: 0 },
-    { id: 'creative_lead',    name: 'creative_lead',    permissions: ['manage_creatives'],                                     user_count: 0 },
-    { id: 'campaign_manager', name: 'campaign_manager', permissions: ['run_campaigns', 'view_analytics'],                      user_count: 0 },
-    { id: 'viewer',           name: 'viewer',           permissions: ['view_only'],                                            user_count: 0 },
-  ])
+  apiClient.get('/admin/roles').then((r) => r.data)
 
 export const getAuditLog = (filters: AuditFilters) => {
   // backend supports: tenant_id, limit, offset only
