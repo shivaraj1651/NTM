@@ -25,15 +25,20 @@ class RiskFilter:
 
     def should_regenerate(self, risk_flags: Dict[str, Optional[str]]) -> bool:
         """
-        Determine if campaign should be regenerated based on risk flags.
+        Determine if a concept must be dropped. In production, an LLM self-assessment
+        will almost always note minor risks (e.g. "comparative claims may need
+        substantiation"). Treating any non-null flag as a disqualifier drops every
+        real concept. Only regenerate on explicit high-severity markers — concepts
+        with minor risk notes are logged and kept for human review instead.
 
-        Args:
-            risk_flags: Dict with legal, regulatory, sensitivity keys
-
-        Returns:
-            True if any risk is detected (non-null), False otherwise
+        Returns True only when risk text contains strong disqualifying keywords.
         """
-        return any(risk_flags.get(key) is not None for key in ["legal", "regulatory", "sensitivity"])
+        disqualifying = {"illegal", "prohibited", "copyright", "trademark", "defamatory", "hate", "discriminat"}
+        for key in ["legal", "regulatory", "sensitivity"]:
+            val = risk_flags.get(key)
+            if val and any(kw in val.lower() for kw in disqualifying):
+                return True
+        return False
 
     def get_regeneration_prompt(self, risk_type: str) -> str:
         """
