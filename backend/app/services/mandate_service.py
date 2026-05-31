@@ -87,11 +87,18 @@ class MandateService:
         return mandate.to_dict()
 
     async def get_summary_card(self, mandate_id: str, tenant_id: str, mongo_db) -> dict:
-        await self._get_or_404(mandate_id, tenant_id)
+        """Return the flat mandate (the summary card the frontend renders).
+
+        The mandate exists in SQL immediately after create, so this never 404s
+        while the async AGT-01 analysis is still pending. When the analysis doc
+        is ready it is merged in under ``analysis`` to enrich the card.
+        """
+        mandate = await self._get_or_404(mandate_id, tenant_id)
+        card = mandate.to_dict()
         doc = await mongo_db["mandate_analyses"].find_one(
             {"mandate_id": mandate_id, "tenant_id": tenant_id}
         )
-        if not doc:
-            raise HTTPException(status_code=404, detail="Summary card not yet available")
-        doc.pop("_id", None)
-        return doc
+        if doc:
+            card["analysis"] = doc.get("analysis")
+            card["analyzed_at"] = doc.get("created_at")
+        return card

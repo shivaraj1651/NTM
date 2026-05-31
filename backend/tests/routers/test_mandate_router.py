@@ -28,14 +28,16 @@ def make_mock_db(mandate=None, client_profile=None, job_report=None):
         col = MagicMock()
         col.find_one = AsyncMock(return_value=find_one_result)
         col.insert_one = AsyncMock(return_value=MagicMock())
+        col.replace_one = AsyncMock(return_value=MagicMock())
         return col
 
-    db = MagicMock()
-    db.__getitem__ = MagicMock(side_effect=lambda name: {
+    cols = {
         "mandates": make_col(mandate),
         "clients": make_col(client_profile),
         "ci_reports": make_col(job_report),
-    }.get(name, make_col(None)))
+    }
+    db = MagicMock()
+    db.__getitem__ = MagicMock(side_effect=lambda name: cols.setdefault(name, make_col(None)))
     return db
 
 
@@ -127,7 +129,8 @@ def make_app_with_sql(mock_mongo_db=None, mock_sql_session=None):
 # ── POST /api/v1/mandates ─────────────────────────────────────────────────────
 
 def test_create_mandate_returns_201():
-    app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
+    mongo_db = make_mock_db()
+    app = make_app_with_sql(mock_mongo_db=mongo_db, mock_sql_session=make_mock_sql_session())
     mandate_payload = {
         "name": "Summer Campaign",
         "client_id": "c-001",
@@ -146,6 +149,17 @@ def test_create_mandate_returns_201():
         response = client.post("/api/v1/mandates", json=mandate_payload)
     assert response.status_code == 201
     mock_task.delay.assert_called_once_with("m-new", "test-tenant")
+    # mandate mirrored into Mongo so downstream Mongo readers resolve it
+    mongo_db["mandates"].replace_one.assert_awaited_once()
+
+
+def test_create_mandate_missing_required_field_returns_422_mongo_safe():
+    mongo_db = make_mock_db()
+    app = make_app_with_sql(mock_mongo_db=mongo_db, mock_sql_session=make_mock_sql_session())
+    with patch("backend.app.routers.mandate.MandateService"):
+        client = TestClient(app)
+        response = client.post("/api/v1/mandates", json={"name": "Incomplete"})
+    assert response.status_code == 422
 
 
 def test_create_mandate_missing_required_field_returns_422():

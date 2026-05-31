@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from backend.app.routers.mandate import router as mandate_router
+from backend.app.routers.clients import router as clients_router
 from backend.app.routers.campaign import router as campaign_router
 from backend.app.routers.activations import router as activations_router
 from backend.app.routers.creatives import router as creatives_router
@@ -19,6 +20,7 @@ from backend.app.routers.auth_session import router as auth_session_router
 
 def register_routers(app: FastAPI) -> None:
     app.include_router(mandate_router)
+    app.include_router(clients_router)
     app.include_router(campaign_router)
     app.include_router(activations_router)
     app.include_router(creatives_router)

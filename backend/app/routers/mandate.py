@@ -286,9 +286,20 @@ async def create_mandate(
     user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_sql_db),
+    mongo_db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> dict:
     svc = MandateService(db)
     result = await svc.create(body, user.id, tenant_id)
+    # Mirror into Mongo so db["mandates"] readers (campaign creation, competitive
+    # intel) resolve the mandate by _id. SQL remains the canonical relational store.
+    try:
+        await mongo_db["mandates"].replace_one(
+            {"_id": result["id"]},
+            {**result, "_id": result["id"]},
+            upsert=True,
+        )
+    except Exception as exc:
+        logger.warning("Mandate Mongo mirror write failed for %s: %s", result["id"], exc)
     run_mandate_analysis.delay(result["id"], tenant_id)
     return result
 

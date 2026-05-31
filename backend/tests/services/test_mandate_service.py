@@ -101,7 +101,9 @@ async def test_confirm_analyzed_mandate_sets_confirmed():
 # ── get_summary_card ──────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_get_summary_card_not_found_raises_404():
+async def test_get_summary_card_returns_flat_mandate_when_analysis_absent():
+    """The card is the flat mandate, available immediately after create — no 404
+    while the async analysis is still pending."""
     from backend.app.services.mandate_service import MandateService
     session = make_mock_session(mandate=make_mandate())
     mongo_col = MagicMock()
@@ -109,23 +111,39 @@ async def test_get_summary_card_not_found_raises_404():
     mongo_db = MagicMock()
     mongo_db.__getitem__ = MagicMock(return_value=mongo_col)
     svc = MandateService(session)
-    with pytest.raises(HTTPException) as exc:
-        await svc.get_summary_card("m-001", "tenant-1", mongo_db)
-    assert exc.value.status_code == 404
+    result = await svc.get_summary_card("m-001", "tenant-1", mongo_db)
+    assert result["id"] == "m-001"
+    assert result["status"] == "draft"
+    assert "analysis" not in result
 
 
 @pytest.mark.asyncio
-async def test_get_summary_card_returns_doc():
+async def test_get_summary_card_merges_analysis_when_present():
     from backend.app.services.mandate_service import MandateService
     session = make_mock_session(mandate=make_mandate())
     mongo_col = MagicMock()
-    mongo_col.find_one = AsyncMock(return_value={"mandate_id": "m-001", "score": 90, "_id": "x"})
+    mongo_col.find_one = AsyncMock(return_value={
+        "mandate_id": "m-001", "tenant_id": "tenant-1",
+        "analysis": {"completeness_score": 90}, "created_at": "2026-05-31T00:00:00+00:00", "_id": "x",
+    })
     mongo_db = MagicMock()
     mongo_db.__getitem__ = MagicMock(return_value=mongo_col)
     svc = MandateService(session)
     result = await svc.get_summary_card("m-001", "tenant-1", mongo_db)
-    assert result["score"] == 90
+    assert result["id"] == "m-001"  # flat mandate fields present
+    assert result["analysis"]["completeness_score"] == 90
     assert "_id" not in result
+
+
+@pytest.mark.asyncio
+async def test_get_summary_card_mandate_missing_raises_404():
+    from backend.app.services.mandate_service import MandateService
+    session = make_mock_session(mandate=None)
+    mongo_db = MagicMock()
+    svc = MandateService(session)
+    with pytest.raises(HTTPException) as exc:
+        await svc.get_summary_card("nope", "tenant-1", mongo_db)
+    assert exc.value.status_code == 404
 
 
 # ── create ────────────────────────────────────────────────────────────────────
