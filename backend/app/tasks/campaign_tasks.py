@@ -130,15 +130,23 @@ async def _run_concept_generation(campaign_id: str, tenant_id: str) -> None:
         if regen_log:
             logger.info("[run_concept_generation] regen log for %s: %s", campaign_id, regen_log)
 
+        import uuid as _uuid
+        # Real LLM output doesn't include an id field — assign stable UUIDs now so
+        # confirm's concept-id lookup always resolves.
+        concepts = output.get("campaigns", [])
+        for c in concepts:
+            if not c.get("id"):
+                c["id"] = str(_uuid.uuid4())
+
         await db["campaigns"].find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
                 "status": "concepts_ready",
-                "concepts": output.get("campaigns", []),
+                "concepts": concepts,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
-        logger.info("[run_concept_generation] stored concepts for campaign %s", campaign_id)
+        logger.info("[run_concept_generation] stored %d concepts for campaign %s", len(concepts), campaign_id)
     except Exception as exc:
         logger.error("[run_concept_generation] error for %s: %s", campaign_id, exc)
         try:
