@@ -16,6 +16,7 @@ export function ConceptsPage() {
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (!campaign) return null
+  if (campaign.status === 'pending') return <p className="text-muted-foreground text-sm">Generating concepts…</p>
 
   // The backend (AGT-03) and the MSW mock return different concept shapes.
   // Normalize both into the fields this page renders.

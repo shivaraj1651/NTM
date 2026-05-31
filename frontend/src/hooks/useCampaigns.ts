@@ -31,6 +31,10 @@ export function useCampaign(campaignId: string, options?: Partial<UseQueryOption
     queryKey: ['campaign', campaignId],
     queryFn: () => getCampaign(campaignId),
     enabled: !!campaignId,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status
+      return s === 'pending' || s === 'confirmed' || s === 'budget_pending' || s === 'creative_generating' ? 3000 : false
+    },
     ...options,
   })
 }

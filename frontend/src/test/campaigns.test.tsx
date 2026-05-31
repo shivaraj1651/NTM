@@ -110,6 +110,15 @@ describe('ConceptsPage', () => {
     )
   })
 
+  it('shows a generating state while concepts are pending', async () => {
+    server.use(http.get('/api/v1/campaigns/:id', () =>
+      HttpResponse.json({ id: 'c-gen', mandate_id: 'm', tenant_id: 't1', status: 'pending',
+        concepts: [], selected_concept_id: null, activation_plan: null, budget_proposal: null,
+        creative_assets: null, kpi_configs: [], created_at: '2026-05-31T00:00:00Z', updated_at: '2026-05-31T00:00:00Z' })))
+    renderCampaignPage(<ConceptsPage />, 'c-gen')
+    expect(await screen.findByText(/generating concepts/i)).toBeInTheDocument()
+  })
+
   it('renders backend rich-shape concepts (channel_mix / tone_board object) without crashing', async () => {
     const richCampaign = {
       id: 'c-rich', mandate_id: 'm-x', tenant_id: 't1', status: 'concepts_ready',

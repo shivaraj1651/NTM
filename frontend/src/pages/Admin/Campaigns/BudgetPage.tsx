@@ -10,15 +10,13 @@ import type { BudgetAllocation } from '@/types/admin'
 export function BudgetPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // Poll every 5s while AGT-05 is running (status=planned, no proposal yet)
-  const { data: campaign, isLoading } = useCampaign(id!, {
-    refetchInterval: (query) =>
-      query.state.data?.status === 'planned' && !query.state.data?.budget_proposal ? 5000 : false,
-  })
+  // Poll while budget is being generated (budget_pending) or AGT-05 still running (planned, no proposal yet)
+  const { data: campaign, isLoading } = useCampaign(id!)
   const confirmBudget = useConfirmBudget(id!)
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (!campaign) return null
+  if (campaign?.status === 'budget_pending') return <p className="text-muted-foreground text-sm">Generating budget…</p>
 
   const { budget_proposal, status } = campaign
 

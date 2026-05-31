@@ -242,6 +242,7 @@ export type CampaignStatus =
   | 'concepts_ready'
   | 'confirmed'
   | 'planned'
+  | 'budget_pending'
   | 'budget_proposed'
   | 'approved'
   | 'creative_generating'
