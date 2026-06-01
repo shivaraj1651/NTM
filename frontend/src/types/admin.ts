@@ -266,6 +266,16 @@ export type ReviewAction = 'approve' | 'request_change' | 'reject'
 
 // Aligned to backend CampaignResponse.
 // activation_plan is list | null on the backend; updated_at can be null.
+export interface PlatformActivationResult {
+  status: 'queued' | 'live' | 'test_live' | 'failed'
+  campaign_id: string | null
+  ad_id: string | null
+  ad_set_id?: string | null
+  test_mode?: boolean
+  error: string | null
+  updated_at?: string | null
+}
+
 export interface Campaign {
   id: string
   mandate_id: string
@@ -277,6 +287,8 @@ export interface Campaign {
   budget_proposal: BudgetProposal | null
   creative_assets: CreativeAssets | null
   kpi_configs: KpiConfig[]
+  /** Populated by Celery activation tasks — one entry per platform (google_ads, meta_ads) */
+  activation_results?: Record<string, PlatformActivationResult> | null
   created_at: string | null
   updated_at: string | null
 }
@@ -314,9 +326,13 @@ export type CopyAssetType =
   | 'influencer_brief'
 
 export interface CopyVariant {
-  variant: 'A' | 'B'
-  content: string
+  // Real backend (AGT-07) shape
+  variant_id?: string
+  content: string | { text?: string; subject?: string; body?: string; [key: string]: unknown }
   word_count: number
+  rationale?: string
+  // Legacy MSW shape
+  variant?: 'A' | 'B'
 }
 
 export interface CopyAsset {
@@ -327,10 +343,20 @@ export interface CopyAsset {
 }
 
 export interface ScriptAsset {
-  id: string
-  format: 'tvc_vo' | 'radio' | 'social_video'
-  content: string
-  duration_estimate: string
+  // Real backend (AGT-08) shape
+  duration_label?: string
+  total_duration_seconds?: number
+  scenes?: { scene_number: number; description: string; action?: string; dialogue?: string }[]
+  directors_note?: string
+  talent_suggestions?: string[]
+  location_suggestions?: string[]
+  wardrobe_notes?: string
+  music_direction?: string
+  // Legacy MSW shape
+  id?: string
+  format?: 'tvc_vo' | 'radio' | 'social_video'
+  content?: string
+  duration_estimate?: string
   approved: boolean | null
   revision_count: number
 }

@@ -4,7 +4,7 @@ import os
 from typing import Dict, Any, List, Optional
 import re
 
-from backend.app.external.stubs import stub_enabled
+from backend.app.external.stubs import stub_enabled, ads_test_mode
 
 logger = logging.getLogger(__name__)
 
@@ -118,11 +118,25 @@ async def create_campaign(
         httpx.HTTPStatusError: on API 4xx/5xx
     """
     token = _get_access_token()
+    # Map legacy objectives to v21.0 OUTCOME_* format
+    _OBJ_MAP = {
+        "LINK_CLICKS": "OUTCOME_TRAFFIC",
+        "REACH": "OUTCOME_AWARENESS",
+        "BRAND_AWARENESS": "OUTCOME_AWARENESS",
+        "VIDEO_VIEWS": "OUTCOME_AWARENESS",
+        "LEAD_GENERATION": "OUTCOME_LEADS",
+        "CONVERSIONS": "OUTCOME_SALES",
+        "APP_INSTALLS": "OUTCOME_APP_PROMOTION",
+    }
+    api_objective = _OBJ_MAP.get(objective.upper(), "OUTCOME_AWARENESS")
+    # Ensure daily budget is at least $5 (500 cents); cost_estimated is total, divide by 30 for daily
+    daily_cents = max(int((budget / 30) * 100), 500)
     payload: Dict[str, Any] = {
         "name": name,
-        "objective": objective,
-        "status": "PAUSED",
-        "daily_budget": str(int(budget * 100)),
+        "objective": api_objective,
+        "status": "ACTIVE",
+        "daily_budget": str(daily_cents),
+        "special_ad_categories": [],
         "access_token": token,
     }
     if schedule.get("start_time"):
@@ -490,44 +504,88 @@ async def activate_meta(
     """Activate a campaign on Meta (Facebook/Instagram).
 
     Orchestrates create_campaign → create_ad_set → create_ad.
-    The access_token param is accepted for signature compatibility but ignored;
-    token always comes from META_SYSTEM_USER_TOKEN env var.
+    In NTM_ADS_TEST_MODE all objects are created PAUSED — safe for developer testing.
 
     Args:
         activation: Activation record with name, cost_estimated
-        platform_config: Meta targeting: age_min, age_max, geo_locations, interests
-        creative_url: URL used as ad link; image_hash left empty (upload separately)
-        access_token: Ignored — kept for API compatibility
+        platform_config: Meta targeting + concept data: age_min, age_max,
+            geo_locations, interests, tagline, master_message, page_id
+        creative_url: URL used as ad link
+        access_token: Ignored — token comes from META_SYSTEM_USER_TOKEN env var
 
     Returns:
-        {campaign_id, ad_id, status: "live"|"failed", error: str|None}
+        {campaign_id, ad_set_id, ad_id, status: "live"|"test_live"|"failed", error: str|None}
     """
-    # NTM_STUB_EXTERNAL: stubbed external call
+    # NTM_STUB_EXTERNAL: fully fake — no real API calls
     if stub_enabled():
         logger.info("Meta Ads activate_meta stubbed (NTM_STUB_EXTERNAL)")
         return {
             "campaign_id": "stub-meta-campaign-001",
+            "ad_set_id": "stub-meta-adset-001",
             "ad_id": "stub-meta-ad-001",
             "status": "live",
+            "test_mode": False,
             "error": None,
         }
 
+    test_mode = ads_test_mode()
     account_id = os.getenv("META_AD_ACCOUNT_ID", "")
-    campaign_name = activation.get("name", "Campaign")
-    daily_budget = float(activation.get("cost_estimated", 0))
+    raw_name = activation.get("name", "Campaign")
+    campaign_name = f"[TEST] {raw_name}" if test_mode else raw_name
+    total_budget = float(activation.get("cost_estimated", 0))
+
+    # Ad copy from concept
+    tagline       = platform_config.get("tagline", "") or raw_name
+    master_message = platform_config.get("master_message", "") or raw_name
+    page_id       = platform_config.get("page_id", "") or os.getenv("META_PAGE_ID", "")
+
+    # In test mode all objects PAUSED; in production campaign ACTIVE, adset/ad PAUSED
+    # (adset/ad are always PAUSED in create_ad_set/create_ad — activation is manual)
+    campaign_status_override = "PAUSED" if test_mode else "ACTIVE"
+
+    logger.info(
+        "Meta activation: test_mode=%s campaign=%r status=%s",
+        test_mode, campaign_name, campaign_status_override,
+    )
 
     try:
         if not account_id:
             raise RuntimeError("META_AD_ACCOUNT_ID must be set")
+        if not page_id:
+            raise RuntimeError("META_PAGE_ID must be set (or pass page_id in platform_config)")
 
-        campaign_id = await create_campaign(
-            ad_account_id=account_id,
-            name=campaign_name,
-            objective="LINK_CLICKS",
-            budget=daily_budget,
-            schedule={},
-        )
+        token = _get_access_token()
 
+        # Map objective from mandate
+        _OBJ_MAP = {
+            "awareness": "OUTCOME_AWARENESS",
+            "consideration": "OUTCOME_TRAFFIC",
+            "conversion": "OUTCOME_SALES",
+            "loyalty": "OUTCOME_ENGAGEMENT",
+            "engagement": "OUTCOME_ENGAGEMENT",
+        }
+        mandate_objective = platform_config.get("objective", "awareness").lower()
+        api_objective = _OBJ_MAP.get(mandate_objective, "OUTCOME_AWARENESS")
+
+        daily_cents = max(int((total_budget / 30) * 100), 500)  # min $5/day
+        payload: Dict[str, Any] = {
+            "name": campaign_name,
+            "objective": api_objective,
+            "status": campaign_status_override,
+            "daily_budget": str(daily_cents),
+            "special_ad_categories": [],
+            "access_token": token,
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(
+                f"{META_BASE}/act_{account_id}/campaigns",
+                json=payload,
+            )
+            r.raise_for_status()
+            campaign_id = r.json()["id"]
+
+        # Audience spec from platform_config
         audience_spec = {
             "age_min": platform_config.get("age_min", 18),
             "age_max": platform_config.get("age_max", 65),
@@ -539,18 +597,40 @@ async def activate_meta(
             name=f"{campaign_name} - AdSet",
             audience_spec=audience_spec,
             placements=["facebook", "instagram"],
-            budget=daily_budget,
+            budget=max(total_budget / 30, 5.0),  # daily rate
         )
 
         ad_id = await create_ad(
             ad_set_id=ad_set_id,
-            creative_spec={"link": creative_url, "message": campaign_name},
+            creative_spec={
+                "link": creative_url or "https://example.com",
+                "message": master_message,
+                "page_id": page_id,
+            },
             name=f"{campaign_name} - Ad",
         )
 
-        logger.info("Meta campaign %s activated successfully", campaign_id)
-        return {"campaign_id": campaign_id, "ad_id": ad_id, "status": "live", "error": None}
+        result_status = "test_live" if test_mode else "live"
+        logger.info(
+            "Meta campaign %s created status=%s test_mode=%s",
+            campaign_id, result_status, test_mode,
+        )
+        return {
+            "campaign_id": campaign_id,
+            "ad_set_id": ad_set_id,
+            "ad_id": ad_id,
+            "status": result_status,
+            "test_mode": test_mode,
+            "error": None,
+        }
 
     except Exception as e:
         logger.error("Meta activation failed: %s: %s", type(e).__name__, str(e))
-        return {"campaign_id": None, "ad_id": None, "status": "failed", "error": str(e)}
+        return {
+            "campaign_id": None,
+            "ad_set_id": None,
+            "ad_id": None,
+            "status": "failed",
+            "test_mode": test_mode,
+            "error": str(e),
+        }

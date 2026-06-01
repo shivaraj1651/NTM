@@ -532,50 +532,89 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
             {"_id": doc.get("mandate_id"), "tenant_id": tenant_id}
         ) or {}
 
-        # Extract shared brief fields from concept + mandate
+        # ── Extract ALL concept fields (selected concept drives 100% of creative output) ──
+        concept_name        = concept.get("name", "")
+        tagline             = concept.get("tagline", "")
+        strategic_narrative = concept.get("strategic_narrative", "")
+        campaign_theme      = concept.get("campaign_theme", "") or concept_name
+
         tone_board = concept.get("tone_board", {})
         tone_adjectives = (
-            tone_board.get("adjectives", [])
-            if isinstance(tone_board, dict)
+            tone_board.get("adjectives", []) if isinstance(tone_board, dict)
             else ([tone_board] if isinstance(tone_board, str) else [])
         )
-        messaging = concept.get("message_architecture", {})
-        channels = [m.get("channel", "") for m in concept.get("channel_mix", [])]
+        # visual_direction lives inside tone_board — NOT at the top-level concept key
+        visual_direction = (
+            tone_board.get("visual_direction", "") if isinstance(tone_board, dict) else ""
+        )
+
+        messaging            = concept.get("message_architecture", {})
+        master_message       = messaging.get("master_message", "")
+        channel_adaptations  = messaging.get("channel_adaptations", {})
+
+        primary_audience = str(
+            concept.get("audience_segmentation", {}).get("primary", "")
+        )
+
+        channel_names = [m.get("channel", "") for m in concept.get("channel_mix", [])]
+
+        # Mandate supplies brand identity — concept supplies creative direction
+        brand_name       = mandate.get("name", "")
+        brand_description = mandate.get("description", "") or mandate.get("product_details", "")
+        mandate_objective = mandate.get("objective", "")
+
+        # primary_cta: prefer concept master_message, fall back to mandate primary_cta
+        primary_cta = master_message or messaging.get("primary_cta", "") or tagline
 
         copy_brief = CreativeBrief(
             campaign_id=campaign_id,
             tenant_id=tenant_id,
-            core_concept=concept.get("name", ""),
-            campaign_theme=concept.get("campaign_theme", ""),
+            core_concept=concept_name,
+            campaign_theme=campaign_theme,
             tone_adjectives=tone_adjectives,
-            visual_direction=concept.get("visual_direction", ""),
-            brand_voice=mandate.get("brand_voice", ""),
-            primary_cta=messaging.get("primary_cta", ""),
-            target_audience=str(
-                concept.get("audience_segmentation", {}).get("primary", mandate.get("target_audience", ""))
-            ),
-            product_details=mandate.get("product_details", ""),
+            visual_direction=visual_direction,
+            brand_voice=f"{brand_name} — {mandate_objective}" if brand_name else mandate_objective,
+            primary_cta=primary_cta,
+            target_audience=primary_audience or mandate.get("target_audience", ""),
+            product_details=brand_description,
             messaging_rules=messaging.get("messaging_rules", []),
+            tagline=tagline,
+            master_message=master_message,
         )
 
-        script_brief = ScriptwriterBrief(
-            campaign_id=campaign_id,
-            tenant_id=tenant_id,
-            script_format="tvc",
-            core_concept=copy_brief.core_concept,
-            campaign_theme=copy_brief.campaign_theme,
-            tone_adjectives=copy_brief.tone_adjectives,
-            visual_direction=copy_brief.visual_direction,
-            brand_voice=copy_brief.brand_voice,
-            target_audience=copy_brief.target_audience,
-            product_details=copy_brief.product_details,
-            primary_cta=copy_brief.primary_cta,
-            messaging_rules=copy_brief.messaging_rules,
+        # Determine script formats from channel_mix
+        # Always include TVC; add social_video if any social/video channel is in the mix
+        _social_keywords = ("tiktok", "instagram", "reels", "youtube", "social", "shorts", "video")
+        needs_social_video = any(
+            any(kw in ch.lower() for kw in _social_keywords)
+            for ch in channel_names
         )
+        script_formats_needed = ["tvc", "social_video"] if needs_social_video else ["tvc"]
+
+        def _make_script_brief(fmt: str) -> ScriptwriterBrief:
+            return ScriptwriterBrief(
+                campaign_id=campaign_id,
+                tenant_id=tenant_id,
+                script_format=fmt,
+                core_concept=concept_name,
+                campaign_theme=campaign_theme,
+                tone_adjectives=tone_adjectives,
+                visual_direction=visual_direction,
+                brand_voice=copy_brief.brand_voice,
+                target_audience=copy_brief.target_audience,
+                product_details=brand_description,
+                primary_cta=primary_cta,
+                messaging_rules=copy_brief.messaging_rules,
+                tagline=tagline,
+                master_message=master_message,
+                strategic_narrative=strategic_narrative,
+                channel_adaptations=channel_adaptations,
+            )
+        script_briefs = [_make_script_brief(fmt) for fmt in script_formats_needed]
 
         # Step 0: SerpAPI competitor analysis — inform creative prompts
         competitor_insights: dict = {}
-        brand_name = mandate.get("brand_name") or mandate.get("name") or ""
+        brand_name = mandate.get("name", "")
         if brand_name:
             try:
                 competitor_insights = await search_competitor_ads(brand_name)
@@ -587,12 +626,63 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
         copywriter = CopywriterAgent()
         scriptwriter = ScriptwriterAgent()
 
+        def _to_list(val):
+            if isinstance(val, list):
+                return val
+            if isinstance(val, dict):
+                for k in ("scripts", "tvc_scripts", "radio_scripts", "social_video_scripts", "items", "results"):
+                    if k in val and isinstance(val[k], list):
+                        return val[k]
+                return [val]
+            return []
+
+        def _normalize_script(s: dict) -> dict:
+            if "content" not in s:
+                lines = []
+                for sc in (s.get("scenes") or s.get("lines") or []):
+                    if isinstance(sc, dict):
+                        parts = [f"Scene {sc.get('scene_number', sc.get('line_number', ''))}:"]
+                        if sc.get("description"):
+                            parts.append(sc["description"])
+                        if sc.get("vo") or sc.get("vo_text"):
+                            parts.append(f"VO: {sc.get('vo') or sc.get('vo_text')}")
+                        if sc.get("dialogue"):
+                            parts.append(f'"{sc["dialogue"]}"')
+                        if sc.get("sfx") or sc.get("sfx_cue"):
+                            parts.append(f"SFX: {sc.get('sfx') or sc.get('sfx_cue')}")
+                        lines.append("\n".join(p for p in parts if p))
+                if not lines:
+                    for key in ("hook", "content", "cta"):
+                        if s.get(key):
+                            lines.append(f"{key.upper()}: {s[key]}")
+                if not lines and s.get("directors_note"):
+                    lines.append(s["directors_note"])
+                s = dict(s, content="\n\n".join(lines) if lines else "Script content not available")
+            if "id" not in s:
+                s = dict(s, id=str(uuid4()))
+            if "format" not in s:
+                # Infer format from platform field (social video) or default to tvc_vo
+                plat = s.get("platform", "")
+                s = dict(s, format="social_video" if plat else "tvc_vo")
+            if "duration_estimate" not in s:
+                dur = s.get("duration_label") or (
+                    f"{s.get('total_duration_seconds') or s.get('estimated_duration_seconds', 30)}s"
+                )
+                s = dict(s, duration_estimate=dur)
+            if "approved" not in s:
+                s = dict(s, approved=None)
+            if "revision_count" not in s:
+                s = dict(s, revision_count=0)
+            return s
+
         try:
-            copy_result, script_result = await asyncio.gather(
+            gather_results = await asyncio.gather(
                 copywriter.generate(copy_brief),
-                scriptwriter.generate(script_brief),
+                *[scriptwriter.generate(sb) for sb in script_briefs],
                 return_exceptions=True,
             )
+            copy_result = gather_results[0]
+            script_results = gather_results[1:]
 
             if isinstance(copy_result, Exception):
                 logger.error("[run_creative_generation] copywriter error for %s: %s", campaign_id, copy_result)
@@ -601,80 +691,49 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                 raw = copy_result.model_dump(mode="json") if hasattr(copy_result, "model_dump") else copy_result
                 copy_assets = raw.get("assets", []) if isinstance(raw, dict) else []
 
-            if isinstance(script_result, Exception):
-                logger.error("[run_creative_generation] scriptwriter error for %s: %s", campaign_id, script_result)
-                script_assets = []
-            else:
+            script_assets = []
+            for fmt, script_result in zip(script_formats_needed, script_results):
+                if isinstance(script_result, Exception):
+                    logger.error("[run_creative_generation] scriptwriter %s error for %s: %s", fmt, campaign_id, script_result)
+                    continue
                 raw = script_result.model_dump(mode="json") if hasattr(script_result, "model_dump") else script_result
-                def _to_list(val):
-                    if isinstance(val, list):
-                        return val
-                    if isinstance(val, dict):
-                        for k in ("scripts", "tvc_scripts", "radio_scripts", "social_video_scripts", "items", "results"):
-                            if k in val and isinstance(val[k], list):
-                                return val[k]
-                        return [val]
-                    return []
+                script_assets.extend([_normalize_script(s) for s in _to_list(raw)])
 
-                def _normalize_script(s: dict) -> dict:
-                    # Build readable content string from scenes if content field absent
-                    if "content" not in s:
-                        lines = []
-                        for sc in (s.get("scenes") or []):
-                            if isinstance(sc, dict):
-                                parts = [f"Scene {sc.get('scene_number', '')}:"]
-                                if sc.get("description"):
-                                    parts.append(sc["description"])
-                                if sc.get("action"):
-                                    parts.append(f"Action: {sc['action']}")
-                                if sc.get("dialogue"):
-                                    parts.append(f'"{sc["dialogue"]}"')
-                                lines.append("\n".join(parts))
-                        if not lines and s.get("directors_note"):
-                            lines.append(s["directors_note"])
-                        s = dict(s, content="\n\n".join(lines) if lines else "Script content not available")
-                    if "id" not in s:
-                        s = dict(s, id=str(uuid4()))
-                    if "format" not in s:
-                        s = dict(s, format="tvc_vo")
-                    if "duration_estimate" not in s:
-                        dur = s.get("duration_label") or (
-                            f"{s.get('total_duration_seconds', 30)}s"
-                            if s.get("total_duration_seconds") else "30s"
-                        )
-                        s = dict(s, duration_estimate=dur)
-                    if "approved" not in s:
-                        s = dict(s, approved=None)
-                    if "revision_count" not in s:
-                        s = dict(s, revision_count=0)
-                    return s
-
-                script_assets = [_normalize_script(s) for s in _to_list(raw)]
-
-            # Step 3: Generate images via Stability AI (square / landscape / portrait)
+            # Step 3: Generate images via Stability AI (square / landscape / portrait / ooh_billboard)
             image_assets = []
             try:
                 storage = _MinioStorageClient()
                 image_agent = ImageGeneratorAgent()
                 competitor_style = ", ".join(competitor_insights.get("messaging_samples", [])[:2])
+
+                # OOH billboard headline: concept tagline is the pre-defined catchy line
+                ooh_headline = tagline or master_message
+
+                img_formats = ("square", "landscape", "portrait", "ooh_billboard")
                 img_briefs = [
                     ImageGenerationBrief(
                         campaign_id=campaign_id,
                         tenant_id=tenant_id,
                         image_format=fmt,
-                        visual_direction=concept.get("visual_direction", copy_brief.campaign_theme),
+                        visual_direction=visual_direction or campaign_theme,
                         brand_palette=mandate.get("brand_colors", []),
                         tone_adjectives=tone_adjectives,
-                        campaign_theme=copy_brief.campaign_theme,
+                        campaign_theme=campaign_theme,
                         style_notes=competitor_style,
+                        brand_name=brand_name,
+                        product_details=brand_description,
+                        target_audience=copy_brief.target_audience,
+                        headline_text=ooh_headline if fmt == "ooh_billboard" else "",
+                        tagline=tagline,
+                        master_message=master_message,
                     )
-                    for fmt in ("square", "landscape", "portrait")
+                    for fmt in img_formats
                 ]
                 img_results = await asyncio.gather(
                     *[image_agent.generate(b, storage_client=storage) for b in img_briefs],
                     return_exceptions=True,
                 )
-                for fmt, res in zip(("square", "landscape", "portrait"), img_results):
+                for fmt, res in zip(img_formats, img_results):
                     if isinstance(res, Exception):
                         logger.error("[run_creative_generation] image %s failed: %s", fmt, res)
                     else:
@@ -686,8 +745,136 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                             "revision_count": 0,
                         })
                 logger.info("[run_creative_generation] images generated: %d", len(image_assets))
+
+                # Persist images to GeneratedCreative so Creative Studio page shows them
+                if image_assets:
+                    try:
+                        from backend.app.models.creative import GeneratedCreative
+                        factory = _get_session_factory()
+                        async with factory() as session:
+                            gen_id = str(uuid4())
+                            fmt_labels = {
+                                "square": "Square Ad (1:1)",
+                                "landscape": "Landscape Banner (16:9)",
+                                "portrait": "Portrait Story (9:16)",
+                                "ooh_billboard": "OOH Billboard",
+                            }
+                            for img in image_assets:
+                                row = GeneratedCreative(
+                                    id=img["id"],
+                                    campaign_id=campaign_id,
+                                    tenant_id=tenant_id,
+                                    generation_id=gen_id,
+                                    platform=img["format"],
+                                    creative_type="image",
+                                    content={
+                                        "url": img["url"],
+                                        "asset_url": img["url"],
+                                        "format": img["format"],
+                                        "label": fmt_labels.get(img["format"], img["format"]),
+                                        "brand_name": brand_name,
+                                        "campaign_theme": copy_brief.campaign_theme,
+                                    },
+                                    validation_status="ai_draft",
+                                    refinement_attempts=0,
+                                )
+                                session.add(row)
+                            await session.commit()
+                        logger.info(
+                            "[run_creative_generation] persisted %d images to GeneratedCreative",
+                            len(image_assets),
+                        )
+                    except Exception as _persist_exc:
+                        logger.error(
+                            "[run_creative_generation] GeneratedCreative persist failed: %s", _persist_exc
+                        )
             except Exception as _img_exc:
                 logger.error("[run_creative_generation] image generation block failed: %s", _img_exc)
+
+            # Persist copy + scripts to GeneratedCreative so Creative Studio shows them
+            # Each row gets its own unique generation_id to avoid the unique constraint on
+            # (campaign_id, generation_id, platform, creative_type).
+            try:
+                from backend.app.models.creative import GeneratedCreative as _GC
+                factory2 = _get_session_factory()
+                async with factory2() as session2:
+                    _copy_type_labels = {
+                        "headline":          "Headline",
+                        "social_caption":    "Social Caption",
+                        "body_copy":         "Body Copy",
+                        "print_ad":          "Print Ad",
+                        "email":             "Email",
+                        "ooh_billboard":     "OOH Billboard Copy",
+                        "influencer_brief":  "Influencer Brief",
+                    }
+                    for asset in copy_assets:
+                        if not isinstance(asset, dict):
+                            continue
+                        atype = asset.get("asset_type", "copy")
+                        variants = asset.get("variants", [])
+                        preview_parts = []
+                        for v in variants[:2]:
+                            c = v.get("content", "")
+                            text = c if isinstance(c, str) else " | ".join(str(x) for x in c.values() if x)
+                            vid = v.get("variant_id", v.get("variant", ""))
+                            preview_parts.append(f"[{vid}] {text}")
+                        row = _GC(
+                            id=str(uuid4()),
+                            campaign_id=campaign_id,
+                            tenant_id=tenant_id,
+                            generation_id=str(uuid4()),  # unique per row
+                            platform=atype,              # asset_type as platform avoids collisions
+                            creative_type="copy",
+                            content={
+                                "asset_type": atype,
+                                "label": _copy_type_labels.get(atype, atype.replace("_", " ").title()),
+                                "tagline": tagline,
+                                "variants": variants,
+                                "preview": " | ".join(preview_parts),
+                                "campaign_theme": campaign_theme,
+                            },
+                            validation_status="ai_draft",
+                            refinement_attempts=0,
+                        )
+                        session2.add(row)
+                    _fmt_labels = {
+                        "tvc_vo":       "TVC Script",
+                        "social_video": "Social Video Script",
+                        "radio":        "Radio Script",
+                    }
+                    for script in script_assets:
+                        if not isinstance(script, dict):
+                            continue
+                        fmt = script.get("format", "tvc_vo")
+                        dur = script.get("duration_estimate", "30s")
+                        row = _GC(
+                            id=script.get("id") or str(uuid4()),
+                            campaign_id=campaign_id,
+                            tenant_id=tenant_id,
+                            generation_id=str(uuid4()),  # unique per row
+                            platform=f"{script.get('platform', fmt)}-{dur}",  # include duration to avoid dupe
+                            creative_type="script",
+                            content={
+                                "format": fmt,
+                                "label": _fmt_labels.get(fmt, fmt.replace("_", " ").title()),
+                                "tagline": tagline,
+                                "duration_estimate": dur,
+                                "content_preview": (script.get("content", "") or "")[:300],
+                                "campaign_theme": campaign_theme,
+                            },
+                            validation_status="ai_draft",
+                            refinement_attempts=0,
+                        )
+                        session2.add(row)
+                    await session2.commit()
+                logger.info(
+                    "[run_creative_generation] persisted %d copy + %d scripts to GeneratedCreative",
+                    len(copy_assets), len(script_assets),
+                )
+            except Exception as _cp_persist_exc:
+                logger.error(
+                    "[run_creative_generation] copy/script GeneratedCreative persist failed: %s", _cp_persist_exc
+                )
 
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},

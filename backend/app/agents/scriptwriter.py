@@ -41,6 +41,10 @@ class ScriptwriterBrief(BaseModel):
     product_details: str
     primary_cta: str
     messaging_rules: list[str]
+    tagline: str = ""
+    master_message: str = ""
+    strategic_narrative: str = ""
+    channel_adaptations: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -281,27 +285,38 @@ Return ONLY valid JSON (no markdown fences):
     # ------------------------------------------------------------------
 
     def _build_system_prompt(self, brief: ScriptwriterBrief) -> str:
-        rules = "\n".join(f"- {r}" for r in brief.messaging_rules)
-        adjectives = ", ".join(brief.tone_adjectives)
-        return f"""You are a world-class scriptwriter for advertising.
+        rules = "\n".join(f"- {r}" for r in brief.messaging_rules) or "- Stay on-brand and compelling."
+        adjectives = ", ".join(brief.tone_adjectives) or "professional, engaging"
+        tagline_line = f"\nTagline (THE campaign hook — must anchor all scripts): {brief.tagline}" if brief.tagline else ""
+        master_line  = f"\nMaster Message (core strategic line): {brief.master_message}" if brief.master_message else ""
+        narrative_line = f"\nStrategic Narrative: {brief.strategic_narrative}" if brief.strategic_narrative else ""
+        channel_lines = ""
+        if brief.channel_adaptations:
+            channel_lines = "\n\n## Channel-Specific Messaging\n" + "\n".join(
+                f"- {ch}: {msg}" for ch, msg in brief.channel_adaptations.items()
+            )
+        return f"""You are a world-class advertising scriptwriter.
 
 ## Brand Voice
-{brief.brand_voice}
+{brief.brand_voice or "Professional, clear, and benefit-led."}
+
+## Selected Campaign Concept
+Name: {brief.core_concept}
+Theme: {brief.campaign_theme}{tagline_line}{master_line}{narrative_line}
 
 ## Tone Board
 Adjectives: {adjectives}
 Visual Direction: {brief.visual_direction}
 
-## Campaign Context
-Theme: {brief.campaign_theme}
-Core Concept: {brief.core_concept}
+## Campaign Details
 Product/Service: {brief.product_details}
 Target Audience: {brief.target_audience}
-
+Primary CTA: {brief.primary_cta}
+{channel_lines}
 ## Messaging Rules (MUST follow ALL)
 {rules}
 
-Return ONLY valid JSON — no markdown fences, no commentary."""
+CRITICAL: Every script must be rooted in the selected concept. The tagline and master message are the strategic north star — every scene, VO line, and hook must feel like it belongs to this specific campaign. Do NOT write generic scripts."""
 
     def _build_production_brief(self, output: ScriptOutput) -> str:
         fmt = output.script_format.upper().replace("_", " ")

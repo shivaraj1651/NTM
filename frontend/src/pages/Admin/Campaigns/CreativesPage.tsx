@@ -42,9 +42,10 @@ const VOICE_LABELS: Record<string, string> = {
 }
 
 const IMAGE_FORMAT_LABELS: Record<string, string> = {
-  square: 'Square (1024×1024)',
-  landscape: 'Landscape (1344×768)',
-  portrait: 'Portrait (768×1344)',
+  square:        'Square (1024×1024)',
+  landscape:     'Landscape (1344×768)',
+  portrait:      'Portrait (768×1344)',
+  ooh_billboard: 'OOH Billboard (1344×768)',
 }
 
 function formatDuration(seconds: number): string {
@@ -259,7 +260,10 @@ function ImagesTab({
               className="w-full rounded object-cover"
               style={{
                 aspectRatio:
-                  img.format === 'portrait' ? '3/4' : img.format === 'landscape' ? '16/9' : '1/1',
+                  img.format === 'portrait' ? '9/16'
+                  : img.format === 'landscape' ? '16/9'
+                  : img.format === 'ooh_billboard' ? '16/5'
+                  : '1/1',
               }}
             />
             <div className="flex items-center justify-between">

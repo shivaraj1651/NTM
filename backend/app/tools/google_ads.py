@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 
 import httpx
 
-from backend.app.external.stubs import stub_enabled
+from backend.app.external.stubs import stub_enabled, ads_test_mode
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ async def activate_google(
     cid = customer_id or os.getenv("GOOGLE_ADS_CUSTOMER_ID", "")
     developer_token = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
 
+    test_mode = ads_test_mode()
     try:
         if not cid:
             raise RuntimeError("GOOGLE_ADS_CUSTOMER_ID env var must be set or customer_id must be provided")
@@ -63,17 +64,35 @@ async def activate_google(
             "Content-Type": "application/json",
         }
         base = _GOOGLE_ADS_BASE.format(customer_id=cid)
-        campaign_name = activation.get("name", "Campaign")
-        if platform_config:
-            logger.debug("platform_config received: %s (targeting criteria require AdGroupCriterion mutations)", platform_config)
-        budget_micros = int(activation.get("cost_estimated", 0) * 1_000_000)
 
+        # Build campaign name — prefix [TEST] in test mode so it's visible in console
+        raw_name = activation.get("name", "Campaign")
+        campaign_name = f"[TEST] {raw_name}" if test_mode else raw_name
+
+        budget_micros = int(activation.get("cost_estimated", 0) * 1_000_000)
         landing_url = creative_url if creative_url.startswith("http") else "https://example.com"
-        headline1 = campaign_name[:30]
-        headline2 = (activation.get("channel", "Digital") + " Campaign")[:30]
+
+        # Use concept data from platform_config for ad copy — more relevant than generic text
+        tagline        = (platform_config.get("tagline", "") or "")[:30]
+        master_message = (platform_config.get("master_message", "") or "")[:30]
+        description    = (platform_config.get("description", "") or activation.get("message", ""))[:90]
+        concept_name   = (platform_config.get("concept_name", "") or raw_name)[:30]
+
+        headline1 = tagline or concept_name or campaign_name[:30]
+        headline2 = master_message or (raw_name + " Campaign")[:30]
         headline3 = "Learn More Today"
-        desc1 = activation.get("message", "Discover our latest campaign and special offers.")[:90]
-        desc2 = "Contact us today to learn more about our products and services."[:90]
+        desc1 = description or "Discover our latest campaign and special offers."
+        desc2 = f"Contact us for more about {raw_name}."[:90]
+
+        # PAUSED in test mode — safe, no real spend; ENABLED in production
+        campaign_status  = "PAUSED" if test_mode else "ENABLED"
+        adgroup_status   = "PAUSED" if test_mode else "ENABLED"
+        ad_status        = "PAUSED" if test_mode else "ENABLED"
+
+        logger.info(
+            "Google Ads activation: test_mode=%s campaign=%r status=%s",
+            test_mode, campaign_name, campaign_status,
+        )
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Call 0: Create Campaign Budget resource
@@ -94,7 +113,7 @@ async def activate_google(
                 f"{base}/campaigns:mutate",
                 json={"operations": [{"create": {
                     "name": campaign_name,
-                    "status": "ENABLED",
+                    "status": campaign_status,
                     "advertisingChannelType": "SEARCH",
                     "campaignBudget": budget_resource,
                     "manualCpc": {},
@@ -116,7 +135,7 @@ async def activate_google(
                 json={"operations": [{"create": {
                     "campaign": campaign_resource,
                     "name": f"{campaign_name} - AdGroup",
-                    "status": "ENABLED",
+                    "status": adgroup_status,
                     "type": "SEARCH_STANDARD",
                     "cpcBidMicros": "2000000",
                 }}]},
@@ -130,7 +149,7 @@ async def activate_google(
                 f"{base}/adGroupAds:mutate",
                 json={"operations": [{"create": {
                     "adGroup": ad_group_resource,
-                    "status": "ENABLED",
+                    "status": ad_status,
                     "ad": {
                         "responsiveSearchAd": {
                             "headlines": [
@@ -152,11 +171,16 @@ async def activate_google(
             ad_resource = r3.json()["results"][0]["resourceName"]
             ad_id = ad_resource.split("/")[-1]
 
-            logger.info("Google Ads campaign %s activated successfully", campaign_id)
+            result_status = "test_live" if test_mode else "live"
+            logger.info(
+                "Google Ads campaign %s created status=%s test_mode=%s",
+                campaign_id, result_status, test_mode,
+            )
             return {
                 "campaign_id": campaign_id,
                 "ad_id": ad_id,
-                "status": "live",
+                "status": result_status,
+                "test_mode": test_mode,
                 "error": None,
             }
 
@@ -166,5 +190,6 @@ async def activate_google(
             "campaign_id": None,
             "ad_id": None,
             "status": "failed",
+            "test_mode": test_mode,
             "error": str(e),
         }

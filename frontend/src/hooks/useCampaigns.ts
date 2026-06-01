@@ -33,7 +33,15 @@ export function useCampaign(campaignId: string, options?: Partial<UseQueryOption
     enabled: !!campaignId,
     refetchInterval: (query) => {
       const s = query.state.data?.status
-      return s === 'pending' || s === 'confirmed' || s === 'planned' || s === 'budget_pending' || s === 'creative_generating' ? 3000 : false
+      const results = query.state.data?.activation_results
+      // Poll while generating concepts/budget/creatives OR while activation is in flight
+      if (s === 'pending' || s === 'confirmed' || s === 'planned' || s === 'budget_pending' || s === 'creative_generating') return 3000
+      if (s === 'live' && results) {
+        // Stop polling once all platforms have resolved (not "queued")
+        const pending = Object.values(results).some(r => r.status === 'queued')
+        return pending ? 3000 : false
+      }
+      return false
     },
     ...options,
   })

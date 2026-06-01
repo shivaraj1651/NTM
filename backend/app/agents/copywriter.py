@@ -105,6 +105,8 @@ class CreativeBrief(BaseModel):
     target_audience: str
     product_details: str
     messaging_rules: list[str]
+    tagline: str = ""
+    master_message: str = ""
 
 
 class CopyVariant(BaseModel):
@@ -181,27 +183,32 @@ class CopywriterAgent:
         return output
 
     def _build_system_prompt(self, brief: CreativeBrief) -> str:
-        rules = "\n".join(f"- {r}" for r in brief.messaging_rules)
-        adjectives = ", ".join(brief.tone_adjectives)
-        return f"""You are a world-class marketing copywriter.
+        rules = "\n".join(f"- {r}" for r in brief.messaging_rules) or "- Stay on-brand and benefit-led."
+        adjectives = ", ".join(brief.tone_adjectives) or "professional, engaging"
+        tagline_line = f"\nTagline (THE anchor — every asset must feel like it belongs to this line): {brief.tagline}" if brief.tagline else ""
+        master_line  = f"\nMaster Message (core copy idea): {brief.master_message}" if brief.master_message else ""
+        return f"""You are a world-class advertising copywriter.
 
 ## Brand Voice
-{brief.brand_voice}
+{brief.brand_voice or "Professional, clear, and benefit-led."}
+
+## Selected Campaign Concept
+Name: {brief.core_concept}
+Theme: {brief.campaign_theme}{tagline_line}{master_line}
 
 ## Tone Board
 Adjectives: {adjectives}
 Visual Direction: {brief.visual_direction}
 
-## Campaign Context
-Theme: {brief.campaign_theme}
-Core Concept: {brief.core_concept}
+## Campaign Details
 Product/Service: {brief.product_details}
 Target Audience: {brief.target_audience}
+Primary CTA: {brief.primary_cta}
 
 ## Messaging Rules (MUST follow ALL)
 {rules}
 
-Your copy must reflect the brand voice, tone board, and all messaging rules above."""
+CRITICAL: All copy variants must be grounded in the selected concept — the tagline and master message above are the strategic north star. Every asset must feel like it belongs to the same campaign."""
 
     async def _generate_asset(
         self,

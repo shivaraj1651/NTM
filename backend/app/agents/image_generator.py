@@ -27,9 +27,10 @@ DALLE_MODEL = "dall-e-3"
 MAX_RETRIES = 2
 
 IMAGE_DIMENSIONS: dict[str, tuple[int, int]] = {
-    "square":    (1024, 1024),
-    "landscape": (1344, 768),
-    "portrait":  (768, 1344),
+    "square":        (1024, 1024),
+    "landscape":     (1344, 768),
+    "portrait":      (768, 1344),
+    "ooh_billboard": (1344, 768),
 }
 
 
@@ -46,6 +47,12 @@ class ImageGenerationBrief(BaseModel):
     tone_adjectives: list[str] = Field(default_factory=list)
     campaign_theme: str
     style_notes: str = ""
+    brand_name: str = ""
+    product_details: str = ""
+    target_audience: str = ""
+    headline_text: str = ""
+    tagline: str = ""
+    master_message: str = ""
 
 
 class ImageGenerationOutput(BaseModel):
@@ -114,16 +121,66 @@ class ImageGeneratorAgent:
     # ------------------------------------------------------------------
 
     async def _build_prompt(self, brief: ImageGenerationBrief) -> str:
-        palette_csv = ", ".join(brief.brand_palette) if brief.brand_palette else ""
-        tone_csv = ", ".join(brief.tone_adjectives) if brief.tone_adjectives else ""
+        palette_csv  = ", ".join(brief.brand_palette) if brief.brand_palette else "bold brand colors"
+        tone_csv     = ", ".join(brief.tone_adjectives) if brief.tone_adjectives else "premium, modern"
+        brand_str    = f"for {brief.brand_name}" if brief.brand_name else ""
+        product_str  = f"featuring {brief.product_details}" if brief.product_details else ""
+        audience_str = f"targeting {brief.target_audience}" if brief.target_audience else ""
+        tagline_str  = f'"{brief.tagline}"' if brief.tagline else ""
+        msg_str      = f'"{brief.master_message}"' if brief.master_message else ""
 
-        base = f"{brief.visual_direction}."
-        if palette_csv:
-            base += f" Brand palette: {palette_csv}."
-        if tone_csv:
-            base += f" Tone: {tone_csv}."
+        if brief.image_format == "ooh_billboard":
+            # Concept tagline IS the billboard headline — display it large
+            hl = brief.headline_text or brief.tagline or brief.master_message
+            headline_part = f'with bold oversized headline text "{hl}", ' if hl else "with bold oversized headline text area, "
+            fmt_hint = (
+                f"ultra-wide outdoor OOH billboard advertisement {brand_str}, "
+                f"roadside hoarding poster seen from 50 meters, {headline_part}"
+                f"massive high-contrast design, {palette_csv} color scheme, "
+                f"aspirational hero image — {brief.visual_direction}, "
+                f"minimal copy, maximum visual impact, photorealistic billboard printing quality, "
+                f"architectural scale, city street perspective"
+            )
+        elif brief.image_format == "landscape":
+            fmt_hint = (
+                f"wide horizontal digital display ad {brand_str}, 16:9 landscape format, "
+                f"digital billboard / DOOH screen, {brief.visual_direction}, "
+                f"product or lifestyle hero shot center-right, "
+                f"text overlay zone on left: tagline {tagline_str}, "
+                f"{palette_csv} dominant palette, clean premium layout"
+            )
+        elif brief.image_format == "portrait":
+            fmt_hint = (
+                f"vertical 9:16 mobile story advertisement {brand_str}, "
+                f"Instagram/TikTok story format, full-bleed {brief.visual_direction}, "
+                f"lifestyle hero shot lower two-thirds, top third reserved for tagline {tagline_str}, "
+                f"{palette_csv}, bold typography space"
+            )
+        else:  # square
+            fmt_hint = (
+                f"square 1:1 social media ad {brand_str}, Instagram/Facebook feed post, "
+                f"{brief.visual_direction}, product or lifestyle centred, "
+                f"tagline {tagline_str} text overlay, {palette_csv}, "
+                f"clean brand composition, high-contrast"
+            )
+
+        base = (
+            f"Professional advertising creative {brand_str}. "
+            f"Campaign: {brief.campaign_theme}. "
+            + (f"Tagline: {tagline_str}. " if tagline_str else "")
+            + (f"Core message: {msg_str}. " if msg_str else "")
+            + (f"{product_str}. " if product_str else "")
+            + f"Visual direction: {brief.visual_direction}. "
+            + (f"{audience_str}. " if audience_str else "")
+            + f"Brand palette: {palette_csv}. Tone: {tone_csv}. "
+            + f"Format: {fmt_hint}. "
+            + "Style: REAL published advertising creative — NOT stock photo, NOT generic. "
+            + "Bold composition, brand colors dominant, clear visual hierarchy, "
+            + "commercial photography, high impact, sharp focus, professional studio lighting, "
+            + "highly detailed, 8K UHD, marketing poster aesthetic."
+        )
         if brief.style_notes:
-            base += f" {brief.style_notes}"
+            base += f" Competitor context: {brief.style_notes}."
 
         # NTM_STUB_EXTERNAL: stubbed external call
         if stub_enabled():
@@ -133,12 +190,21 @@ class ImageGeneratorAgent:
         try:
             response = await self.anthropic_client.messages.create(
                 model=HAIKU_MODEL,
-                max_tokens=300,
+                max_tokens=400,
                 system=(
-                    "You are a text-to-image prompt engineer. Take the base description "
-                    "and add precise photographic/artistic style tokens: lighting type, "
-                    "camera angle, texture quality, render style. "
-                    "Return ONLY the enriched prompt string, no explanation, under 200 words."
+                    "You are a senior advertising creative director and Stability AI prompt engineer. "
+                    "Transform the brief into a single precise text-to-image prompt that produces a "
+                    "PROFESSIONAL PUBLISHED AD CREATIVE — never stock photography or generic imagery. "
+                    f"Brand: {brief.brand_name or 'the brand'}. "
+                    f"Tagline: {brief.tagline!r}. "
+                    f"Campaign: {brief.campaign_theme}. "
+                    "Requirements: brand colors dominant, dedicated text/headline space, "
+                    "product or lifestyle hero shot, aspirational mood matching brand tone, "
+                    "the tagline must be embedded as the central headline concept. "
+                    "Append style tokens: highly detailed, 8K UHD, commercial photography, "
+                    "advertising creative, sharp focus, professional studio lighting, "
+                    "brand identity, marketing poster aesthetic. "
+                    "Return ONLY the enriched prompt string, under 220 words."
                 ),
                 messages=[{"role": "user", "content": base}],
             )

@@ -52,29 +52,15 @@ async def platform_activate_google(
     platform_config: Dict[str, Any],
     creative_url: str,
 ) -> Dict[str, Any]:
-    """Activate campaign on Google Ads with retry logic.
-
-    Args:
-        activation: Activation record with id, tenant_id, name, cost_estimated
-        platform_config: Google Ads targeting config (age_range, interests, geographic)
-        creative_url: URL to creative asset
-
-    Returns:
-        Dict with campaign_id, ad_id, status ('live'|'failed'), error message
-
-    Raises:
-        self.retry: On API errors (caught, triggers retry)
-    """
+    """Activate campaign on Google Ads with retry logic."""
     try:
         logger.info(
-            f"Starting Google Ads activation",
-            extra={"activation_id": activation.get("id"), "tenant_id": activation.get("tenant_id")},
+            "Starting Google Ads activation activation_id=%s tenant_id=%s",
+            activation.get("id"), activation.get("tenant_id"),
         )
 
-        # Call async activate_google function
         result = await activate_google(activation, platform_config, creative_url)
 
-        # Store mapping in database
         await _store_platform_mapping_async(
             activation_id=activation["id"],
             channel_enum="google_ads",
@@ -85,55 +71,46 @@ async def platform_activate_google(
             tenant_id=activation.get("tenant_id"),
         )
 
-        logger.info(
-            f"Google Ads activation completed",
-            extra={
-                "activation_id": activation.get("id"),
-                "status": result.get("status"),
-                "campaign_id": result.get("campaign_id"),
-            },
+        # Write live result back to MongoDB campaign doc for frontend polling
+        await _push_activation_result_to_mongo(
+            campaign_id=activation.get("campaign_id", ""),
+            tenant_id=activation.get("tenant_id", ""),
+            platform="google_ads",
+            result=result,
         )
 
+        logger.info(
+            "Google Ads activation completed status=%s campaign_id=%s test_mode=%s",
+            result.get("status"), result.get("campaign_id"), result.get("test_mode"),
+        )
         return result
 
     except Exception as e:
         logger.warning(
-            f"Google Ads activation error (retry {self.request.retries}/{self.max_retries})",
-            extra={
-                "activation_id": activation.get("id"),
-                "error": str(e),
-            },
+            "Google Ads activation error (retry %d/%d): %s",
+            self.request.retries, self.max_retries, e,
             exc_info=True,
         )
-
-        # Retry with exponential backoff
         try:
-            countdown = 60 * (2 ** self.request.retries)  # 60s, 120s, 240s
+            countdown = 60 * (2 ** self.request.retries)
             raise self.retry(exc=e, countdown=countdown)
         except self.MaxRetriesExceededError:
-            # Final failure: store error mapping and return failed status
-            logger.error(
-                f"Google Ads activation failed after {self.max_retries} retries",
-                extra={"activation_id": activation.get("id"), "error": str(e)},
-            )
-
+            logger.error("Google Ads activation failed after %d retries: %s", self.max_retries, e)
+            err_result = {
+                "status": "failed", "error": str(e),
+                "platform": "google_ads", "campaign_id": None, "ad_id": None,
+            }
             await _store_platform_mapping_async(
-                activation_id=activation["id"],
-                channel_enum="google_ads",
-                campaign_id=None,
-                ad_id=None,
-                status="failed",
-                error=str(e),
+                activation_id=activation["id"], channel_enum="google_ads",
+                campaign_id=None, ad_id=None, status="failed", error=str(e),
                 tenant_id=activation.get("tenant_id"),
             )
-
-            return {
-                "status": "failed",
-                "error": str(e),
-                "platform": "google_ads",
-                "campaign_id": None,
-                "ad_id": None,
-            }
+            await _push_activation_result_to_mongo(
+                campaign_id=activation.get("campaign_id", ""),
+                tenant_id=activation.get("tenant_id", ""),
+                platform="google_ads", result=err_result,
+            )
+            return err_result
 
 
 @celery_app.task(
@@ -149,26 +126,15 @@ async def platform_activate_meta(
     platform_config: Dict[str, Any],
     creative_url: str,
 ) -> Dict[str, Any]:
-    """Activate campaign on Meta (Facebook/Instagram) with retry logic.
-
-    Args:
-        activation: Activation record with id, tenant_id, name, cost_estimated
-        platform_config: Meta targeting config (interests, age_range, geographic, placements)
-        creative_url: URL to creative asset (image or video)
-
-    Returns:
-        Dict with campaign_id, ad_id, status ('live'|'failed'), error message
-    """
+    """Activate campaign on Meta (Facebook/Instagram) with retry logic."""
     try:
         logger.info(
-            f"Starting Meta Ads activation",
-            extra={"activation_id": activation.get("id"), "tenant_id": activation.get("tenant_id")},
+            "Starting Meta Ads activation activation_id=%s tenant_id=%s",
+            activation.get("id"), activation.get("tenant_id"),
         )
 
-        # Call async activate_meta function
         result = await activate_meta(activation, platform_config, creative_url)
 
-        # Store mapping in database
         await _store_platform_mapping_async(
             activation_id=activation["id"],
             channel_enum="meta_ads",
@@ -179,53 +145,45 @@ async def platform_activate_meta(
             tenant_id=activation.get("tenant_id"),
         )
 
-        logger.info(
-            f"Meta Ads activation completed",
-            extra={
-                "activation_id": activation.get("id"),
-                "status": result.get("status"),
-                "campaign_id": result.get("campaign_id"),
-            },
+        await _push_activation_result_to_mongo(
+            campaign_id=activation.get("campaign_id", ""),
+            tenant_id=activation.get("tenant_id", ""),
+            platform="meta_ads",
+            result=result,
         )
 
+        logger.info(
+            "Meta Ads activation completed status=%s campaign_id=%s test_mode=%s",
+            result.get("status"), result.get("campaign_id"), result.get("test_mode"),
+        )
         return result
 
     except Exception as e:
         logger.warning(
-            f"Meta Ads activation error (retry {self.request.retries}/{self.max_retries})",
-            extra={
-                "activation_id": activation.get("id"),
-                "error": str(e),
-            },
+            "Meta Ads activation error (retry %d/%d): %s",
+            self.request.retries, self.max_retries, e,
             exc_info=True,
         )
-
         try:
             countdown = 60 * (2 ** self.request.retries)
             raise self.retry(exc=e, countdown=countdown)
         except self.MaxRetriesExceededError:
-            logger.error(
-                f"Meta Ads activation failed after {self.max_retries} retries",
-                extra={"activation_id": activation.get("id"), "error": str(e)},
-            )
-
+            logger.error("Meta Ads activation failed after %d retries: %s", self.max_retries, e)
+            err_result = {
+                "status": "failed", "error": str(e),
+                "platform": "meta_ads", "campaign_id": None, "ad_id": None,
+            }
             await _store_platform_mapping_async(
-                activation_id=activation["id"],
-                channel_enum="meta_ads",
-                campaign_id=None,
-                ad_id=None,
-                status="failed",
-                error=str(e),
+                activation_id=activation["id"], channel_enum="meta_ads",
+                campaign_id=None, ad_id=None, status="failed", error=str(e),
                 tenant_id=activation.get("tenant_id"),
             )
-
-            return {
-                "status": "failed",
-                "error": str(e),
-                "platform": "meta_ads",
-                "campaign_id": None,
-                "ad_id": None,
-            }
+            await _push_activation_result_to_mongo(
+                campaign_id=activation.get("campaign_id", ""),
+                tenant_id=activation.get("tenant_id", ""),
+                platform="meta_ads", result=err_result,
+            )
+            return err_result
 
 
 @celery_app.task(
@@ -452,6 +410,54 @@ def activation_completion_callback(
                 f"Failed to update activation status on callback error",
                 extra={"activation_id": activation_id, "error": str(inner_e)},
             )
+
+
+async def _push_activation_result_to_mongo(
+    campaign_id: str,
+    tenant_id: str,
+    platform: str,
+    result: Dict[str, Any],
+) -> None:
+    """Push platform activation result into MongoDB campaign doc so frontend can poll."""
+    if not campaign_id:
+        return
+    try:
+        import os as _os
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from datetime import datetime, timezone
+
+        mongo_url = _os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+        mongo_db  = _os.getenv("MONGODB_DB", "ntm")
+        client = AsyncIOMotorClient(mongo_url)
+        try:
+            db = client[mongo_db]
+            payload = {
+                "status":      result.get("status"),
+                "campaign_id": result.get("campaign_id"),
+                "ad_id":       result.get("ad_id"),
+                "ad_set_id":   result.get("ad_set_id"),
+                "test_mode":   result.get("test_mode", False),
+                "error":       result.get("error"),
+                "updated_at":  datetime.now(timezone.utc).isoformat(),
+            }
+            await db["campaigns"].update_one(
+                {"_id": campaign_id, "tenant_id": tenant_id},
+                {"$set": {
+                    f"activation_results.{platform}": payload,
+                    "updated_at": payload["updated_at"],
+                }},
+            )
+            logger.debug(
+                "_push_activation_result_to_mongo: campaign=%s platform=%s status=%s",
+                campaign_id, platform, payload["status"],
+            )
+        finally:
+            client.close()
+    except Exception as exc:
+        logger.warning(
+            "_push_activation_result_to_mongo failed for campaign=%s platform=%s: %s",
+            campaign_id, platform, exc,
+        )
 
 
 async def _store_platform_mapping_async(
