@@ -462,9 +462,51 @@ def run_budget_optimization(self, campaign_id: str, tenant_id: str) -> None:
 # Creative generation: AGT-07 (Copywriter) + AGT-08 (Scriptwriter)
 # ---------------------------------------------------------------------------
 
+class _MinioStorageClient:
+    """Upload bytes to MinIO and return a browser-accessible public URL."""
+
+    def __init__(self) -> None:
+        import boto3, json
+        self._bucket = os.getenv("S3_BUCKET", "ntm-assets")
+        endpoint = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
+        public_ep = os.getenv("S3_PUBLIC_URL", "http://localhost:9000")
+        self._public_base = f"{public_ep.rstrip('/')}/{self._bucket}"
+        self._s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY", "minioadmin"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_KEY", "minioadmin"),
+            region_name="us-east-1",
+        )
+        try:
+            self._s3.head_bucket(Bucket=self._bucket)
+        except Exception:
+            try:
+                self._s3.create_bucket(Bucket=self._bucket)
+            except Exception:
+                pass
+        try:
+            policy = json.dumps({"Version": "2012-10-17", "Statement": [{"Sid": "PublicRead",
+                "Effect": "Allow", "Principal": "*", "Action": ["s3:GetObject"],
+                "Resource": [f"arn:aws:s3:::{self._bucket}/*"]}]})
+            self._s3.put_bucket_policy(Bucket=self._bucket, Policy=policy)
+        except Exception:
+            pass
+
+    async def upload(self, data: bytes, key: str, content_type: str = "image/png") -> str:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: self._s3.put_object(Bucket=self._bucket, Key=key, Body=data, ContentType=content_type),
+        )
+        return f"{self._public_base}/{key}"
+
+
 async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
     from backend.app.agents.copywriter import CopywriterAgent, CreativeBrief
     from backend.app.agents.scriptwriter import ScriptwriterAgent, ScriptwriterBrief
+    from backend.app.agents.image_generator import ImageGeneratorAgent, ImageGenerationBrief
+    from backend.app.tools.serpapi import search_competitor_ads
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
     try:
@@ -524,6 +566,17 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
             primary_cta=copy_brief.primary_cta,
             messaging_rules=copy_brief.messaging_rules,
         )
+
+        # Step 0: SerpAPI competitor analysis — inform creative prompts
+        competitor_insights: dict = {}
+        brand_name = mandate.get("brand_name") or mandate.get("name") or ""
+        if brand_name:
+            try:
+                competitor_insights = await search_competitor_ads(brand_name)
+                logger.info("[run_creative_generation] SerpAPI insights for %s: channels=%s",
+                            brand_name, competitor_insights.get("channels_detected", []))
+            except Exception as _serp_exc:
+                logger.warning("[run_creative_generation] SerpAPI skipped: %s", _serp_exc)
 
         copywriter = CopywriterAgent()
         scriptwriter = ScriptwriterAgent()
@@ -592,6 +645,44 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
 
                 script_assets = [_normalize_script(s) for s in _to_list(raw)]
 
+            # Step 3: Generate images via Stability AI (square / landscape / portrait)
+            image_assets = []
+            try:
+                storage = _MinioStorageClient()
+                image_agent = ImageGeneratorAgent()
+                competitor_style = ", ".join(competitor_insights.get("messaging_samples", [])[:2])
+                img_briefs = [
+                    ImageGenerationBrief(
+                        campaign_id=campaign_id,
+                        tenant_id=tenant_id,
+                        image_format=fmt,
+                        visual_direction=concept.get("visual_direction", copy_brief.campaign_theme),
+                        brand_palette=mandate.get("brand_colors", []),
+                        tone_adjectives=tone_adjectives,
+                        campaign_theme=copy_brief.campaign_theme,
+                        style_notes=competitor_style,
+                    )
+                    for fmt in ("square", "landscape", "portrait")
+                ]
+                img_results = await asyncio.gather(
+                    *[image_agent.generate(b, storage_client=storage) for b in img_briefs],
+                    return_exceptions=True,
+                )
+                for fmt, res in zip(("square", "landscape", "portrait"), img_results):
+                    if isinstance(res, Exception):
+                        logger.error("[run_creative_generation] image %s failed: %s", fmt, res)
+                    else:
+                        image_assets.append({
+                            "id": str(uuid4()),
+                            "format": fmt,
+                            "url": res.asset_url,
+                            "approved": None,
+                            "revision_count": 0,
+                        })
+                logger.info("[run_creative_generation] images generated: %d", len(image_assets))
+            except Exception as _img_exc:
+                logger.error("[run_creative_generation] image generation block failed: %s", _img_exc)
+
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},
                 {"$set": {
@@ -601,16 +692,22 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                         "stage": "internal_review",
                         "copy": copy_assets,
                         "scripts": script_assets,
-                        "images": [],
+                        "images": image_assets,
                         "audio": [],
                     },
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }},
             )
             logger.info(
-                "[run_creative_generation] complete for %s copy=%d scripts=%d",
-                campaign_id, len(copy_assets), len(script_assets),
+                "[run_creative_generation] complete for %s copy=%d scripts=%d images=%d",
+                campaign_id, len(copy_assets), len(script_assets), len(image_assets),
             )
+            # Step 4: Chain Runway video generation using first image as reference
+            try:
+                run_video_generation.delay(campaign_id, tenant_id)
+                logger.info("[run_creative_generation] queued run_video_generation for %s", campaign_id)
+            except Exception as _vid_exc:
+                logger.warning("[run_creative_generation] video task dispatch failed: %s", _vid_exc)
         except Exception as exc:
             logger.error("[run_creative_generation] failed for %s: %s", campaign_id, exc)
             await db["campaigns"].update_one(
