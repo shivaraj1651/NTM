@@ -343,6 +343,12 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
             "revision_count": 0,
         }
 
+        # Ensure creative_assets is a document (not null) before pushing video
+        await db["campaigns"].update_one(
+            {"_id": campaign_id, "tenant_id": tenant_id, "creative_assets": None},
+            {"$set": {"creative_assets": {"campaign_id": campaign_id, "stage": "internal_review",
+                "copy": [], "scripts": [], "images": [], "audio": [], "video": []}}},
+        )
         await db["campaigns"].update_one(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {
@@ -474,8 +480,8 @@ class _MinioStorageClient:
         self._s3 = boto3.client(
             "s3",
             endpoint_url=endpoint,
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY", "minioadmin"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_KEY", "minioadmin"),
+            aws_access_key_id=os.getenv("MINIO_ROOT_USER") or os.getenv("AWS_ACCESS_KEY", "minioadmin"),
+            aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD") or os.getenv("AWS_SECRET_KEY", "minioadmin"),
             region_name="us-east-1",
         )
         try:

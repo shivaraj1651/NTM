@@ -39,6 +39,7 @@ async def generate_video(
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "X-Runway-Version": "2024-11-06",
             },
             json=payload,
         )
@@ -65,7 +66,7 @@ async def get_video_status(job_id: str) -> dict:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
             url,
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {api_key}", "X-Runway-Version": "2024-11-06"},
         )
 
     if response.status_code != 200:
