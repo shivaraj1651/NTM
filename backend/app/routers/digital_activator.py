@@ -50,7 +50,13 @@ async def activate_campaign(
     campaign = await svc.get(campaign_id, tenant_id)
 
     job_id = str(uuid4())
-    activation_plan = campaign.get("activation_plan") or [] if isinstance(campaign, dict) else (campaign.activation_plan or [])
+    campaign_dict = campaign if isinstance(campaign, dict) else campaign.model_dump()
+    activation_plan = campaign_dict.get("activation_plan") or []
+
+    # Extract first available image URL from creative assets as the ad landing/creative URL
+    creative_assets = campaign_dict.get("creative_assets") or {}
+    images = creative_assets.get("images") or []
+    creative_url = images[0].get("url", "") if images else ""
 
     for act in activation_plan:
         channel = act.get("channel") if isinstance(act, dict) else getattr(act, "channel", None)
@@ -61,7 +67,7 @@ async def activate_campaign(
             task_fn.delay(
                 activation=act_payload,
                 platform_config={},
-                creative_url="",
+                creative_url=creative_url,
             )
             logger.info(
                 "Queued activation task",

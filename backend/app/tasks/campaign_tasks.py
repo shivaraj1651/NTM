@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from celery import shared_task
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -555,7 +556,41 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                                 return val[k]
                         return [val]
                     return []
-                script_assets = _to_list(raw)
+
+                def _normalize_script(s: dict) -> dict:
+                    # Build readable content string from scenes if content field absent
+                    if "content" not in s:
+                        lines = []
+                        for sc in (s.get("scenes") or []):
+                            if isinstance(sc, dict):
+                                parts = [f"Scene {sc.get('scene_number', '')}:"]
+                                if sc.get("description"):
+                                    parts.append(sc["description"])
+                                if sc.get("action"):
+                                    parts.append(f"Action: {sc['action']}")
+                                if sc.get("dialogue"):
+                                    parts.append(f'"{sc["dialogue"]}"')
+                                lines.append("\n".join(parts))
+                        if not lines and s.get("directors_note"):
+                            lines.append(s["directors_note"])
+                        s = dict(s, content="\n\n".join(lines) if lines else "Script content not available")
+                    if "id" not in s:
+                        s = dict(s, id=str(uuid4()))
+                    if "format" not in s:
+                        s = dict(s, format="tvc_vo")
+                    if "duration_estimate" not in s:
+                        dur = s.get("duration_label") or (
+                            f"{s.get('total_duration_seconds', 30)}s"
+                            if s.get("total_duration_seconds") else "30s"
+                        )
+                        s = dict(s, duration_estimate=dur)
+                    if "approved" not in s:
+                        s = dict(s, approved=None)
+                    if "revision_count" not in s:
+                        s = dict(s, revision_count=0)
+                    return s
+
+                script_assets = [_normalize_script(s) for s in _to_list(raw)]
 
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},

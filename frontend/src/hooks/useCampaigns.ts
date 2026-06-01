@@ -33,7 +33,7 @@ export function useCampaign(campaignId: string, options?: Partial<UseQueryOption
     enabled: !!campaignId,
     refetchInterval: (query) => {
       const s = query.state.data?.status
-      return s === 'pending' || s === 'confirmed' || s === 'budget_pending' || s === 'creative_generating' ? 3000 : false
+      return s === 'pending' || s === 'confirmed' || s === 'planned' || s === 'budget_pending' || s === 'creative_generating' ? 3000 : false
     },
     ...options,
   })

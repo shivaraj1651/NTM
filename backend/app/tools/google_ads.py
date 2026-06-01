@@ -68,80 +68,91 @@ async def activate_google(
             logger.debug("platform_config received: %s (targeting criteria require AdGroupCriterion mutations)", platform_config)
         budget_micros = int(activation.get("cost_estimated", 0) * 1_000_000)
 
+        landing_url = creative_url if creative_url.startswith("http") else "https://example.com"
+        headline1 = campaign_name[:30]
+        headline2 = (activation.get("channel", "Digital") + " Campaign")[:30]
+        headline3 = "Learn More Today"
+        desc1 = activation.get("message", "Discover our latest campaign and special offers.")[:90]
+        desc2 = "Contact us today to learn more about our products and services."[:90]
+
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Call 1: Create Campaign
+            # Call 0: Create Campaign Budget resource
+            r0 = await client.post(
+                f"{base}/campaignBudgets:mutate",
+                json={"operations": [{"create": {
+                    "name": f"Budget - {campaign_name}",
+                    "amountMicros": str(max(budget_micros, 1_000_000)),
+                    "deliveryMethod": "STANDARD",
+                }}]},
+                headers=headers,
+            )
+            r0.raise_for_status()
+            budget_resource = r0.json()["results"][0]["resourceName"]
+
+            # Call 1: Create Search Campaign
             r1 = await client.post(
                 f"{base}/campaigns:mutate",
-                json={
-                    "operations": [{
-                        "create": {
-                            "name": campaign_name,
-                            "status": "ENABLED",
-                            "advertisingChannelType": "VIDEO",
-                            "manualCpv": {},
-                            "campaignBudget": str(budget_micros),  # production: use campaignBudgets:mutate resource name
-                            "networkSettings": {
-                                "targetYoutubeSearch": True,
-                                "targetYoutubeVideos": True,
-                            },
-                        }
-                    }]
-                },
+                json={"operations": [{"create": {
+                    "name": campaign_name,
+                    "status": "ENABLED",
+                    "advertisingChannelType": "SEARCH",
+                    "campaignBudget": budget_resource,
+                    "manualCpc": {},
+                    "networkSettings": {
+                        "targetGoogleSearch": True,
+                        "targetSearchNetwork": True,
+                        "targetContentNetwork": False,
+                    },
+                }}]},
                 headers=headers,
             )
             r1.raise_for_status()
             campaign_resource = r1.json()["results"][0]["resourceName"]
             campaign_id = campaign_resource.split("/")[-1]
 
-            # Call 2: Create Ad Group with platform_config targeting
+            # Call 2: Create Ad Group
             r2 = await client.post(
                 f"{base}/adGroups:mutate",
-                json={
-                    "operations": [{
-                        "create": {
-                            "campaign": campaign_resource,
-                            "name": f"{campaign_name} - AdGroup",
-                            "status": "ENABLED",
-                            "type": "VIDEO_TRUE_VIEW_IN_STREAM",
-                            "targetingSettings": {
-                                "targetRestrictions": [
-                                    {"targetingDimension": "AGE_RANGE", "bidOnly": False},
-                                    {"targetingDimension": "INTEREST", "bidOnly": False},
-                                ]
-                            },
-                        }
-                    }]
-                },
+                json={"operations": [{"create": {
+                    "campaign": campaign_resource,
+                    "name": f"{campaign_name} - AdGroup",
+                    "status": "ENABLED",
+                    "type": "SEARCH_STANDARD",
+                    "cpcBidMicros": "2000000",
+                }}]},
                 headers=headers,
             )
             r2.raise_for_status()
             ad_group_resource = r2.json()["results"][0]["resourceName"]
 
-            # Call 3: Create Ad Group Ad
+            # Call 3: Create Responsive Search Ad
             r3 = await client.post(
                 f"{base}/adGroupAds:mutate",
-                json={
-                    "operations": [{
-                        "create": {
-                            "adGroup": ad_group_resource,
-                            "status": "ENABLED",
-                            "ad": {
-                                "videoAd": {
-                                    "video": {"resourceName": creative_url},  # production: requires YouTube video resource name
-                                    "inStream": {},
-                                },
-                                "finalUrls": [creative_url],
-                            },
-                        }
-                    }]
-                },
+                json={"operations": [{"create": {
+                    "adGroup": ad_group_resource,
+                    "status": "ENABLED",
+                    "ad": {
+                        "responsiveSearchAd": {
+                            "headlines": [
+                                {"text": headline1},
+                                {"text": headline2},
+                                {"text": headline3},
+                            ],
+                            "descriptions": [
+                                {"text": desc1},
+                                {"text": desc2},
+                            ],
+                        },
+                        "finalUrls": [landing_url],
+                    },
+                }}]},
                 headers=headers,
             )
             r3.raise_for_status()
             ad_resource = r3.json()["results"][0]["resourceName"]
             ad_id = ad_resource.split("/")[-1]
 
-            logger.info(f"Google Ads campaign {campaign_id} activated successfully")
+            logger.info("Google Ads campaign %s activated successfully", campaign_id)
             return {
                 "campaign_id": campaign_id,
                 "ad_id": ad_id,

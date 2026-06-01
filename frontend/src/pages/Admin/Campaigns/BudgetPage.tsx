@@ -16,7 +16,12 @@ export function BudgetPage() {
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Loading…</p>
   if (!campaign) return null
-  if (campaign?.status === 'budget_pending') return <p className="text-muted-foreground text-sm">Generating budget…</p>
+  if (campaign?.status === 'budget_pending') return (
+    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      Generating budget optimisation…
+    </div>
+  )
 
   const { budget_proposal, status } = campaign
 
