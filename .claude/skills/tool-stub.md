@@ -1,1 +1,0 @@
-﻿Tool stub skill
