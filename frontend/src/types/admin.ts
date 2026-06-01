@@ -217,12 +217,23 @@ export interface CampaignConcept {
 
 export interface Activation {
   id: string
-  channel: string
+  // Real backend (AGT-04) fields
+  channel_enum?: string
   sub_channel: string
-  budget: number
-  currency: string
-  audience: string
-  kpis: { name: string; target: number; unit: string }[]
+  format?: string
+  geography?: string
+  placement?: string
+  phase?: string
+  audience_segment?: string
+  estimated_reach?: number
+  estimated_cpm?: number
+  cost_estimated?: number
+  // Legacy MSW shape (kept optional for test compat)
+  channel?: string
+  budget?: number
+  currency?: string
+  audience?: string
+  kpis?: { name: string; target: number; unit: string }[]
 }
 
 export interface BudgetAllocation {
@@ -235,6 +246,7 @@ export interface BudgetProposal {
   total_budget: number
   currency: string
   allocations: BudgetAllocation[]
+  executive_summary?: string
 }
 
 export type CampaignStatus =

@@ -395,18 +395,52 @@ async def _run_budget_optimization(campaign_id: str, tenant_id: str) -> None:
             "tone_board": concept.get("tone_board", ""),
         }
 
-        logger.info("[run_budget_optimization] running AGT-05 for campaign_id=%s", campaign_id)
+        logger.info("[run_budget_optimization] running AGT-05 for campaign_id=%s activations=%d",
+                    campaign_id, len(activations))
         proposal = await budget_optimizer_agent(activations, budget_env, campaign_context)
+
+        # The optimizer returns {optimized_activations, roi_analysis, optimization_report, ...}.
+        # The frontend BudgetPage reads {total_budget, currency, allocations[{channel,amount,percentage}]}.
+        # Derive that shape from the optimizer's output so the UI renders correctly.
+        source_acts = proposal.get("optimized_activations") or activations or []
+        channel_totals: dict = {}
+        for act in source_acts:
+            ch = act.get("sub_channel") or act.get("channel_enum") or "Other"
+            cost = float(act.get("optimized_cost_estimated") or act.get("cost_estimated") or 0)
+            channel_totals[ch] = channel_totals.get(ch, 0.0) + cost
+
+        total_bgt = float(budget_env.get("total_budget") or 0)
+        actual_total = sum(channel_totals.values()) or total_bgt or 1.0
+        currency_code = budget_env.get("currency", "USD")
+        exec_summary = (proposal.get("optimization_report") or {}).get(
+            "executive_summary", ""
+        )
+
+        budget_proposal_doc = {
+            "total_budget": round(actual_total, 2),
+            "currency": currency_code,
+            "allocations": [
+                {
+                    "channel": ch,
+                    "amount": round(amt, 2),
+                    "percentage": round(amt / actual_total * 100, 1) if actual_total else 0,
+                }
+                for ch, amt in sorted(channel_totals.items(), key=lambda x: -x[1])
+            ],
+            "executive_summary": exec_summary,
+        }
 
         await db["campaigns"].find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
                 "status": "budget_proposed",
-                "budget_proposal": proposal if isinstance(proposal, dict) else proposal.model_dump(mode="json"),
+                "budget_proposal": budget_proposal_doc,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
-        logger.info("[run_budget_optimization] stored budget_proposal for campaign %s", campaign_id)
+        logger.info("[run_budget_optimization] stored budget_proposal for campaign %s "
+                    "total=%.0f %s allocations=%d",
+                    campaign_id, actual_total, currency_code, len(budget_proposal_doc["allocations"]))
     finally:
         mongo_client.close()
 

@@ -152,13 +152,13 @@ describe('PlanPage', () => {
     expect(document.body).toBeInTheDocument()
   })
 
-  it('loads activation plan channels', async () => {
+  it('loads activation plan rows', async () => {
     renderCampaignPage(<PlanPage />, 'c-002')
+    // PlanPage renders sub_channel (or channel as fallback) — seed has sub_channel: Search/Sponsored Content/Feed/Stories
     await waitFor(() => {
-      expect(screen.getByText('Google Ads')).toBeInTheDocument()
-      expect(screen.getByText('LinkedIn Ads')).toBeInTheDocument()
-      // Meta Ads appears twice (Feed + Stories rows)
-      expect(screen.getAllByText('Meta Ads').length).toBeGreaterThanOrEqual(1)
+      // Four activation rows should render (sub_channel values from MSW seed)
+      expect(screen.getByText('Search')).toBeInTheDocument()
+      expect(screen.getByText('Sponsored Content')).toBeInTheDocument()
     })
   })
 

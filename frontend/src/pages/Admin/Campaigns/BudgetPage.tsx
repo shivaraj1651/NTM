@@ -68,8 +68,14 @@ export function BudgetPage() {
         </CardContent>
       </Card>
 
+      {budget_proposal.executive_summary && (
+        <div className="rounded-md border p-4 text-sm text-muted-foreground">
+          {budget_proposal.executive_summary}
+        </div>
+      )}
+
       <div>
-        <h3 className="text-sm font-medium mb-3">Allocations</h3>
+        <h3 className="text-sm font-medium mb-3">Channel Allocations</h3>
         <DataTable columns={allocationColumns} data={budget_proposal.allocations} />
       </div>
 

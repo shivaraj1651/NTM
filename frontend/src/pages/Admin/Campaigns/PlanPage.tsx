@@ -52,18 +52,36 @@ export function PlanPage() {
         </button>
       ),
     },
-    { accessorKey: 'channel', header: 'Channel' },
-    { accessorKey: 'sub_channel', header: 'Sub-channel' },
     {
-      accessorKey: 'budget',
-      header: 'Budget',
-      cell: ({ row }) =>
-        `${row.original.currency} ${row.original.budget.toLocaleString()}`,
+      id: 'channel',
+      header: 'Channel',
+      cell: ({ row }) => row.original.sub_channel || row.original.channel || '—',
     },
     {
-      id: 'kpis',
-      header: 'KPIs',
-      cell: ({ row }) => row.original.kpis.map((k) => k.name).join(', '),
+      id: 'geography',
+      header: 'Geography',
+      cell: ({ row }) => row.original.geography || '—',
+    },
+    {
+      id: 'phase',
+      header: 'Phase',
+      cell: ({ row }) => row.original.phase || '—',
+    },
+    {
+      id: 'reach',
+      header: 'Est. Reach',
+      cell: ({ row }) =>
+        row.original.estimated_reach
+          ? row.original.estimated_reach.toLocaleString()
+          : '—',
+    },
+    {
+      id: 'cost',
+      header: 'Est. Cost',
+      cell: ({ row }) => {
+        const cost = row.original.cost_estimated ?? row.original.budget
+        return cost != null ? cost.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'
+      },
     },
   ]
 
@@ -111,36 +129,16 @@ export function PlanPage() {
                   {row.getIsExpanded() && (
                     <TableRow>
                       <TableCell colSpan={columns.length} className="p-0">
-                        <div className="bg-muted/30 p-4 space-y-3">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div><span className="font-medium">Channel:</span> {row.original.channel}</div>
-                            <div><span className="font-medium">Sub-channel:</span> {row.original.sub_channel}</div>
-                            <div>
-                              <span className="font-medium">Budget:</span>{' '}
-                              {row.original.currency} {row.original.budget.toLocaleString()}
-                            </div>
-                            <div><span className="font-medium">Audience:</span> {row.original.audience}</div>
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm mb-2">KPIs</p>
-                            <table className="text-sm w-full">
-                              <thead>
-                                <tr className="text-left text-muted-foreground">
-                                  <th className="pb-1">Name</th>
-                                  <th className="pb-1">Target</th>
-                                  <th className="pb-1">Unit</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {row.original.kpis.map((kpi) => (
-                                  <tr key={kpi.name}>
-                                    <td>{kpi.name}</td>
-                                    <td>{kpi.target}</td>
-                                    <td>{kpi.unit}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                        <div className="bg-muted/30 p-4 space-y-2 text-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><span className="font-medium">Channel:</span> {row.original.sub_channel || row.original.channel || '—'}</div>
+                            <div><span className="font-medium">Geography:</span> {row.original.geography || '—'}</div>
+                            <div><span className="font-medium">Phase:</span> {row.original.phase || '—'}</div>
+                            <div><span className="font-medium">Audience Segment:</span> {row.original.audience_segment || row.original.audience || '—'}</div>
+                            <div><span className="font-medium">Placement:</span> {row.original.placement || '—'}</div>
+                            <div><span className="font-medium">Format:</span> {row.original.format || '—'}</div>
+                            <div><span className="font-medium">Frequency:</span> {(row.original as any).frequency || '—'}</div>
+                            <div><span className="font-medium">CPM:</span> {row.original.estimated_cpm != null ? `$${row.original.estimated_cpm}` : '—'}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -163,7 +161,7 @@ export function PlanPage() {
         <p className="text-destructive text-sm mb-2">Failed to approve budget. Please try again.</p>
       )}
 
-      <Button onClick={handleApprove} disabled={approveBudget.isPending || activations.length === 0}>
+      <Button onClick={handleApprove} disabled={approveBudget.isPending || (activations.length === 0 && campaign?.status !== 'planned')}>
         {approveBudget.isPending ? 'Approving…' : 'Approve Budget'}
       </Button>
     </div>
