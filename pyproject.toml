@@ -70,6 +70,7 @@ ignore = [
     "B008",   # FastAPI Depends() in default args — framework-mandated pattern
     "B904",   # raise inside except without `from` — Celery retry pattern is valid
     "UP042",  # StrEnum migration — semantic change; Python 3.11+ only
+    "E712",   # SQLAlchemy overloads == for column comparisons; `is True` breaks queries
 ]
 
 [tool.ruff.lint.isort]

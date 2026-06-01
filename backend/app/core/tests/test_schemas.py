@@ -41,7 +41,7 @@ def test_user_read_schema():
     user = UserRead(**data)
 
     assert user.email == "user@example.com"
-    assert user.is_active is True
+    assert user.is_active == True
     assert not hasattr(user, "password")
     assert not hasattr(user, "hashed_password")
 

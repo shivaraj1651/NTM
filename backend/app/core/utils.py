@@ -38,7 +38,7 @@ async def validate_user_role(session: AsyncSession, user_id: str, required_permi
 
 async def get_tenant_by_id(session: AsyncSession, tenant_id: str) -> Tenant | None:
     """Lookup active tenant."""
-    result = await session.execute(select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active is True))
+    result = await session.execute(select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active.is_(True)))
     return result.scalars().first()
 
 async def user_has_tenant_access(session: AsyncSession, user_id: str, tenant_id: str) -> bool:

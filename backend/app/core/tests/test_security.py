@@ -69,14 +69,14 @@ def test_verify_password_correct():
     password = "SecurePassword123!"
     hashed = hash_password(password)
 
-    assert verify_password(password, hashed) is True
+    assert verify_password(password, hashed) == True
 
 def test_verify_password_incorrect():
     """verify_password should return False for incorrect password"""
     password = "SecurePassword123!"
     hashed = hash_password(password)
 
-    assert verify_password("WrongPassword", hashed) is False
+    assert verify_password("WrongPassword", hashed) == False
 
 def test_create_access_token():
     """create_access_token should return a valid JWT"""
