@@ -125,13 +125,13 @@ function CopyTab({
                         <Badge variant="secondary" className="text-xs">{v.word_count} words</Badge>
                       </div>
                       <p className="text-sm whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
-                        {v.content}
+                        {typeof v.content === 'string' ? v.content : (v.content?.text ?? JSON.stringify(v.content))}
                       </p>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="gap-1 text-xs px-2"
-                        onClick={() => navigator.clipboard.writeText(v.content)}
+                        onClick={() => navigator.clipboard.writeText(typeof v.content === 'string' ? v.content : (v.content?.text ?? ''))}
                       >
                         <Copy className="h-3 w-3" /> Copy
                       </Button>
@@ -187,9 +187,9 @@ function ScriptsTab({
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
                 <Badge variant="outline">
-                  {MEDIA_FORMAT_LABELS[script.format] ?? script.format}
+                  {script.format ? (MEDIA_FORMAT_LABELS[script.format as keyof typeof MEDIA_FORMAT_LABELS] ?? script.format) : '—'}
                 </Badge>
-                <Badge variant="secondary" className="text-xs">{script.duration_estimate}</Badge>
+                <Badge variant="secondary" className="text-xs">{script.duration_estimate ?? '—'}</Badge>
               </div>
               {script.approved === true && (
                 <Badge className="bg-green-600 text-white text-xs">Approved</Badge>
@@ -205,10 +205,10 @@ function ScriptsTab({
               <ApproveButtons
                 approved={script.approved}
                 onApprove={() =>
-                  onApprove({ assetKind: 'scripts', assetId: script.id, approved: true })
+                  onApprove({ assetKind: 'scripts', assetId: script.id ?? '', approved: true })
                 }
                 onReject={() =>
-                  onApprove({ assetKind: 'scripts', assetId: script.id, approved: false })
+                  onApprove({ assetKind: 'scripts', assetId: script.id ?? '', approved: false })
                 }
                 disabled={isPending}
               />
@@ -216,7 +216,7 @@ function ScriptsTab({
                 variant="ghost"
                 size="sm"
                 className="gap-1 text-xs"
-                onClick={() => navigator.clipboard.writeText(script.content)}
+                onClick={() => navigator.clipboard.writeText(script.content ?? '')}
               >
                 <Copy className="h-3 w-3" /> Copy
               </Button>
@@ -224,7 +224,7 @@ function ScriptsTab({
                 variant="outline"
                 size="sm"
                 className="gap-1 text-xs"
-                onClick={() => onRegenerate({ assetKind: 'scripts', assetId: script.id })}
+                onClick={() => onRegenerate({ assetKind: 'scripts', assetId: script.id ?? '' })}
                 disabled={isPending}
               >
                 <RefreshCw className="h-3 w-3" /> Regenerate

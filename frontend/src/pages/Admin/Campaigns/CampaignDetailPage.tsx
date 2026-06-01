@@ -15,6 +15,7 @@ const STATUS_TO_STEP: Record<CampaignStatus, number> = {
   concepts_ready: 1,
   confirmed: 2,
   planned: 3,
+  budget_pending: 4,
   budget_proposed: 4,
   approved: 5,
   creative_generating: 6,

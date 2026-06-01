@@ -218,7 +218,7 @@ export const campaignHandlers = [
     const campaign = db.campaignStore[params.id as string]
     if (!campaign) return new HttpResponse(null, { status: 404 })
     const kpi_configs: KpiConfig[] = (campaign.activation_plan ?? []).flatMap((act) =>
-      act.kpis.map((kpi) => ({
+      (act.kpis ?? []).map((kpi) => ({
         activation_id: act.id,
         kpi_name: kpi.name,
         unit: kpi.unit,

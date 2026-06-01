@@ -308,7 +308,7 @@ const initialCampaigns: Record<string, Campaign> = {
     budget_proposal: baseBudgetProposal,
     creative_assets: generateCreativeAssets('c-004'),
     kpi_configs: baseActivations.flatMap((act) =>
-      act.kpis.map((kpi): KpiConfig => ({
+      (act.kpis ?? []).map((kpi): KpiConfig => ({
         activation_id: act.id,
         kpi_name: kpi.name,
         unit: kpi.unit,
@@ -392,11 +392,12 @@ export function generateActivationPlan(mandateId: string): Activation[] {
 }
 
 export function generateBudgetProposal(activations: Activation[]): BudgetProposal {
-  const total = activations.reduce((sum, a) => sum + a.budget, 0)
+  const total = activations.reduce((sum, a) => sum + (a.budget ?? 0), 0)
   const currency = activations[0]?.currency ?? 'USD'
   const byChannel: Record<string, number> = {}
   for (const a of activations) {
-    byChannel[a.channel] = (byChannel[a.channel] ?? 0) + a.budget
+    const ch = a.channel ?? a.channel_enum ?? 'unknown'
+    byChannel[ch] = (byChannel[ch] ?? 0) + (a.budget ?? 0)
   }
   const allocations = Object.entries(byChannel).map(([channel, amount]) => ({
     channel,
