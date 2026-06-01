@@ -1,21 +1,21 @@
 """Tests for AGT-15 Report Generator — TDD RED phase."""
 
 import json
-import pytest
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from backend.app.models.report import Report
-from backend.app.services.report_service import ReportService
+import pytest
+
 from backend.app.agents.report_generator import (
     DailyDigestBuilder,
-    TrendAnalyzer,
-    WeeklyReportBuilder,
     LLMNarrator,
     ReportAgent,
+    TrendAnalyzer,
+    WeeklyReportBuilder,
 )
 from backend.app.models.performance_metric import PerformanceMetric
-
+from backend.app.models.report import Report
+from backend.app.services.report_service import ReportService
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -95,7 +95,7 @@ class TestReportService:
         db.refresh = AsyncMock()
 
         service = ReportService(db)
-        result = await service.save(_daily_dict(), "tenant-001")
+        result = await service.save(_daily_dict(), "tenant-001")  # noqa: F841
 
         db.add.assert_called_once()
         added = db.add.call_args[0][0]

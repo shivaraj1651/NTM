@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -118,8 +117,8 @@ async def channel_performance(
 
 @router.get("/analytics/kpi-status", status_code=200)
 async def kpi_status(
-    mandate_id: Optional[str] = Query(None),
-    campaign_id: Optional[str] = Query(None),
+    mandate_id: str | None = Query(None),
+    campaign_id: str | None = Query(None),
     _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     sql_db: AsyncSession = Depends(get_db),
@@ -145,7 +144,7 @@ async def kpi_status(
 @router.get("/analytics/report", status_code=200)
 async def analytics_report(
     mandate_id: str = Query(...),
-    week: Optional[int] = Query(None),
+    week: int | None = Query(None),
     _: User = Depends(require_role(ALL_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     mongo: AsyncIOMotorDatabase = Depends(get_mongo_db),

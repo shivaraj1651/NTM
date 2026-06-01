@@ -9,8 +9,7 @@ status="manual_production_required" instead of raising.
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import httpx
 from pydantic import BaseModel, Field
@@ -36,7 +35,7 @@ class VideoGenerationBrief(BaseModel):
     tenant_id: str
     prompt: str
     script_text: str
-    reference_image_url: Optional[str] = None
+    reference_image_url: str | None = None
     duration_seconds: int = 5
     script_format: str = "social_video"
     campaign_theme: str = ""
@@ -53,7 +52,7 @@ class VideoGenerationOutput(BaseModel):
     status: str
     script_format: str
     generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 
@@ -141,7 +140,7 @@ class VideoGeneratorAgent:
         return output
 
     async def _submit_with_retry(self, brief: VideoGenerationBrief) -> str:
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 return await runway.generate_video(
@@ -160,7 +159,7 @@ class VideoGeneratorAgent:
                     await asyncio.sleep(wait)
         raise last_exc or RuntimeError("Runway submit failed after retries")
 
-    async def _poll_for_completion(self, job_id: str) -> Optional[str]:
+    async def _poll_for_completion(self, job_id: str) -> str | None:
         """Poll until SUCCEEDED (returns URL) or FAILED/timeout (returns None)."""
         for _ in range(MAX_POLL_ATTEMPTS):
             result = await runway.get_video_status(job_id)

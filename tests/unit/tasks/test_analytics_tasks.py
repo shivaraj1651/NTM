@@ -3,9 +3,11 @@
 Tests the run_daily_analytics_task wrapper that schedules AnalyticsAgent.
 """
 
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-from unittest.mock import AsyncMock, patch, MagicMock
+
+import pytest
+
 from backend.app.tasks.analytics_tasks import run_daily_analytics_task
 
 

@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.report import router, get_mongo_db
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
 from backend.app.db import get_db
+from backend.app.routers.report import get_mongo_db, router
 
 
 def make_mock_user():

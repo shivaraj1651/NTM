@@ -1,14 +1,13 @@
 """Tests for Campaign Service (TASK-012)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 
 from backend.app.services.campaign_service import CampaignService
-
 
 # ---------------------------------------------------------------------------
 # Helpers & fixtures
@@ -62,8 +61,8 @@ def _campaign(
         "selected_concept_id": cid if status not in ("pending", "concepts_ready") else None,
         "activation_plan": [{"id": "act-1"}] if status in ("planned", "budget_proposed", "approved") else None,
         "budget_proposal": {"total_approved": 95000} if status in ("budget_proposed", "approved") else None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
 

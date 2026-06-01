@@ -1,10 +1,12 @@
 """SQLAlchemy model for GeneratedAudio output from Audio Generator Agent (AGT-10)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Float, Index, String
+
 from backend.app.models.base import Base
+
 
 class GeneratedAudio(Base):
     """Generated audio record. Multi-tenant isolated, one row per generation."""
@@ -22,7 +24,7 @@ class GeneratedAudio(Base):
     duration_seconds = Column(Float, nullable=False, default=0.0)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

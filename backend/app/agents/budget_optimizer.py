@@ -9,11 +9,11 @@ and executive narrative — ensuring each mandate produces a unique, tailored bu
 
 import json
 import logging
-from backend.app.agents.json_parsing import extract_json
-from typing import Dict, List, Any, Optional
-from datetime import date
-import asyncio
+from typing import Any
+
 from anthropic import AsyncAnthropic
+
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 # ── LLM Intelligence Layer ────────────────────────────────────────────────────
 
 async def _generate_optimization_intelligence(
-    activations: List[Dict[str, Any]],
-    budget_envelope: Dict[str, Any],
-    campaign_context: Dict[str, Any],
-) -> Dict[str, Any]:
+    activations: list[dict[str, Any]],
+    budget_envelope: dict[str, Any],
+    campaign_context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Call Claude to produce context-aware budget optimization strategy.
 
@@ -45,8 +45,8 @@ async def _generate_optimization_intelligence(
     currency    = budget_envelope.get("currency", "USD")
 
     # Build channel/phase summary for the LLM
-    channel_counts: Dict[str, int] = {}
-    phase_budgets_raw: Dict[str, float] = {}
+    channel_counts: dict[str, int] = {}
+    phase_budgets_raw: dict[str, float] = {}
     for act in activations:
         ch = act.get("sub_channel", "Unknown")
         ph = act.get("phase", "Engagement")
@@ -149,9 +149,9 @@ class ConversionRateEstimator:
 
     def estimate_conversion_rate(
         self,
-        activation: Dict[str, Any],
-        campaign_context: Dict[str, Any],
-        historical_data: Optional[Dict[str, float]] = None,
+        activation: dict[str, Any],
+        campaign_context: dict[str, Any],
+        historical_data: dict[str, float] | None = None,
         channel_adjustment: float = 1.0,
     ) -> float:
         sub_channel = activation.get("sub_channel", "Email")
@@ -173,21 +173,21 @@ class BudgetOptimizer:
 
     MIN_ACTIVATION_BUDGET = 100.0
 
-    def calculate_roi_per_dollar(self, activation: Dict[str, Any], conversion_rate: float) -> float:
+    def calculate_roi_per_dollar(self, activation: dict[str, Any], conversion_rate: float) -> float:
         reach = activation.get("estimated_reach", 0)
         cost  = max(activation.get("optimized_cost_estimated", 1.0), 1.0)
         return (reach * conversion_rate) / cost
 
     def optimize(
         self,
-        activations: List[Dict[str, Any]],
-        conversion_rates: Dict[str, float],
-        phase_budgets: Dict[str, float],
-        channel_priority_order: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        activations: list[dict[str, Any]],
+        conversion_rates: dict[str, float],
+        phase_budgets: dict[str, float],
+        channel_priority_order: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Optimise budget per phase, respecting channel priority order."""
         optimized = []
-        by_phase: Dict[str, List[Dict]] = {}
+        by_phase: dict[str, list[dict]] = {}
         for act in activations:
             phase = act.get("phase", "Engagement")
             by_phase.setdefault(phase, []).append(act)
@@ -238,9 +238,9 @@ class BudgetOptimizer:
 class ROIAnalyzer:
     """Analyses ROI metrics across phases, channels, and total campaign."""
 
-    def analyze(self, optimized_activations: List[Dict[str, Any]], conversion_rates: Dict[str, float]) -> Dict[str, Any]:
-        phase_data: Dict   = {}
-        channel_data: Dict = {}
+    def analyze(self, optimized_activations: list[dict[str, Any]], conversion_rates: dict[str, float]) -> dict[str, Any]:
+        phase_data: dict   = {}
+        channel_data: dict = {}
         total_rw, total_budget = 0, 0.0
 
         for act in optimized_activations:
@@ -265,7 +265,8 @@ class ROIAnalyzer:
             for ch, data in channels.items():
                 c_rw = sum(r for r, _ in data)
                 c_b  = sum(b for _, b in data)
-                p_rw += c_rw; p_budget += c_b
+                p_rw += c_rw
+                p_budget += c_b
                 ch_breakdown[ch] = {"reach_weighted_conversions": c_rw, "allocated_budget": c_b, "roi": c_rw / c_b if c_b else 0}
             phase_summary[phase] = {
                 "reach_weighted_conversions": p_rw, "allocated_budget": p_budget,
@@ -301,11 +302,11 @@ class OptimizationReporter:
 
     def generate_report(
         self,
-        original_activations: List[Dict[str, Any]],
-        optimized_activations: List[Dict[str, Any]],
-        conversion_rates: Dict[str, float],
+        original_activations: list[dict[str, Any]],
+        optimized_activations: list[dict[str, Any]],
+        conversion_rates: dict[str, float],
         executive_summary: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         original_costs = {a.get("id"): a.get("optimized_cost_estimated", 0.0) for a in original_activations}
         budget_shifts, prioritized, deprioritized = [], [], []
 
@@ -360,17 +361,17 @@ class OptimizationReporter:
         }
 
 
-def budget_envelope_currency(activations: List[Dict]) -> str:
+def budget_envelope_currency(activations: list[dict]) -> str:
     return "$"
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 async def budget_optimizer_agent(
-    activations: List[Dict[str, Any]],
-    budget_envelope: Dict[str, Any],
-    campaign_context: Dict[str, Any],
-) -> Dict[str, Any]:
+    activations: list[dict[str, Any]],
+    budget_envelope: dict[str, Any],
+    campaign_context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Orchestrates all Budget Optimizer components with LLM-driven intelligence.
 

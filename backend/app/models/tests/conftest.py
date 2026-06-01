@@ -1,33 +1,33 @@
 """Fixtures for models tests."""
 
+import os
+
 import pytest
 import pytest_asyncio
-import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-
-from sqlalchemy import MetaData
 
 # Allow SQLite to compile JSONB columns (treat as TEXT)
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
 if not hasattr(SQLiteTypeCompiler, "visit_JSONB"):
     SQLiteTypeCompiler.visit_JSONB = lambda self, type_, **kw: "TEXT"
+from backend.app.models.activation import Base as Base8
 from backend.app.models.activation_platform_mapping import Base as Base1
-from backend.app.models.platform_config_template import Base as Base2
-from backend.app.models.kpi import Base as Base3
-from backend.app.models.client import Base as Base4
-from backend.app.models.mandate import Base as Base5
+from backend.app.models.approval_log import Base as Base10
+from backend.app.models.audio import Base as AudioBase
+from backend.app.models.budget import Base as Base9
 from backend.app.models.campaign import Base as Base6
 from backend.app.models.campaign_concept import Base as Base7
-from backend.app.models.activation import Base as Base8
-from backend.app.models.budget import Base as Base9
-from backend.app.models.approval_log import Base as Base10
-from backend.app.models.physical_activation_log import Base as Base11
-from backend.app.models.audio import Base as AudioBase
+from backend.app.models.client import Base as Base4
 from backend.app.models.copy import Base as CopyBase
 from backend.app.models.creative import Base as CreativeBase
 from backend.app.models.image import Base as ImageBase
+from backend.app.models.kpi import Base as Base3
+from backend.app.models.mandate import Base as Base5
 from backend.app.models.performance_metric import Base as PerfMetricBase
+from backend.app.models.physical_activation_log import Base as Base11
+from backend.app.models.platform_config_template import Base as Base2
 from backend.app.models.report import Base as ReportBase
 from backend.app.models.script import Base as ScriptBase
 from backend.app.models.video import Base as VideoBase

@@ -1,13 +1,12 @@
-import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from backend.app.models.base import Base
 import backend.app.core.models  # noqa: F401  registers User/Role/Tenant/user_tenant_access
 import backend.app.models.mandate  # noqa: F401  registers mandates
-from backend.app.scripts.seed import seed_all, TENANT_ID
+from backend.app.models.base import Base
+from backend.app.scripts.seed import TENANT_ID, seed_all
 
 
 @pytest_asyncio.fixture

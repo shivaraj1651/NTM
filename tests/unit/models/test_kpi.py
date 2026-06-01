@@ -1,9 +1,11 @@
 """Unit tests for KPI model."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+
 from backend.app.models.kpi import KPI
 
 

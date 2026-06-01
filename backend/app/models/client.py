@@ -1,9 +1,10 @@
 """SQLAlchemy model for Client — org profile with brand metadata and optional embedding."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Index, JSON
+from sqlalchemy import JSON, Column, DateTime, Index, String
+
 from backend.app.models.base import Base
 
 try:
@@ -23,13 +24,13 @@ class Client(Base):
     competitors = Column(JSON, nullable=False, default=lambda: [])
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

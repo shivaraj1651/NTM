@@ -1,10 +1,10 @@
 """Tests for Video Generator Agent (AGT-11)."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from backend.app.agents.video_generator import (
-    RUNWAY_MODEL,
     STATUS_COMPLETED,
     STATUS_MANUAL,
     VideoGenerationBrief,

@@ -2,11 +2,11 @@ import pytest
 from pydantic import ValidationError
 
 from backend.app.schemas.campaign import (
-    CampaignStatusEnum,
-    CampaignCreateRequest,
-    CampaignUpdateRequest,
     CampaignConfirmRequest,
+    CampaignCreateRequest,
     CampaignResponse,
+    CampaignStatusEnum,
+    CampaignUpdateRequest,
 )
 
 

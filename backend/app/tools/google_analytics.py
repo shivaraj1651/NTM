@@ -3,7 +3,7 @@
 import logging
 import os
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class GoogleAnalyticsTool:
     def __init__(self) -> None:
         self.property_id = os.getenv("GA4_PROPERTY_ID", "")
         self.sa_json_path = os.getenv("GA4_SERVICE_ACCOUNT_JSON_PATH", "")
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
 
     def _get_client(self) -> Any:
         if self._client is not None:
@@ -54,8 +54,8 @@ class GoogleAnalyticsTool:
     def get_metrics(
         self,
         activation: dict,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict:
         """Fetch GA4 metrics for an activation's date window.
 
@@ -79,8 +79,8 @@ class GoogleAnalyticsTool:
     def _fetch_from_api(
         self,
         activation: dict,
-        start_date: Optional[date],
-        end_date: Optional[date],
+        start_date: date | None,
+        end_date: date | None,
     ) -> dict:
         client = self._get_client()
         today = date.today()

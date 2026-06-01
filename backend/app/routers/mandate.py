@@ -6,11 +6,12 @@ Provides endpoints for:
 2. GET /api/v1/jobs/{job_id} - Poll for Phase 2 completion
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Dict, Any, Union
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,12 +19,12 @@ from backend.app.agents.competitive_intel import competitive_intel_agent
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.db import get_db as _get_sql_db
-from backend.app.schemas.competitive_intel import CIReportInitial, CIReport
+from backend.app.schemas.competitive_intel import CIReport, CIReportInitial
 from backend.app.schemas.mandate import CreateMandateRequest, UpdateMandateRequest
 from backend.app.services.mandate_service import MandateService
+from backend.app.tasks.campaign_tasks import run_campaign_strategy
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics
 from backend.app.tasks.mandate_tasks import run_mandate_analysis
-from backend.app.tasks.campaign_tasks import run_campaign_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,9 @@ async def get_db() -> AsyncIOMotorDatabase:
 
     In production, this would be injected from a global connection pool.
     """
-    from motor.motor_asyncio import AsyncIOMotorClient
     import os
+
+    from motor.motor_asyncio import AsyncIOMotorClient
 
     mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     mongo_db_name = os.getenv("MONGODB_DB", "ntm")
@@ -213,7 +215,7 @@ async def analyze_competitors(
 
 @router.get(
     "/jobs/{job_id}",
-    response_model=Union[CIReportInitial, CIReport],
+    response_model=CIReportInitial | CIReport,
     status_code=200,
 )
 async def get_job_status(
@@ -221,7 +223,7 @@ async def get_job_status(
     user: User = Depends(require_role(MANDATE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> Union[CIReportInitial, CIReport]:
+) -> CIReportInitial | CIReport:
     """
     Poll for Phase 2 completion.
 

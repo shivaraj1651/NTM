@@ -6,7 +6,9 @@ from starlette.responses import JSONResponse
 from backend.app.core.auth_state import decode_user_id, load_user_and_tenants
 from backend.app.core.dependencies import tenant_context
 from backend.app.core.exceptions import (
-    MissingTenantHeaderException, TenantMismatchException, InvalidTokenException,
+    InvalidTokenException,
+    MissingTenantHeaderException,
+    TenantMismatchException,
 )
 from backend.app.db import get_session_local
 

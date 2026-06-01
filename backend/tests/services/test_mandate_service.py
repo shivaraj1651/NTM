@@ -1,9 +1,10 @@
 """Unit tests for MandateService."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException
 from datetime import date
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from fastapi import HTTPException
 
 from backend.app.schemas.mandate import CreateMandateRequest, UpdateMandateRequest
 
@@ -93,7 +94,7 @@ async def test_confirm_analyzed_mandate_sets_confirmed():
     mandate = make_mandate(status="analyzed")
     session = make_mock_session(mandate=mandate)
     svc = MandateService(session)
-    result = await svc.confirm("m-001", "tenant-1")
+    result = await svc.confirm("m-001", "tenant-1")  # noqa: F841
     assert mandate.status == "confirmed"
     assert session.commit.called
 
@@ -178,6 +179,7 @@ async def test_create_mandate_sets_draft_status():
 @pytest.mark.asyncio
 async def test_list_returns_tenant_mandates():
     from unittest.mock import AsyncMock, MagicMock
+
     from backend.app.services.mandate_service import MandateService
     m = make_mandate()
     result = MagicMock()

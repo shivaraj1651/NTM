@@ -1,26 +1,26 @@
 """Admin router — tenant, user, role, and audit-log management (platform_admin only)."""
 
 import logging
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.app.core.dependencies import require_role
-from backend.app.core.models import User, Tenant, Role, UserRole
-from backend.app.models.approval_log import ApprovalLog
+from backend.app.core.models import Role, Tenant, User, UserRole
 from backend.app.db import get_db
+from backend.app.models.approval_log import ApprovalLog
 from backend.app.schemas.admin import (  # noqa: F401 — re-exported for router use
+    AuditLogResponse,
+    RoleResponse,
+    RoleUpdate,
     TenantCreate,
     TenantResponse,
     TenantUpdate,
     UserCreate,
     UserResponse,
     UserUpdate,
-    RoleUpdate,
-    RoleResponse,
-    AuditLogResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ async def update_user_role(
 
 @router.get("/audit-log", response_model=list[AuditLogResponse])
 async def get_audit_log(
-    tenant_id: Optional[str] = Query(None),
+    tenant_id: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),

@@ -1,9 +1,9 @@
 """Unit tests for CampaignService — campaign lifecycle business logic."""
 
-import uuid
+
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import HTTPException
 
 from backend.app.services.campaign_service import CampaignService

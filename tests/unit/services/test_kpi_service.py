@@ -1,10 +1,12 @@
 """Tests for KPIService."""
 
-import pytest
 from uuid import uuid4
-from backend.app.services.kpi_service import KPIService
-from backend.app.models.kpi import KPI
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.models.kpi import KPI
+from backend.app.services.kpi_service import KPIService
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 """Pydantic schemas for KPI resource (PRD Section 10 / M10)."""
 
-from typing import List, Optional
+
 from pydantic import BaseModel
 
 
@@ -10,25 +10,25 @@ class KPICreate(BaseModel):
     category: str  # reach | engagement | conversion | revenue | brand_health | regional
     target_value: float
     unit: str
-    measurement_method: Optional[str] = None
+    measurement_method: str | None = None
 
 
 class KPIResponse(BaseModel):
     id: str
-    campaign_id: Optional[str] = None
-    mandate_id: Optional[str] = None
-    tenant_id: Optional[str] = None
-    channel_enum: Optional[str] = None
-    audience_segment: Optional[str] = None
-    kpi_name: Optional[str] = None
-    target_value: Optional[float] = None
-    threshold_unit: Optional[str] = None
-    current_value: Optional[float] = None
-    status: Optional[str] = None  # green | amber | red
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    campaign_id: str | None = None
+    mandate_id: str | None = None
+    tenant_id: str | None = None
+    channel_enum: str | None = None
+    audience_segment: str | None = None
+    kpi_name: str | None = None
+    target_value: float | None = None
+    threshold_unit: str | None = None
+    current_value: float | None = None
+    status: str | None = None  # green | amber | red
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class KPIListResponse(BaseModel):
-    kpis: List[KPIResponse]
+    kpis: list[KPIResponse]
     total: int

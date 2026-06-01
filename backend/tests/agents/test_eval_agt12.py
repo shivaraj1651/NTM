@@ -1,10 +1,15 @@
 """Eval tests for AGT-12 Digital Activator."""
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 REQUIRED_OUTPUT_FIELDS = ["platform", "campaign_id", "status"]
@@ -32,7 +37,7 @@ async def test_agt12_eval(mandate_id, eval_results, mock_agent_llm):
 
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
-    mock_tools = {
+    mock_tools = {  # noqa: F841
         "google_ads": MagicMock(create_campaign=AsyncMock(return_value="ga-campaign-001")),
         "meta_ads": MagicMock(create_campaign=AsyncMock(return_value="meta-campaign-001")),
         "linkedin_ads": MagicMock(create_campaign=AsyncMock(return_value="li-campaign-001")),

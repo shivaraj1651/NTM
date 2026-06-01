@@ -1,14 +1,15 @@
 """Fixtures for integration tests."""
 
+import os
+
 import pytest
 import pytest_asyncio
-import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from backend.app.models.activation_platform_mapping import Base as BaseActivation
 from backend.app.models.kpi import Base as BaseKPI
 from backend.app.models.performance_metric import Base as BasePerformanceMetric
-from backend.app.models.activation_platform_mapping import Base as BaseActivation
 
 
 @pytest.fixture(autouse=True)

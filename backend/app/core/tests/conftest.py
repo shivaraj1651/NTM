@@ -2,9 +2,9 @@
 Fixtures for core module tests.
 """
 
-import pytest
 import os
-from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture(autouse=True)

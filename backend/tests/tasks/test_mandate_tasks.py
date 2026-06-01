@@ -1,7 +1,8 @@
 """Unit tests for mandate Celery tasks."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 def test_run_mandate_analysis_is_celery_task():
@@ -21,8 +22,9 @@ def test_run_mandate_analysis_sets_analyzing_then_analyzed():
 
 def test_run_mandate_analysis_handles_exception_gracefully():
     """Task should call self.retry on exception, not silently swallow it."""
-    from backend.app.tasks.mandate_tasks import run_mandate_analysis
     from celery.exceptions import Retry
+
+    from backend.app.tasks.mandate_tasks import run_mandate_analysis
 
     with patch("backend.app.tasks.mandate_tasks.asyncio.run", side_effect=Exception("boom")):
         with pytest.raises((Retry, Exception)):

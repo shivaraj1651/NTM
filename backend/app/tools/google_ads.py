@@ -1,10 +1,10 @@
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Any
 
 import httpx
 
-from backend.app.external.stubs import stub_enabled, ads_test_mode
+from backend.app.external.stubs import ads_test_mode, stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ def _get_access_token() -> str:
         raise RuntimeError(
             "GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, and GOOGLE_ADS_REFRESH_TOKEN must be set"
         )
-    from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
 
     creds = Credentials(
         token=None,
@@ -35,11 +35,11 @@ def _get_access_token() -> str:
 
 
 async def activate_google(
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-    customer_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    customer_id: str | None = None,
+) -> dict[str, Any]:
     # NTM_STUB_EXTERNAL: stubbed external call
     if stub_enabled():
         logger.info("Google Ads activate_google stubbed (NTM_STUB_EXTERNAL)")

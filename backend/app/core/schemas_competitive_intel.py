@@ -6,8 +6,9 @@ identification, channel metrics, and comprehensive CI reports.
 """
 
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CompetitorIdentity(BaseModel):
@@ -26,25 +27,25 @@ class ChannelMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     presence: bool = Field(..., description="Whether competitor has presence in this channel")
-    estimated_monthly_spend: Optional[float] = Field(
+    estimated_monthly_spend: float | None = Field(
         None,
         ge=0,
         description="Estimated monthly ad spend in this channel (USD)"
     )
-    estimated_monthly_impressions: Optional[int] = Field(
+    estimated_monthly_impressions: int | None = Field(
         None,
         ge=0,
         description="Estimated monthly impressions in this channel"
     )
-    placements: List[str] = Field(
+    placements: list[str] = Field(
         default_factory=list,
         description="Ad placements observed (e.g., search, display, feed)"
     )
-    primary_keywords: List[str] = Field(
+    primary_keywords: list[str] = Field(
         default_factory=list,
         description="Primary keywords targeted in this channel"
     )
-    primary_audiences: List[str] = Field(
+    primary_audiences: list[str] = Field(
         default_factory=list,
         description="Primary audience segments targeted"
     )
@@ -61,24 +62,24 @@ class CompetitorMetrics(BaseModel):
         le=100,
         description="Overall confidence score for this competitor's data (0-100)"
     )
-    channels: Dict[str, ChannelMetrics] = Field(
+    channels: dict[str, ChannelMetrics] = Field(
         default_factory=dict,
         description="Metrics per advertising channel (e.g., 'google_ads', 'meta')"
     )
-    messaging_themes: List[str] = Field(
+    messaging_themes: list[str] = Field(
         default_factory=list,
         description="Primary messaging themes observed across campaigns"
     )
-    geographic_focus: List[str] = Field(
+    geographic_focus: list[str] = Field(
         default_factory=list,
         description="Geographic regions/countries of focus"
     )
-    estimated_annual_spend: Optional[float] = Field(
+    estimated_annual_spend: float | None = Field(
         None,
         ge=0,
         description="Estimated total annual ad spend (USD)"
     )
-    data_sources: List[str] = Field(
+    data_sources: list[str] = Field(
         default_factory=list,
         description="Data sources used (e.g., 'meta_ad_library', 'serpapi', 'manual_research')"
     )
@@ -94,7 +95,7 @@ class CIReportInitial(BaseModel):
 
     job_id: str = Field(..., description="Unique job ID for this CI analysis")
     mandate_id: str = Field(..., description="Associated mandate ID")
-    competitors: List[CompetitorIdentity] = Field(
+    competitors: list[CompetitorIdentity] = Field(
         default_factory=list,
         description="Initial list of identified competitors"
     )
@@ -112,15 +113,15 @@ class WhitespaceOpportunities(BaseModel):
     """Identified whitespace opportunities in the competitive landscape."""
     model_config = ConfigDict(from_attributes=True)
 
-    untapped_channels: List[str] = Field(
+    untapped_channels: list[str] = Field(
         default_factory=list,
         description="Advertising channels not being exploited by competitors"
     )
-    messaging_gaps: List[str] = Field(
+    messaging_gaps: list[str] = Field(
         default_factory=list,
         description="Messaging angles not covered by competitors"
     )
-    geographic_gaps: List[str] = Field(
+    geographic_gaps: list[str] = Field(
         default_factory=list,
         description="Geographic regions not being targeted by competitors"
     )
@@ -134,7 +135,7 @@ class CIReport(BaseModel):
     job_id: str = Field(..., description="Unique job ID for this CI analysis")
     generated_at: datetime = Field(..., description="Timestamp when report was generated (ISO format)")
     tenant_id: str = Field(..., description="Tenant ID for multi-tenancy isolation")
-    competitors: List[CompetitorMetrics] = Field(
+    competitors: list[CompetitorMetrics] = Field(
         default_factory=list,
         description="Detailed metrics for each identified competitor"
     )

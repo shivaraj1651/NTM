@@ -1,9 +1,10 @@
 """SQLAlchemy model for CampaignConcept — AI-generated concept with optional brand embedding."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Text, Index, JSON
+from sqlalchemy import JSON, Column, DateTime, Index, String, Text
+
 from backend.app.models.base import Base
 
 try:
@@ -25,13 +26,13 @@ class CampaignConcept(Base):
     selected_by = Column(String, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

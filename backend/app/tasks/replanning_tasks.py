@@ -7,15 +7,15 @@ Fetches a fresh AnalyticsSummary from AGT-13 before generating recommendations.
 import asyncio
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 import anthropic
 from celery import Task
 
-from backend.app.celery_app import celery_app
 from backend.app.agents.analytics_agent import AnalyticsAgent
 from backend.app.agents.replanning_agent import ReplanningAgent
+from backend.app.celery_app import celery_app
 from backend.app.db import get_session_local
 from backend.app.tasks.analytics_tasks import PlatformTool
 
@@ -38,7 +38,7 @@ class AsyncTask(Task):
     base=AsyncTask,
     bind=True,
 )
-async def run_weekly_replan_task(self, mandate_id: str) -> Dict[str, Any]:
+async def run_weekly_replan_task(self, mandate_id: str) -> dict[str, Any]:
     """Celery Beat weekly task for activation replanning.
 
     1. Fetches a fresh AnalyticsSummary via AnalyticsAgent (AGT-13)

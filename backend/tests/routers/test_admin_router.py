@@ -1,18 +1,18 @@
 """Endpoint tests for admin router — tenant, user, and audit-log management."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.admin import router
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
 from backend.app.db import get_db
+from backend.app.routers.admin import router
 
-_TS = datetime(2026, 5, 21, tzinfo=timezone.utc)
+_TS = datetime(2026, 5, 21, tzinfo=UTC)
 
 
 def make_admin_user():

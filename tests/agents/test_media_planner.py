@@ -1,9 +1,10 @@
 """Unit tests for Media Planner Agent (AGT-04)."""
 
+from datetime import date
+
 import pytest
-from datetime import date, timedelta
-import asyncio
-from backend.app.schemas.media_plan import ChannelEnum, PhaseEnum, AudienceSegmentEnum
+
+from backend.app.schemas.media_plan import AudienceSegmentEnum, ChannelEnum, PhaseEnum
 
 
 def get_valid_activation() -> dict:

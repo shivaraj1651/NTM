@@ -1,16 +1,16 @@
 """Endpoint tests for physical activation router — M8 logging."""
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.physical_activation import router, PhysicalLogCreate
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
 from backend.app.db import get_db
+from backend.app.routers.physical_activation import router
 
 
 def make_mock_user():
@@ -33,8 +33,8 @@ def make_mock_log(activation_id: str = "act-001"):
     log.event_type = "proof_of_execution"
     log.channel = "newspaper"
     log.payload = {"actual_cost": 42000.0, "vendor_name": "TOI"}
-    log.logged_at = datetime(2026, 5, 21, tzinfo=timezone.utc)
-    log.created_at = datetime(2026, 5, 21, tzinfo=timezone.utc)
+    log.logged_at = datetime(2026, 5, 21, tzinfo=UTC)
+    log.created_at = datetime(2026, 5, 21, tzinfo=UTC)
     return log
 
 

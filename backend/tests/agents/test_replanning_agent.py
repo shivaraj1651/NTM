@@ -1,16 +1,16 @@
 """Tests for ReplanningAgent (AGT-14) — TDD RED phase."""
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from backend.app.agents.replanning_agent import (
     ActivationScorer,
-    RecommendationMapper,
     LLMEnricher,
+    RecommendationMapper,
     ReplanningAgent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

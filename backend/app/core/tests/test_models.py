@@ -1,8 +1,11 @@
+import uuid
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.core.models import Base, Role, Tenant, User
-import uuid
+
+from backend.app.core.models import Role, Tenant, User
+
 
 @pytest.mark.asyncio
 async def test_role_model(async_session: AsyncSession):
@@ -42,7 +45,7 @@ async def test_tenant_model(async_session: AsyncSession):
 
     assert fetched is not None
     assert fetched.name == "Acme Corp"
-    assert fetched.is_active == True
+    assert fetched.is_active is True
 
 @pytest.mark.asyncio
 async def test_user_model(async_session: AsyncSession):
@@ -73,7 +76,7 @@ async def test_user_model(async_session: AsyncSession):
 
     assert fetched is not None
     assert fetched.email == "user@example.com"
-    assert fetched.is_active == True
+    assert fetched.is_active is True
     assert fetched.tenant_id == tenant.id
 
 @pytest.mark.asyncio

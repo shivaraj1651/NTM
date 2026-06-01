@@ -5,16 +5,16 @@ types (2 A/B variants each) via 7 concurrent Claude API calls.
 """
 
 import asyncio
-import json
 import logging
 import uuid
-from backend.app.agents.json_parsing import extract_json
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
+
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class CopyOutput(BaseModel):
     generation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     tenant_id: str
     generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
     assets: list[AssetCopy]
     model_used: str = MODEL
@@ -140,7 +140,7 @@ class CopyOutput(BaseModel):
 class CopywriterAgent:
     """Generates A/B copy variants for 7 asset types via concurrent LLM calls."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = MODEL
 
@@ -161,7 +161,7 @@ class CopywriterAgent:
 
         assets: list[AssetCopy] = []
         errors: list[str] = []
-        for asset_type, result in zip(ASSET_CONFIGS.keys(), results):
+        for asset_type, result in zip(ASSET_CONFIGS.keys(), results, strict=False):
             if isinstance(result, Exception):
                 logger.error("Failed to generate %s: %s", asset_type, result)
                 errors.append(f"{asset_type}: {result}")
@@ -272,7 +272,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
         if stub_enabled():
             logger.info("Copywriter LLM stubbed (NTM_STUB_EXTERNAL)")
             return {"variants": [{"copy": "Stub copy variant A.", "rationale": "stub"}, {"copy": "Stub copy variant B.", "rationale": "stub"}]}
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.messages.create(

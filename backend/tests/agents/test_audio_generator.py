@@ -1,15 +1,14 @@
 """Tests for Audio Generator Agent (AGT-10)."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from backend.app.agents.audio_generator import (
-    VOICE_MAP,
     AudioGenerationBrief,
     AudioGenerationOutput,
     AudioGeneratorAgent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers & fixtures
@@ -144,7 +143,7 @@ class TestVoiceSelection:
         with patch(
             "backend.app.agents.audio_generator.elevenlabs.generate_vo",
             new=AsyncMock(return_value=FAKE_MP3),
-        ) as mock_vo:
+        ) as mock_vo:  # noqa: F841
             output = await agent.generate(brief, storage_client=storage)
 
         assert output.voice_id == ANTONI_ID
@@ -158,7 +157,7 @@ class TestVoiceSelection:
         with patch(
             "backend.app.agents.audio_generator.elevenlabs.generate_vo",
             new=AsyncMock(return_value=FAKE_MP3),
-        ) as mock_vo:
+        ) as mock_vo:  # noqa: F841
             output = await agent.generate(brief, storage_client=storage)
 
         assert output.voice_id == DOMI_ID

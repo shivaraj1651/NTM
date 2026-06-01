@@ -1,9 +1,10 @@
 # backend/app/routers/digital_activator.py
 import logging
 import os
+from datetime import UTC
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from backend.app.core.dependencies import get_current_tenant, require_role
@@ -12,8 +13,8 @@ from backend.app.schemas.jobs import JobQueuedResponse
 from backend.app.services.campaign_service import CampaignService
 from backend.app.tasks.activation_tasks import (
     platform_activate_google,
-    platform_activate_meta,
     platform_activate_linkedin,
+    platform_activate_meta,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,7 +104,6 @@ async def activate_campaign(
     master_message = messaging.get("master_message", "")
     concept_name   = concept.get("name", "")
     visual_dir     = tone_board.get("visual_direction", "")
-    primary_audience = str(concept.get("audience_segmentation", {}).get("primary", ""))
     mandate_objective = campaign_dict.get("mandate", {}).get("objective", "awareness")
 
     # Build platform_config carrying concept data for ad copy + basic targeting
@@ -178,12 +178,12 @@ async def activate_campaign(
     # Write initial queued state to MongoDB so frontend can poll for updates
     if initial_results:
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},
                 {"$set": {
                     "activation_results": initial_results,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                 }},
             )
         except Exception as _e:

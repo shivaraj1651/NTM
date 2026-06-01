@@ -1,10 +1,12 @@
 """SQLAlchemy model for ApprovalLog — insert-only audit log for entity state transitions."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Text, Index
+from sqlalchemy import Column, DateTime, Index, String, Text
+
 from backend.app.models.base import Base
+
 
 class ApprovalLog(Base):
     __tablename__ = "approval_logs"
@@ -21,7 +23,7 @@ class ApprovalLog(Base):
     status_after = Column(String, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

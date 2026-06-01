@@ -1,11 +1,15 @@
 """Eval tests for AGT-06 Creative Director."""
 import json
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.app.agents.creative_director_orchestrator import CreativeDirectorAgent
+import pytest
+
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 REQUIRED_OUTPUT_FIELDS = ["brief", "asset_type", "tone", "message"]
@@ -29,7 +33,7 @@ MOCK_RESPONSE = {
 @pytest.mark.asyncio
 async def test_agt06_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-06 scores completeness + format >= 80 on each golden mandate."""
-    golden = load_golden(mandate_id)
+    _golden = load_golden(mandate_id)
 
     with patch(
         "backend.app.agents.creative_director_orchestrator.AsyncAnthropic",

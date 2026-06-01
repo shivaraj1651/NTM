@@ -9,16 +9,18 @@ Implements per-platform activation tasks (Google Ads, Meta, LinkedIn) with:
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from datetime import UTC
+from typing import Any
 from uuid import UUID
 
 from celery import Task
+
 from backend.app.celery_app import celery_app
-from backend.app.tools.google_ads import activate_google
-from backend.app.tools.meta_ads import activate_meta
-from backend.app.tools.linkedin_ads import activate_linkedin
 from backend.app.models.activation_platform_mapping import ActivationPlatformMapping
 from backend.app.services.activation_notifications import ActivationNotificationService
+from backend.app.tools.google_ads import activate_google
+from backend.app.tools.linkedin_ads import activate_linkedin
+from backend.app.tools.meta_ads import activate_meta
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +50,10 @@ class AsyncTask(Task):
 )
 async def platform_activate_google(
     self,
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Activate campaign on Google Ads with retry logic."""
     try:
         logger.info(
@@ -122,10 +124,10 @@ async def platform_activate_google(
 )
 async def platform_activate_meta(
     self,
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Activate campaign on Meta (Facebook/Instagram) with retry logic."""
     try:
         logger.info(
@@ -195,10 +197,10 @@ async def platform_activate_meta(
 )
 async def platform_activate_linkedin(
     self,
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Activate campaign on LinkedIn with retry logic.
 
     Args:
@@ -211,7 +213,7 @@ async def platform_activate_linkedin(
     """
     try:
         logger.info(
-            f"Starting LinkedIn Ads activation",
+            "Starting LinkedIn Ads activation",
             extra={"activation_id": activation.get("id"), "tenant_id": activation.get("tenant_id")},
         )
 
@@ -230,7 +232,7 @@ async def platform_activate_linkedin(
         )
 
         logger.info(
-            f"LinkedIn Ads activation completed",
+            "LinkedIn Ads activation completed",
             extra={
                 "activation_id": activation.get("id"),
                 "status": result.get("status"),
@@ -280,7 +282,7 @@ async def platform_activate_linkedin(
 
 @celery_app.task(name="activation_tasks.activation_completion_callback")
 def activation_completion_callback(
-    results: List[Dict[str, Any]],
+    results: list[dict[str, Any]],
     activation_id: str,
     campaign_manager_email: str,
     campaign_manager_phone: str,
@@ -302,7 +304,7 @@ def activation_completion_callback(
         valid_results = [r for r in results if r is not None]
 
         logger.info(
-            f"Activation completion callback",
+            "Activation completion callback",
             extra={
                 "activation_id": activation_id,
                 "total_platforms": len(valid_results),
@@ -394,7 +396,7 @@ def activation_completion_callback(
 
     except Exception as e:
         logger.error(
-            f"Activation completion callback failed",
+            "Activation completion callback failed",
             extra={"activation_id": activation_id, "error": str(e)},
             exc_info=True,
         )
@@ -407,7 +409,7 @@ def activation_completion_callback(
             )
         except Exception as inner_e:
             logger.error(
-                f"Failed to update activation status on callback error",
+                "Failed to update activation status on callback error",
                 extra={"activation_id": activation_id, "error": str(inner_e)},
             )
 
@@ -416,15 +418,16 @@ async def _push_activation_result_to_mongo(
     campaign_id: str,
     tenant_id: str,
     platform: str,
-    result: Dict[str, Any],
+    result: dict[str, Any],
 ) -> None:
     """Push platform activation result into MongoDB campaign doc so frontend can poll."""
     if not campaign_id:
         return
     try:
         import os as _os
+        from datetime import datetime
+
         from motor.motor_asyncio import AsyncIOMotorClient
-        from datetime import datetime, timezone
 
         mongo_url = _os.getenv("MONGODB_URL", "mongodb://localhost:27017")
         mongo_db  = _os.getenv("MONGODB_DB", "ntm")
@@ -438,7 +441,7 @@ async def _push_activation_result_to_mongo(
                 "ad_set_id":   result.get("ad_set_id"),
                 "test_mode":   result.get("test_mode", False),
                 "error":       result.get("error"),
-                "updated_at":  datetime.now(timezone.utc).isoformat(),
+                "updated_at":  datetime.now(UTC).isoformat(),
             }
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},
@@ -463,10 +466,10 @@ async def _push_activation_result_to_mongo(
 async def _store_platform_mapping_async(
     activation_id: str,
     channel_enum: str,
-    campaign_id: Optional[str],
-    ad_id: Optional[str],
+    campaign_id: str | None,
+    ad_id: str | None,
     status: str,
-    error: Optional[str],
+    error: str | None,
     tenant_id: str,
 ) -> None:
     """Store platform mapping in database (async wrapper).
@@ -496,7 +499,7 @@ async def _store_platform_mapping_async(
         )
     except Exception as e:
         logger.error(
-            f"Failed to store platform mapping",
+            "Failed to store platform mapping",
             extra={
                 "activation_id": activation_id,
                 "channel": channel_enum,
@@ -509,10 +512,10 @@ async def _store_platform_mapping_async(
 def _store_platform_mapping_sync(
     activation_id: str,
     channel_enum: str,
-    campaign_id: Optional[str],
-    ad_id: Optional[str],
+    campaign_id: str | None,
+    ad_id: str | None,
     status: str,
-    error: Optional[str],
+    error: str | None,
     tenant_id: str,
 ) -> None:
     """Store platform mapping synchronously using SessionLocal.
@@ -532,7 +535,7 @@ def _store_platform_mapping_sync(
     session_local = get_session_local()
     if session_local is None:
         logger.warning(
-            f"SessionLocal not initialized, skipping platform mapping storage",
+            "SessionLocal not initialized, skipping platform mapping storage",
             extra={"activation_id": activation_id, "channel": channel_enum},
         )
         return
@@ -552,7 +555,7 @@ def _store_platform_mapping_sync(
         db.commit()
 
         logger.debug(
-            f"Stored platform mapping",
+            "Stored platform mapping",
             extra={
                 "activation_id": activation_id,
                 "channel": channel_enum,
@@ -562,7 +565,7 @@ def _store_platform_mapping_sync(
     except Exception as e:
         db.rollback()
         logger.error(
-            f"Database error storing platform mapping",
+            "Database error storing platform mapping",
             extra={"channel": channel_enum, "error": str(e)},
             exc_info=True,
         )
@@ -588,7 +591,7 @@ def _update_activation_status(activation_id: str, status: str) -> None:
     session_local = get_session_local()
     if session_local is None:
         logger.warning(
-            f"SessionLocal not initialized, skipping activation status update",
+            "SessionLocal not initialized, skipping activation status update",
             extra={"activation_id": activation_id, "status": status},
         )
         return
@@ -604,13 +607,13 @@ def _update_activation_status(activation_id: str, status: str) -> None:
         # db.commit()
 
         logger.info(
-            f"Would update activation status (Activation model not yet created)",
+            "Would update activation status (Activation model not yet created)",
             extra={"activation_id": activation_id, "status": status},
         )
     except Exception as e:
         db.rollback()
         logger.error(
-            f"Failed to update activation status",
+            "Failed to update activation status",
             extra={"activation_id": activation_id, "error": str(e)},
             exc_info=True,
         )

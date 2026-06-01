@@ -1,7 +1,9 @@
-import pytest
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.models.video import GeneratedVideo
 
 

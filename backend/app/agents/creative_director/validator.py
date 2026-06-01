@@ -3,12 +3,13 @@
 Validates generated creatives against brand guidelines and platform constraints.
 """
 
-from typing import Dict, List, Any
+from typing import Any
+
 from backend.app.agents.creative_director.models import (
     Copy,
+    CreativeValidation,
     ImagePrompt,
     VideoConcept,
-    CreativeValidation,
 )
 
 
@@ -66,7 +67,7 @@ class Validator:
         self,
         copy: Copy,
         platform: str,
-        brand_rules: Dict[str, Any],
+        brand_rules: dict[str, Any],
     ) -> CreativeValidation:
         """Validate copy against platform constraints and brand guidelines.
 
@@ -260,7 +261,7 @@ class Validator:
         status = "failed" if violations else "passed"
         return CreativeValidation(status=status, violations=violations, warnings=warnings)
 
-    def get_platform_constraints(self, platform: str) -> Dict[str, Any]:
+    def get_platform_constraints(self, platform: str) -> dict[str, Any]:
         """Get platform-specific constraints.
 
         Args:

@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any
 from uuid import UUID
 
 
@@ -35,7 +34,7 @@ class AnalyticsSummaryService:
         target: float,
         actual: float,
         threshold_unit: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build KPI result object with achievement and status."""
         achievement = self.compute_achievement(actual, target)
         status = self.get_status(achievement)
@@ -49,7 +48,7 @@ class AnalyticsSummaryService:
             "status": status
         }
 
-    def get_activation_status(self, kpi_results: List[Dict[str, Any]]) -> str:
+    def get_activation_status(self, kpi_results: list[dict[str, Any]]) -> str:
         """
         Determine activation-level status from KPI results.
         - Red: If ANY KPI is Red
@@ -71,9 +70,9 @@ class AnalyticsSummaryService:
         campaign_id: UUID,
         channel: str,
         sub_channel: str,
-        kpi_results: List[Dict[str, Any]],
-        metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        kpi_results: list[dict[str, Any]],
+        metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """Build a summary entry for one activation."""
         return {
             "activation_id": str(activation_id),

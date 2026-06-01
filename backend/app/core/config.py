@@ -5,9 +5,9 @@ Loads settings from environment variables (.env file) with validation.
 Ensures required secrets are present and properly formatted.
 """
 
-from pydantic_settings import BaseSettings
+
 from pydantic import ConfigDict, Field
-from typing import Dict, List
+from pydantic_settings import BaseSettings
 
 # Define role definitions as constants to avoid mutable default issues
 DEFAULT_RBAC_ROLES = {
@@ -47,10 +47,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0, le=365, description="Refresh token TTL in days (1-365 days)")
 
     # RBAC Role Definitions
-    RBAC_ROLES: Dict[str, List[str]] = Field(default_factory=lambda: DEFAULT_RBAC_ROLES.copy())
+    RBAC_ROLES: dict[str, list[str]] = Field(default_factory=lambda: DEFAULT_RBAC_ROLES.copy())
 
     # Feature Flags
-    FEATURE_FLAGS: Dict[str, bool] = Field(default_factory=lambda: DEFAULT_FEATURE_FLAGS.copy())
+    FEATURE_FLAGS: dict[str, bool] = Field(default_factory=lambda: DEFAULT_FEATURE_FLAGS.copy())
 
 # Singleton instance - created lazily to avoid requiring env vars at import time
 _settings_instance = None

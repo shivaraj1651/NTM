@@ -5,15 +5,15 @@ radio, and social video formats via a single Claude API call per format.
 """
 
 import asyncio
-import json
 import logging
-from backend.app.agents.json_parsing import extract_json
 import uuid
-from datetime import datetime, timezone
-from typing import Literal, Optional
+from datetime import UTC, datetime
+from typing import Literal
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
+
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,9 @@ class ScriptwriterBrief(BaseModel):
 class TVCScene(BaseModel):
     scene_number: int
     description: str
-    dialogue: Optional[str] = None
-    vo: Optional[str] = None
-    sfx: Optional[str] = None
+    dialogue: str | None = None
+    vo: str | None = None
+    sfx: str | None = None
     duration_seconds: int
 
 
@@ -73,9 +73,9 @@ class TVCScript(BaseModel):
 
 class RadioLine(BaseModel):
     line_number: int
-    vo_text: Optional[str] = None
-    sfx_cue: Optional[str] = None
-    music_direction: Optional[str] = None
+    vo_text: str | None = None
+    sfx_cue: str | None = None
+    music_direction: str | None = None
     timing_mark_seconds: float
 
 
@@ -107,11 +107,11 @@ class ScriptOutput(BaseModel):
     tenant_id: str
     script_format: str
     generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
-    tvc_scripts: Optional[list[TVCScript]] = None
-    radio_scripts: Optional[list[RadioScript]] = None
-    social_video_scripts: Optional[list[SocialVideoScript]] = None
+    tvc_scripts: list[TVCScript] | None = None
+    radio_scripts: list[RadioScript] | None = None
+    social_video_scripts: list[SocialVideoScript] | None = None
     production_brief: str = ""
     model_used: str = MODEL
     errors: list[str] = Field(default_factory=list)
@@ -124,7 +124,7 @@ class ScriptOutput(BaseModel):
 class ScriptwriterAgent:
     """Generates production-ready scripts for TVC, radio, and social video."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = MODEL
 
@@ -320,7 +320,7 @@ CRITICAL: Every script must be rooted in the selected concept. The tagline and m
 
     def _build_production_brief(self, output: ScriptOutput) -> str:
         fmt = output.script_format.upper().replace("_", " ")
-        lines = [f"# Production Brief — {output.campaign_id}", "", f"## Format", f"{fmt}"]
+        lines = [f"# Production Brief — {output.campaign_id}", "", "## Format", f"{fmt}"]
 
         if output.tvc_scripts:
             primary = output.tvc_scripts[0]
@@ -336,7 +336,7 @@ CRITICAL: Every script must be rooted in the selected concept. The tagline and m
                 lines += [f"- {t}" for t in primary.talent_suggestions]
             if primary.location_suggestions:
                 lines += ["", "## Locations"]
-                lines += [f"- {l}" for l in primary.location_suggestions]
+                lines += [f"- {loc}" for loc in primary.location_suggestions]
             if primary.wardrobe_notes:
                 lines += ["", "## Wardrobe", primary.wardrobe_notes]
             if primary.music_direction:
@@ -380,7 +380,7 @@ CRITICAL: Every script must be rooted in the selected concept. The tagline and m
         if stub_enabled():
             logger.info("Scriptwriter LLM stubbed (NTM_STUB_EXTERNAL)")
             return {"scenes": [{"scene_number": 1, "action": "Stub action.", "dialogue": "Stub dialogue.", "duration": "5s"}]}
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.messages.create(

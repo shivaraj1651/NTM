@@ -3,16 +3,16 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from celery import shared_task
 from motor.motor_asyncio import AsyncIOMotorClient
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import NullPool
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
-from backend.app.models.mandate import Mandate
 from backend.app.agents.mandate_analyst import mandate_analyst_agent
+from backend.app.models.mandate import Mandate
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ async def _run_mandate_analysis(mandate_id: str, tenant_id: str) -> None:
                 "mandate_id": mandate_id,
                 "tenant_id": tenant_id,
                 "analysis": analysis,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             await db["mandate_analyses"].insert_one(doc)
             logger.info(f"[run_mandate_analysis] Stored analysis for mandate {mandate_id}")

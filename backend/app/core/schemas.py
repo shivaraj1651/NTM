@@ -5,8 +5,8 @@ Schemas correspond to SQLAlchemy models but provide additional validation,
 field filtering, and transformation for API contracts.
 """
 
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from typing import List, Optional
 
 
 class RoleRead(BaseModel):
@@ -15,7 +15,7 @@ class RoleRead(BaseModel):
 
     id: str
     name: str
-    permissions: List[str]
+    permissions: list[str]
 
 
 class TenantRead(BaseModel):
@@ -48,13 +48,13 @@ class UserUpdate(BaseModel):
     """User update request schema (all fields optional)."""
     model_config = ConfigDict(from_attributes=True)
 
-    email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=8)
-    is_active: Optional[bool] = None
+    email: EmailStr | None = None
+    password: str | None = Field(None, min_length=8)
+    is_active: bool | None = None
 
 
 class TokenResponse(BaseModel):
     """Token response schema."""
     access_token: str
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
     token_type: str = "bearer"

@@ -9,20 +9,20 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from backend.app.agents.json_parsing import extract_json
-from typing import Any, Dict, List
+from typing import Any
 
 from anthropic import AsyncAnthropic
 
-from backend.app.schemas.competitive_intel import CompetitorIdentity, CIReportInitial
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
+from backend.app.schemas.competitive_intel import CIReportInitial, CompetitorIdentity
 
 logger = logging.getLogger(__name__)
 
 
 async def identify_competitors_sync(
-    mandate: Dict[str, Any], client_profile: Dict[str, Any]
-) -> List[CompetitorIdentity]:
+    mandate: dict[str, Any], client_profile: dict[str, Any]
+) -> list[CompetitorIdentity]:
     """
     Identify competitors using Claude Sonnet LLM.
 
@@ -129,7 +129,7 @@ Return 5-15 competitors with confidence scores."""
         )
 
     # Validate each competitor has required fields
-    competitors: List[CompetitorIdentity] = []
+    competitors: list[CompetitorIdentity] = []
     for idx, comp in enumerate(competitors_data):
         if not isinstance(comp, dict):
             logger.error(f"Competitor {idx} is not a dict: {comp}")
@@ -166,8 +166,8 @@ Return 5-15 competitors with confidence scores."""
 
 
 async def competitive_intel_agent(
-    mandate: Dict[str, Any],
-    client_profile: Dict[str, Any],
+    mandate: dict[str, Any],
+    client_profile: dict[str, Any],
     mandate_id: str,
     tenant_id: str,
 ) -> CIReportInitial:

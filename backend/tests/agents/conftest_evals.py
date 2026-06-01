@@ -7,8 +7,8 @@ import json
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -29,7 +29,7 @@ class ScoreCard:
     mandate_id: str
     completeness: float
     format_score: float
-    coherence: Optional[float] = None
+    coherence: float | None = None
     overall: float = field(init=False)
 
     def __post_init__(self) -> None:
@@ -47,7 +47,7 @@ class ScoreCard:
 # Golden fixture loader
 # ---------------------------------------------------------------------------
 
-def load_golden(mandate_id: str) -> Dict[str, Any]:
+def load_golden(mandate_id: str) -> dict[str, Any]:
     """Load docs/golden/mandate_N_concept.json."""
     path = GOLDEN_DIR / f"{mandate_id}_concept.json"
     with open(path) as f:
@@ -58,7 +58,7 @@ def load_golden(mandate_id: str) -> Dict[str, Any]:
 # Scoring helpers
 # ---------------------------------------------------------------------------
 
-def score_completeness(output: Any, required_fields: List[str]) -> float:
+def score_completeness(output: Any, required_fields: list[str]) -> float:
     """Count required top-level keys present in output dict (0-100)."""
     if not isinstance(output, dict):
         return 0.0
@@ -66,7 +66,7 @@ def score_completeness(output: Any, required_fields: List[str]) -> float:
     return round(present / len(required_fields) * 100, 1) if required_fields else 100.0
 
 
-def score_format(output: Any, required_types: Dict[str, Any]) -> float:
+def score_format(output: Any, required_types: dict[str, Any]) -> float:
     """Binary: 100 if all required keys exist at correct type, 0 otherwise."""
     if not isinstance(output, dict):
         return 0.0
@@ -79,8 +79,8 @@ def score_format(output: Any, required_types: Dict[str, Any]) -> float:
 
 
 async def score_coherence(
-    agent_output: Dict[str, Any],
-    golden_output: Dict[str, Any],
+    agent_output: dict[str, Any],
+    golden_output: dict[str, Any],
     client,
 ) -> float:
     """Call Haiku to judge coherence of agent output vs golden reference (0-100)."""
@@ -144,7 +144,7 @@ def mock_agent_llm(request):
 
 
 @pytest.fixture(scope="session")
-def eval_results() -> List[ScoreCard]:
+def eval_results() -> list[ScoreCard]:
     """Session-scoped accumulator for ScoreCard results."""
     return []
 
@@ -164,7 +164,7 @@ def json_reporter(eval_results, request):
     mode = "live" if is_live else "mock"
 
     # Group by agent
-    agents_seen: Dict[str, List[ScoreCard]] = {}
+    agents_seen: dict[str, list[ScoreCard]] = {}
     for sc in eval_results:
         agents_seen.setdefault(sc.agent_id, []).append(sc)
 

@@ -5,11 +5,12 @@ All models use string UUIDs as primary keys and include created_at timestamps.
 Multi-tenant access is handled via the user_tenant_access junction table.
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Table, JSON, func
-from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 from enum import Enum
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, String, Table
+from sqlalchemy.orm import relationship
 
 from backend.app.models.base import Base
 
@@ -36,7 +37,7 @@ class Role(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, nullable=False, index=True)
     permissions = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
 
 
 class Tenant(Base):
@@ -51,7 +52,7 @@ class Tenant(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
 
     users = relationship("User", back_populates="tenant")
 
@@ -77,7 +78,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     tenant_id = Column(String, ForeignKey("tenants.id"), nullable=False, index=True)
     role_id = Column(String, ForeignKey("roles.id"), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
 
     tenant = relationship("Tenant", back_populates="users")
     role = relationship("Role")
@@ -89,5 +90,5 @@ user_tenant_access = Table(
     Base.metadata,
     Column("user_id", String, ForeignKey("user.id"), primary_key=True),
     Column("tenant_id", String, ForeignKey("tenants.id"), primary_key=True),
-    Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    Column("created_at", DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None), nullable=False)
 )

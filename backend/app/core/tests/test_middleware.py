@@ -5,19 +5,18 @@ Verifies X-Tenant-ID header validation, tenant context injection,
 and proper error handling for missing/invalid tenant headers.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi import FastAPI, Request
 from starlette.responses import JSONResponse
-from backend.app.core.middleware import TenantValidationMiddleware
+
 from backend.app.core.exceptions import (
+    InvalidTokenException,
     MissingTenantHeaderException,
     TenantMismatchException,
-    InvalidTokenException
 )
-from backend.app.core.dependencies import tenant_context
-
-
+from backend.app.core.middleware import TenantValidationMiddleware
 
 
 def test_middleware_can_be_instantiated():
@@ -46,7 +45,7 @@ async def test_middleware_dispatch_with_public_endpoint():
     mock_call_next = AsyncMock(return_value=JSONResponse({"message": "docs"}))
 
     middleware = TenantValidationMiddleware(mock_call_next)
-    response = await middleware.dispatch(mock_request, mock_call_next)
+    _response = await middleware.dispatch(mock_request, mock_call_next)
 
     # Should call next without validation
     assert mock_call_next.called

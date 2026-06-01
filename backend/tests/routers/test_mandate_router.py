@@ -1,15 +1,15 @@
 """Endpoint tests for mandate router."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.mandate import router, get_db
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
+from backend.app.routers.mandate import get_db, router
 
 
 def make_mock_user():
@@ -113,7 +113,7 @@ def make_svc_mock(**method_returns):
 
 
 def make_app_with_sql(mock_mongo_db=None, mock_sql_session=None):
-    from backend.app.routers.mandate import router, get_db, get_sql_db
+    from backend.app.routers.mandate import get_db, get_sql_db, router
     app = FastAPI()
     app.include_router(router)
     mock_user = make_mock_user()
@@ -173,7 +173,6 @@ def test_create_mandate_missing_required_field_returns_422():
 # ── GET /api/v1/mandates/{mandate_id} ────────────────────────────────────────
 
 def test_get_mandate_returns_200():
-    from fastapi import HTTPException
     app = make_app_with_sql(mock_sql_session=make_mock_sql_session())
     svc = make_svc_mock(get={"id": "m-001", "status": "draft", "tenant_id": "test-tenant"})
     with patch("backend.app.routers.mandate.MandateService", return_value=svc):

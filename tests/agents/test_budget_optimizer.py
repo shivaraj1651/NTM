@@ -1,7 +1,8 @@
 """Unit tests for Budget Optimizer Agent (AGT-05)."""
 
-import pytest
 from datetime import date
+
+import pytest
 
 
 class TestConversionRateEstimator:

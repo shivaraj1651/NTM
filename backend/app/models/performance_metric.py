@@ -4,12 +4,15 @@ Stores daily activation metrics from platform tools with flexible JSON structure
 One row per activation per day with aggregated platform metrics.
 """
 
+from datetime import datetime
 from uuid import uuid4
-from datetime import date, datetime
-from sqlalchemy import Column, Date, DateTime, String, Index
+
+from sqlalchemy import Column, Date, DateTime, Index, String
+from sqlalchemy.dialects.postgresql import JSON
+
 from backend.app.models.base import Base
 
-from sqlalchemy.dialects.postgresql import UUID, JSON
+
 class PerformanceMetric(Base):
     """
     PerformanceMetric (daily platform activation metrics).

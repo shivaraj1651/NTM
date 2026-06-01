@@ -1,6 +1,6 @@
 """Pydantic schemas for Admin router — tenants, users, roles, audit logs."""
 
-from typing import Optional
+
 from pydantic import BaseModel, EmailStr
 
 
@@ -33,7 +33,7 @@ class UserResponse(BaseModel):
     email: str
     tenant_id: str
     is_active: bool
-    role: Optional[str] = None
+    role: str | None = None
     created_at: str
 
     model_config = {"from_attributes": True}
@@ -61,9 +61,9 @@ class AuditLogResponse(BaseModel):
     entity_id: str
     action: str
     actor_id: str
-    notes: Optional[str]
-    status_before: Optional[str]
-    status_after: Optional[str]
+    notes: str | None
+    status_before: str | None
+    status_after: str | None
     created_at: str
 
     model_config = {"from_attributes": True}

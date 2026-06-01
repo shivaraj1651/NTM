@@ -6,7 +6,8 @@ over time.
 """
 
 from datetime import date
-from typing import Dict, Any, Optional
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +33,7 @@ class PerformanceMetricService:
         self,
         activation_id: str,
         date: date,
-        metrics_json: Dict[str, Any],
+        metrics_json: dict[str, Any],
         source: str,
         tenant_id: str
     ) -> PerformanceMetric:
@@ -67,7 +68,7 @@ class PerformanceMetricService:
         self,
         activation_id: str,
         tenant_id: str
-    ) -> Optional[PerformanceMetric]:
+    ) -> PerformanceMetric | None:
         """Get the most recent metric for an activation.
 
         Retrieves the latest performance metric for a specific activation,

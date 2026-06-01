@@ -1,14 +1,12 @@
 """Unit tests for Validator in Creative Director Agent (AGT-06)."""
 
-import pytest
-from backend.app.agents.creative_director.validator import Validator
 from backend.app.agents.creative_director.models import (
     Copy,
     ImagePrompt,
     VideoConcept,
     VideoConceptScene,
-    CreativeValidation,
 )
+from backend.app.agents.creative_director.validator import Validator
 
 
 class TestValidator:

@@ -1,10 +1,12 @@
 """SQLAlchemy model for Campaign — core campaign entity."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Text, Index
+from sqlalchemy import Column, DateTime, Index, String, Text
+
 from backend.app.models.base import Base
+
 
 class Campaign(Base):
     __tablename__ = "campaigns"
@@ -21,13 +23,13 @@ class Campaign(Base):
     #                creative_ready | live
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

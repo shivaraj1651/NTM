@@ -1,9 +1,11 @@
 """Tests for Refinement Loop in Creative Director Agent (AGT-06)."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from backend.app.agents.creative_director.models import CreativeValidation
 from backend.app.agents.creative_director.refiner import Refiner
-from backend.app.agents.creative_director.models import Copy, CreativeValidation
 
 
 @pytest.fixture

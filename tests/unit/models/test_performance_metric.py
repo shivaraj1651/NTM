@@ -1,9 +1,11 @@
 """Unit tests for PerformanceMetric model."""
 
-import pytest
 from datetime import date, timedelta
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
+
 from backend.app.models.performance_metric import PerformanceMetric
 
 

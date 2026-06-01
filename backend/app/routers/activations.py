@@ -6,7 +6,6 @@ GET  /api/v1/activations/{id}/performance         — get performance metrics
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -32,8 +31,8 @@ ACTIVATION_ROLES = [
 
 @router.get("/activations", status_code=200)
 async def list_activations(
-    campaign_id: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+    campaign_id: str | None = Query(None),
+    status: str | None = Query(None),
     _: User = Depends(require_role(ACTIVATION_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),

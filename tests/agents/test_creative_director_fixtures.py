@@ -1,13 +1,5 @@
 """Verification tests for Creative Director Agent fixtures."""
 
-import pytest
-from tests.agents.conftest_creative_director import (
-    brand_guidelines,
-    target_audience,
-    campaign_input,
-    mock_claude_response,
-    valid_output,
-)
 
 
 def test_fixtures_load_successfully(brand_guidelines, target_audience, campaign_input, valid_output):

@@ -1,11 +1,14 @@
 """SQLAlchemy model for Report — persisted output of AGT-15 ReportAgent."""
 
+from datetime import datetime
 from uuid import uuid4
-from datetime import datetime, date
-from sqlalchemy import Column, Date, DateTime, String, Index
+
+from sqlalchemy import Column, Date, DateTime, Index, String
+from sqlalchemy.dialects.postgresql import JSON
+
 from backend.app.models.base import Base
 
-from sqlalchemy.dialects.postgresql import JSON
+
 class Report(Base):
     """
     Report (output from AGT-15 ReportAgent).

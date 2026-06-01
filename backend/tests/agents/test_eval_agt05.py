@@ -1,8 +1,13 @@
 """Eval tests for AGT-05 BudgetOptimizer."""
 import pytest
+
 from backend.app.agents.budget_optimizer import budget_optimizer_agent
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]

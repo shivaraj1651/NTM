@@ -1,7 +1,6 @@
 import os
-import pytest
-from datetime import date, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import date
+from unittest.mock import MagicMock, patch
 
 from backend.app.tools.google_analytics import GoogleAnalyticsTool
 

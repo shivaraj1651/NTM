@@ -4,20 +4,24 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from kombu.exceptions import OperationalError
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.schemas.campaign import (
     ApproveAssetRequest,
-    CampaignCreateRequest,
-    CampaignUpdateRequest,
     CampaignConfirmRequest,
+    CampaignCreateRequest,
     CampaignResponse,
+    CampaignUpdateRequest,
 )
 from backend.app.services.campaign_service import CampaignService
-from backend.app.tasks.campaign_tasks import run_media_planning, run_video_generation, run_budget_optimization
+from backend.app.tasks.campaign_tasks import (
+    run_budget_optimization,
+    run_media_planning,
+    run_video_generation,
+)
 
 logger = logging.getLogger(__name__)
 

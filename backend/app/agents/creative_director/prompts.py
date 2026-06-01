@@ -7,7 +7,7 @@ for different stages of creative generation:
 - Refinement: Fixing violations and improving creatives
 """
 
-from typing import Dict, List
+
 from backend.app.agents.creative_director.models import CampaignInput
 
 
@@ -94,7 +94,7 @@ Ensure the output is valid JSON that can be parsed by a JSON parser."""
 
     @staticmethod
     def platform_specific_prompt(
-        core_concept: Dict,
+        core_concept: dict,
         platform: str,
         campaign_input: CampaignInput,
         creative_type: str
@@ -237,7 +237,7 @@ Ensure the output is valid JSON that can be parsed by a JSON parser. All 3 varia
         return prompt
 
     @staticmethod
-    def refinement_prompt(original_creative: str, violations: List[Dict]) -> str:
+    def refinement_prompt(original_creative: str, violations: list[dict]) -> str:
         """Generate prompt to fix invalid creatives.
 
         Takes original creative and list of validation violations, then generates

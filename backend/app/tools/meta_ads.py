@@ -1,10 +1,11 @@
-import httpx
 import logging
 import os
-from typing import Dict, Any, List, Optional
 import re
+from typing import Any
 
-from backend.app.external.stubs import stub_enabled, ads_test_mode
+import httpx
+
+from backend.app.external.stubs import ads_test_mode, stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def _get_access_token() -> str:
     return token
 
 
-def _parse_spend_range(spend_str: str) -> Optional[float]:
+def _parse_spend_range(spend_str: str) -> float | None:
     """
     Parse spend range string and convert to monthly estimate.
     Example: "1,000 - 2,000" -> 1500 * 4 = 6000 (monthly)
@@ -51,7 +52,7 @@ def _parse_spend_range(spend_str: str) -> Optional[float]:
     return None
 
 
-def _extract_placements(ad_data: Dict[str, Any]) -> List[str]:
+def _extract_placements(ad_data: dict[str, Any]) -> list[str]:
     """Extract ad placements from Meta Ad Library response."""
     placements = []
 
@@ -71,7 +72,7 @@ def _extract_placements(ad_data: Dict[str, Any]) -> List[str]:
     return list(set(placements)) if placements else ["feed", "stories"]
 
 
-def _extract_primary_audiences(ad_data: Dict[str, Any]) -> List[str]:
+def _extract_primary_audiences(ad_data: dict[str, Any]) -> list[str]:
     """Extract primary audience demographics from ad data."""
     audiences = []
 
@@ -102,7 +103,7 @@ async def create_campaign(
     name: str,
     objective: str,
     budget: float,
-    schedule: Dict[str, Any],
+    schedule: dict[str, Any],
 ) -> str:
     """Create a Meta campaign. Returns campaign_id string.
 
@@ -131,7 +132,7 @@ async def create_campaign(
     api_objective = _OBJ_MAP.get(objective.upper(), "OUTCOME_AWARENESS")
     # Ensure daily budget is at least $5 (500 cents); cost_estimated is total, divide by 30 for daily
     daily_cents = max(int((budget / 30) * 100), 500)
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "name": name,
         "objective": api_objective,
         "status": "ACTIVE",
@@ -156,8 +157,8 @@ async def create_campaign(
 async def create_ad_set(
     campaign_id: str,
     name: str,
-    audience_spec: Dict[str, Any],
-    placements: List[str],
+    audience_spec: dict[str, Any],
+    placements: list[str],
     budget: float,
 ) -> str:
     """Create a Meta ad set under an existing campaign. Returns ad_set_id string.
@@ -178,7 +179,7 @@ async def create_ad_set(
     if not account_id:
         raise RuntimeError("META_AD_ACCOUNT_ID must be set")
 
-    targeting: Dict[str, Any] = {
+    targeting: dict[str, Any] = {
         "age_min": audience_spec.get("age_min", 18),
         "age_max": audience_spec.get("age_max", 65),
         "geo_locations": audience_spec.get("geo_locations", {"countries": ["US"]}),
@@ -187,7 +188,7 @@ async def create_ad_set(
     if audience_spec.get("interests"):
         targeting["interests"] = audience_spec["interests"]
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "name": name,
         "campaign_id": campaign_id,
         "status": "PAUSED",
@@ -209,7 +210,7 @@ async def create_ad_set(
 
 async def create_ad(
     ad_set_id: str,
-    creative_spec: Dict[str, Any],
+    creative_spec: dict[str, Any],
     name: str,
 ) -> str:
     """Create a Meta ad under an existing ad set. Returns ad_id string.
@@ -229,7 +230,7 @@ async def create_ad(
         raise RuntimeError("META_AD_ACCOUNT_ID must be set")
     page_id = creative_spec.get("page_id") or os.getenv("META_PAGE_ID", "")
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "name": name,
         "adset_id": ad_set_id,
         "status": "PAUSED",
@@ -257,9 +258,9 @@ async def create_ad(
 
 async def get_ad_insights(
     ad_id: str,
-    date_range: Dict[str, str],
-    metrics_list: List[str],
-) -> Dict[str, Any]:
+    date_range: dict[str, str],
+    metrics_list: list[str],
+) -> dict[str, Any]:
     """Fetch performance insights for a Meta ad.
 
     Args:
@@ -292,7 +293,7 @@ async def get_ad_insights(
         data = r.json()
 
     rows = data.get("data", [])
-    merged: Dict[str, Any] = {}
+    merged: dict[str, Any] = {}
     for row in rows:
         merged.update(row)
 
@@ -354,7 +355,7 @@ async def update_ad_budget(ad_set_id: str, daily_budget: float) -> bool:
 async def lookup_meta_ads(
     advertiser_name: str,
     date_range_days: int = 90
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Query Meta Ad Library for competitor ads.
 
@@ -496,11 +497,11 @@ async def lookup_meta_ads(
 
 
 async def activate_meta(
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-    access_token: Optional[str] = None,
-) -> Dict[str, Any]:
+    access_token: str | None = None,
+) -> dict[str, Any]:
     """Activate a campaign on Meta (Facebook/Instagram).
 
     Orchestrates create_campaign → create_ad_set → create_ad.
@@ -535,9 +536,8 @@ async def activate_meta(
     total_budget = float(activation.get("cost_estimated", 0))
 
     # Ad copy from concept
-    tagline       = platform_config.get("tagline", "") or raw_name
     master_message = platform_config.get("master_message", "") or raw_name
-    page_id       = platform_config.get("page_id", "") or os.getenv("META_PAGE_ID", "")
+    page_id        = platform_config.get("page_id", "") or os.getenv("META_PAGE_ID", "")
 
     # In test mode all objects PAUSED; in production campaign ACTIVE, adset/ad PAUSED
     # (adset/ad are always PAUSED in create_ad_set/create_ad — activation is manual)
@@ -568,7 +568,7 @@ async def activate_meta(
         api_objective = _OBJ_MAP.get(mandate_objective, "OUTCOME_AWARENESS")
 
         daily_cents = max(int((total_budget / 30) * 100), 500)  # min $5/day
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "name": campaign_name,
             "objective": api_objective,
             "status": campaign_status_override,

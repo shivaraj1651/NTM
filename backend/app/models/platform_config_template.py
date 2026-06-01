@@ -5,11 +5,13 @@ configurations (age ranges, interests, job titles, device types, etc.) for Googl
 and LinkedIn Ads.
 """
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, UniqueConstraint, Index, Float, JSON
+from sqlalchemy import JSON, Column, DateTime, Float, Index, String, UniqueConstraint
+
 from backend.app.models.base import Base
+
 
 class PlatformConfigTemplate(Base):
     """
@@ -44,13 +46,13 @@ class PlatformConfigTemplate(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

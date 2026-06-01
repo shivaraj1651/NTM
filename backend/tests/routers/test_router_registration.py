@@ -1,6 +1,5 @@
 """Tests for routers/__init__.py register_routers()."""
 
-import pytest
 from fastapi import FastAPI
 
 

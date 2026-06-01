@@ -1,8 +1,10 @@
 """Tenant and role utility functions."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from backend.app.core.models import User, Role, Tenant, user_tenant_access
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.core.models import Role, Tenant, User, user_tenant_access
+
 
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     """Query user by email."""
@@ -36,7 +38,7 @@ async def validate_user_role(session: AsyncSession, user_id: str, required_permi
 
 async def get_tenant_by_id(session: AsyncSession, tenant_id: str) -> Tenant | None:
     """Lookup active tenant."""
-    result = await session.execute(select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True))
+    result = await session.execute(select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active is True))
     return result.scalars().first()
 
 async def user_has_tenant_access(session: AsyncSession, user_id: str, tenant_id: str) -> bool:

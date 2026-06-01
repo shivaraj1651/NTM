@@ -1,11 +1,10 @@
 """Unit tests for AnalyticsAgent (TASK-020)."""
 
-import pytest
-import json
 from datetime import date
-from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers

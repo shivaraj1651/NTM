@@ -1,13 +1,13 @@
 # backend/tests/routers/test_digital_activator_router.py
 from unittest.mock import AsyncMock, MagicMock
-import pytest
+
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from backend.app.routers.digital_activator import router, get_db
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
+from backend.app.routers.digital_activator import get_db, router
 
 
 def make_mock_user():
@@ -50,7 +50,7 @@ _MOCK_CAMPAIGN_DOC = {
 
 
 def test_activate_campaign_returns_job_queued():
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
     app = make_app()
     svc = MagicMock()

@@ -1,12 +1,17 @@
 """Eval tests for AGT-03 CampaignStrategist (includes coherence scoring)."""
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format,
-    score_coherence, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_coherence,
+    score_completeness,
+    score_format,
 )
 
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]

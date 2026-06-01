@@ -1,8 +1,8 @@
 """Campaign Concept schema for AGT-03 output."""
 
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
 from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
 
 
 class AudienceSegmentation(BaseModel):
@@ -22,7 +22,7 @@ class ChannelRecommendation(BaseModel):
 class MessageArchitecture(BaseModel):
     """Message architecture with master message and channel adaptations."""
     master_message: str = Field(..., description="Core campaign message")
-    channel_adaptations: Dict[str, str] = Field(
+    channel_adaptations: dict[str, str] = Field(
         ...,
         description="Channel-specific message adaptations (e.g., {'TikTok': '...', 'Email': '...'})"
     )
@@ -37,15 +37,15 @@ class CampaignPhasing(BaseModel):
 
 class ToneBoard(BaseModel):
     """Tone board with 5 adjectives and visual direction."""
-    adjectives: List[str] = Field(..., min_items=5, max_items=5, description="5 adjectives defining tone")
+    adjectives: list[str] = Field(..., min_items=5, max_items=5, description="5 adjectives defining tone")
     visual_direction: str = Field(..., description="Visual style, color palette, design direction")
 
 
 class RiskFlags(BaseModel):
     """Risk assessment flags for legal, regulatory, and sensitivity concerns."""
-    legal: Optional[str] = Field(None, description="Legal risk (e.g., unsubstantiated claims, IP issues)")
-    regulatory: Optional[str] = Field(None, description="Regulatory risk (e.g., geo compliance, data privacy)")
-    sensitivity: Optional[str] = Field(None, description="Sensitivity risk (e.g., offensive targeting, controversial)")
+    legal: str | None = Field(None, description="Legal risk (e.g., unsubstantiated claims, IP issues)")
+    regulatory: str | None = Field(None, description="Regulatory risk (e.g., geo compliance, data privacy)")
+    sensitivity: str | None = Field(None, description="Sensitivity risk (e.g., offensive targeting, controversial)")
 
 
 class CampaignConcept(BaseModel):
@@ -56,7 +56,7 @@ class CampaignConcept(BaseModel):
     strategic_narrative: str = Field(..., description="1-2 sentences explaining why this exploits competitor gaps")
     campaign_theme: str = Field(..., description="Campaign theme")
     audience_segmentation: AudienceSegmentation = Field(..., description="Primary/secondary/tertiary segments")
-    channel_mix: List[ChannelRecommendation] = Field(..., min_items=1, description="List of recommended channels")
+    channel_mix: list[ChannelRecommendation] = Field(..., min_items=1, description="List of recommended channels")
     message_architecture: MessageArchitecture = Field(..., description="Master message + channel adaptations")
     campaign_phasing: CampaignPhasing = Field(..., description="Awareness/engagement/conversion phasing")
     tone_board: ToneBoard = Field(..., description="5 adjectives + visual direction")

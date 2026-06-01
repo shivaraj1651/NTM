@@ -53,6 +53,7 @@ def sample_client_profile():
 def test_identify_competitors_sync_happy_path(sample_mandate, sample_client_profile):
     """Competitor identification should return valid List[CompetitorIdentity] with correct structure."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock LLM response with valid competitor list
@@ -105,6 +106,7 @@ def test_identify_competitors_sync_happy_path(sample_mandate, sample_client_prof
 def test_identify_competitors_sync_invalid_llm_response(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when LLM returns malformed JSON."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock invalid JSON response
@@ -127,6 +129,7 @@ def test_identify_competitors_sync_invalid_llm_response(sample_mandate, sample_c
 def test_identify_competitors_sync_too_many_competitors(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when LLM returns >15 competitors."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock response with too many competitors (16 > 15 limit)
@@ -154,6 +157,7 @@ def test_identify_competitors_sync_too_many_competitors(sample_mandate, sample_c
 def test_identify_competitors_sync_too_few_competitors(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when LLM returns <5 competitors."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock response with too few competitors (4 < 5 minimum)
@@ -185,6 +189,7 @@ def test_identify_competitors_sync_too_few_competitors(sample_mandate, sample_cl
 def test_identify_competitors_sync_missing_competitors_key(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when response missing 'competitors' key."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock response missing 'competitors' key
@@ -209,6 +214,7 @@ def test_identify_competitors_sync_missing_competitors_key(sample_mandate, sampl
 def test_identify_competitors_sync_invalid_confidence_score(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when confidence is not 0-100."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock response with confidence > 100
@@ -241,6 +247,7 @@ def test_identify_competitors_sync_invalid_confidence_score(sample_mandate, samp
 def test_identify_competitors_sync_missing_name_field(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when competitor missing 'name' field."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock response with missing name field
@@ -273,6 +280,7 @@ def test_identify_competitors_sync_missing_name_field(sample_mandate, sample_cli
 def test_identify_competitors_sync_empty_api_response(sample_mandate, sample_client_profile):
     """Competitor identification should raise ValueError when LLM returns empty response."""
     import asyncio
+
     from backend.app.agents.competitive_intel import identify_competitors_sync
 
     # Mock empty response

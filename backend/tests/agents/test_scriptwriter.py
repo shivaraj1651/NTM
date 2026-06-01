@@ -1,15 +1,14 @@
 """Tests for Scriptwriter Agent (AGT-08)."""
 
 import json
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from backend.app.agents.scriptwriter import (
     ScriptwriterAgent,
     ScriptwriterBrief,
-    ScriptOutput,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers & fixtures

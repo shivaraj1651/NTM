@@ -8,7 +8,7 @@ import logging
 import os
 import secrets
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -66,7 +66,7 @@ async def request_password_reset(
     otp = _generate_otp()
     _otp_store[body.email] = {
         "otp": otp,
-        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=_OTP_TTL_MINUTES),
+        "expires_at": datetime.now(UTC) + timedelta(minutes=_OTP_TTL_MINUTES),
         "user_id": str(user.id),
     }
 
@@ -91,7 +91,7 @@ async def confirm_password_reset(
     if not record:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP.")
 
-    if datetime.now(timezone.utc) > record["expires_at"]:
+    if datetime.now(UTC) > record["expires_at"]:
         _otp_store.pop(body.email, None)
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
 

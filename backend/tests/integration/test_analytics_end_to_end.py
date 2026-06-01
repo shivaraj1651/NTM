@@ -7,16 +7,17 @@ Tests complete workflow:
 4. Verify summary and alerts
 """
 
-import pytest
 from datetime import date
-from uuid import uuid4
 from unittest.mock import AsyncMock
+from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 
 from backend.app.agents.analytics_agent import AnalyticsAgent
+from backend.app.db import AsyncSession
 from backend.app.models.kpi import KPI
 from backend.app.models.performance_metric import PerformanceMetric
-from backend.app.db import AsyncSession
 
 
 @pytest.mark.asyncio

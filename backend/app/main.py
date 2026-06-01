@@ -5,7 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.core.auth import fastapi_users, auth_backend
+from backend.app.core.auth import auth_backend, fastapi_users
 from backend.app.core.middleware import TenantValidationMiddleware
 from backend.app.routers import register_routers
 

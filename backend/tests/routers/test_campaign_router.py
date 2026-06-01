@@ -1,14 +1,14 @@
 """Endpoint tests for campaign router."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from backend.app.routers.campaign import router, get_db
 from backend.app.core.auth import current_user
 from backend.app.core.dependencies import get_current_tenant
 from backend.app.core.models import User
+from backend.app.routers.campaign import get_db, router
 
 
 def make_mock_user():
@@ -89,7 +89,8 @@ def test_get_campaign_not_found_returns_404():
 # ── POST /api/v1/campaigns/{campaign_id}/confirm ─────────────────────────────
 
 def test_confirm_campaign_returns_200():
-    from unittest.mock import patch, MagicMock as MM
+    from unittest.mock import MagicMock as MM
+    from unittest.mock import patch
     app = make_app()
     svc = make_svc_mock(confirm={"id": "c-001", "tenant_id": "test-tenant", "mandate_id": "m-001", "status": "confirmed"})
     mock_task = MM()

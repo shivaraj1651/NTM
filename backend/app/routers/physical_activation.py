@@ -1,17 +1,17 @@
 """Physical Activation Tracker router — M8 proof-of-execution logging."""
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
-from backend.app.models.physical_activation_log import PhysicalActivationLog
 from backend.app.db import get_db
+from backend.app.models.physical_activation_log import PhysicalActivationLog
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +30,19 @@ class PhysicalLogCreate(BaseModel):
     campaign_id: str
     channel: str
     event_type: str = "proof_of_execution"
-    actual_run_date: Optional[str] = None
-    actual_cost: Optional[float] = None
-    vendor_name: Optional[str] = None
-    grp_circulation: Optional[str] = None
+    actual_run_date: str | None = None
+    actual_cost: float | None = None
+    vendor_name: str | None = None
+    grp_circulation: str | None = None
     proof_urls: list[str] = []
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class PhysicalLogResponse(BaseModel):
     id: str
     tenant_id: str
     campaign_id: str
-    activation_id: Optional[str]
+    activation_id: str | None
     event_type: str
     channel: str
     payload: dict
@@ -90,7 +90,7 @@ async def log_physical_activation(
         event_type=body.event_type,
         channel=body.channel,
         payload=payload,
-        logged_at=datetime.now(timezone.utc),
+        logged_at=datetime.now(UTC),
     )
     db.add(log)
     await db.commit()

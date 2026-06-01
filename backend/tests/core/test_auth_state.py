@@ -1,6 +1,8 @@
 import jwt
+
 from backend.app.core.auth_state import decode_user_id
 from backend.app.core.config import settings
+
 
 def _make_token(sub):
     return jwt.encode(

@@ -3,17 +3,17 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from celery import shared_task
 from motor.motor_asyncio import AsyncIOMotorClient
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import NullPool
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
-from backend.app.models.mandate import Mandate
 from backend.app.agents.campaign_strategist import campaign_strategist_agent
+from backend.app.models.mandate import Mandate
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def _run_campaign_strategy(mandate_id: str, tenant_id: str) -> None:
                 "concepts": output.get("campaigns", []),
                 "validation_errors": output.get("validation_errors", []),
                 "regeneration_log": output.get("regeneration_log", []),
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
             }},
             upsert=True,
         )
@@ -144,7 +144,7 @@ async def _run_concept_generation(campaign_id: str, tenant_id: str) -> None:
             {"$set": {
                 "status": "concepts_ready",
                 "concepts": concepts,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }},
         )
         logger.info("[run_concept_generation] stored %d concepts for campaign %s", len(concepts), campaign_id)
@@ -158,7 +158,7 @@ async def _run_concept_generation(campaign_id: str, tenant_id: str) -> None:
                     {"_id": campaign_id, "tenant_id": tenant_id},
                     {"$set": {
                         "error": f"concept generation failed: {exc}",
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                     }},
                 )
             finally:
@@ -260,11 +260,11 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
                 "activation_plan": activations_serialized,
                 "budget_summary": output.get("budget_summary", {}),
                 "media_plan_status": output.get("status", "generated"),
-                "media_plan_generated_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "media_plan_generated_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }},
         )
-        logger.info(f"[run_media_planning] stored %d activations for campaign %s",
+        logger.info("[run_media_planning] stored %d activations for campaign %s",
                     len(activations_serialized), campaign_id)
     finally:
         mongo_client.close()
@@ -284,7 +284,7 @@ def run_media_planning(self, campaign_id: str, tenant_id: str) -> None:
 
 async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
     """Async implementation: build brief from campaign creative assets, run AGT-11."""
-    from backend.app.agents.video_generator import VideoGeneratorAgent, VideoGenerationBrief
+    from backend.app.agents.video_generator import VideoGenerationBrief, VideoGeneratorAgent
     from backend.app.tools import runway as runway_tool
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
@@ -352,7 +352,7 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
         await db["campaigns"].update_one(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {
-                "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+                "$set": {"updated_at": datetime.now(UTC).isoformat()},
                 "$push": {"creative_assets.video": video_entry},
             },
         )
@@ -442,7 +442,7 @@ async def _run_budget_optimization(campaign_id: str, tenant_id: str) -> None:
             {"$set": {
                 "status": "budget_proposed",
                 "budget_proposal": budget_proposal_doc,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }},
         )
         logger.info("[run_budget_optimization] stored budget_proposal for campaign %s "
@@ -472,7 +472,9 @@ class _MinioStorageClient:
     """Upload bytes to MinIO and return a browser-accessible public URL."""
 
     def __init__(self) -> None:
-        import boto3, json
+        import json
+
+        import boto3
         self._bucket = os.getenv("S3_BUCKET", "ntm-assets")
         endpoint = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
         public_ep = os.getenv("S3_PUBLIC_URL", "http://localhost:9000")
@@ -510,8 +512,8 @@ class _MinioStorageClient:
 
 async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
     from backend.app.agents.copywriter import CopywriterAgent, CreativeBrief
+    from backend.app.agents.image_generator import ImageGenerationBrief, ImageGeneratorAgent
     from backend.app.agents.scriptwriter import ScriptwriterAgent, ScriptwriterBrief
-    from backend.app.agents.image_generator import ImageGeneratorAgent, ImageGenerationBrief
     from backend.app.tools.serpapi import search_competitor_ads
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
@@ -692,7 +694,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                 copy_assets = raw.get("assets", []) if isinstance(raw, dict) else []
 
             script_assets = []
-            for fmt, script_result in zip(script_formats_needed, script_results):
+            for fmt, script_result in zip(script_formats_needed, script_results, strict=False):
                 if isinstance(script_result, Exception):
                     logger.error("[run_creative_generation] scriptwriter %s error for %s: %s", fmt, campaign_id, script_result)
                     continue
@@ -733,7 +735,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                     *[image_agent.generate(b, storage_client=storage) for b in img_briefs],
                     return_exceptions=True,
                 )
-                for fmt, res in zip(img_formats, img_results):
+                for fmt, res in zip(img_formats, img_results, strict=False):
                     if isinstance(res, Exception):
                         logger.error("[run_creative_generation] image %s failed: %s", fmt, res)
                     else:
@@ -888,7 +890,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                         "images": image_assets,
                         "audio": [],
                     },
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                 }},
             )
             logger.info(
@@ -907,7 +909,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                 {"_id": campaign_id, "tenant_id": tenant_id},
                 {"$set": {
                     "error": f"creative generation failed: {exc}",
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(UTC).isoformat(),
                 }},
             )
     finally:

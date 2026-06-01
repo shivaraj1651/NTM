@@ -5,6 +5,7 @@ serialization, and result backend handling.
 """
 
 import os
+
 from celery import Celery
 from celery.schedules import crontab
 from kombu import Exchange, Queue

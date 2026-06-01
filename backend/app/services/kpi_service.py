@@ -1,8 +1,9 @@
 """KPIService — service layer for querying KPI records (TASK-020)."""
 
-from typing import List
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.models.kpi import KPI
 
 
@@ -23,7 +24,7 @@ class KPIService:
         channel: str,
         audience_segment: str,
         tenant_id: str
-    ) -> List[KPI]:
+    ) -> list[KPI]:
         """Fetch KPIs for a specific activation (campaign + channel + audience).
 
         Args:

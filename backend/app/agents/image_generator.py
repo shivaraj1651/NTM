@@ -10,13 +10,13 @@ import base64
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Literal, Optional
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
-from backend.app.external.stubs import stub_enabled
 
+from backend.app.external.stubs import stub_enabled
 from backend.app.tools import stability_ai
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ class ImageGenerationOutput(BaseModel):
     generation_params: dict[str, Any]
     image_format: str
     generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 
@@ -76,7 +76,7 @@ class ImageGenerationOutput(BaseModel):
 class ImageGeneratorAgent:
     """Generates images via Stability AI SDXL with DALL-E 3 fallback."""
 
-    def __init__(self, api_key: Optional[str] = None, openai_client=None):
+    def __init__(self, api_key: str | None = None, openai_client=None):
         self.anthropic_client = AsyncAnthropic(api_key=api_key)
         self._openai_client = openai_client
 

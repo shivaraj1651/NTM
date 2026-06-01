@@ -1,7 +1,10 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
 from fastapi import HTTPException
+
 from backend.app.core.dependencies import current_user, get_current_tenant
+
 
 class _Req:
     def __init__(self, **state):

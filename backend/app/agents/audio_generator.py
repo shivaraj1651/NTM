@@ -8,8 +8,7 @@ and returns the asset URL + metadata.
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -50,7 +49,7 @@ class AudioGenerationOutput(BaseModel):
     model_used: str
     script_format: str
     generated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
 
@@ -98,7 +97,7 @@ class AudioGeneratorAgent:
         return output
 
     async def _generate_with_retry(self, script: str, voice_id: str) -> bytes:
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
                 return await elevenlabs.generate_vo(script, voice_id, ELEVENLABS_MODEL)

@@ -1,6 +1,8 @@
 import pytest
 from pydantic import ValidationError
-from backend.app.core.schemas import UserCreate, UserRead, UserUpdate, TokenResponse, RoleRead
+
+from backend.app.core.schemas import RoleRead, TokenResponse, UserCreate, UserRead
+
 
 def test_user_create_schema():
     """UserCreate should require email and password"""
@@ -39,7 +41,7 @@ def test_user_read_schema():
     user = UserRead(**data)
 
     assert user.email == "user@example.com"
-    assert user.is_active == True
+    assert user.is_active is True
     assert not hasattr(user, "password")
     assert not hasattr(user, "hashed_password")
 

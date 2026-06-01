@@ -1,12 +1,14 @@
 """Tests for campaign strategist agent (AGT-03)."""
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+
 from backend.app.agents.campaign_strategist import (
-    campaign_strategist_agent,
     CampaignConceptValidator,
     RiskFilter,
+    campaign_strategist_agent,
 )
 
 

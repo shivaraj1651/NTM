@@ -1,13 +1,14 @@
 """Tests for Budget Optimizer Agent (AGT-05)."""
 
+from datetime import date
+
 import pytest
-from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from backend.app.agents.budget_optimizer import (
-    ConversionRateEstimator,
     BudgetOptimizer,
-    ROIAnalyzer,
+    ConversionRateEstimator,
     OptimizationReporter,
+    ROIAnalyzer,
     budget_optimizer_agent,
 )
 

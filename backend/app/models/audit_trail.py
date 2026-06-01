@@ -1,10 +1,12 @@
 """SQLAlchemy model for AuditTrail — immutable log of entity actions per tenant."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Index, JSON, String
+from sqlalchemy import JSON, Column, DateTime, Index, String
+
 from backend.app.models.base import Base
+
 
 class AuditTrail(Base):
     __tablename__ = "audit_trail"
@@ -21,7 +23,7 @@ class AuditTrail(Base):
     payload_after = Column(JSON, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

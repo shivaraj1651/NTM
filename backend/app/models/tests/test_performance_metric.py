@@ -1,8 +1,10 @@
-import pytest
-from uuid import uuid4
 from datetime import date
+from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.models.performance_metric import PerformanceMetric
 
 

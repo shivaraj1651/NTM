@@ -7,13 +7,15 @@ budget allocation framework: phases → channels → geographies.
 
 import json
 import logging
-from backend.app.agents.json_parsing import extract_json
-from typing import Dict, List, Any, Optional
 from datetime import date, timedelta
-from pydantic import ValidationError
+from typing import Any
+
 from anthropic import AsyncAnthropic
+from pydantic import ValidationError
+
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
-from backend.app.schemas.media_plan import Activation, PhaseEnum, ChannelEnum, AudienceSegmentEnum
+from backend.app.schemas.media_plan import Activation, AudienceSegmentEnum, ChannelEnum, PhaseEnum
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +23,11 @@ logger = logging.getLogger(__name__)
 # ── LLM Intelligence Layer ────────────────────────────────────────────────────
 
 async def _generate_plan_intelligence(
-    campaign_concept: Dict[str, Any],
-    budget_envelope: Dict[str, Any],
-    mandate_geography: Dict[str, Any],
-    mandate_context: Dict[str, Any],
-) -> Dict[str, Any]:
+    campaign_concept: dict[str, Any],
+    budget_envelope: dict[str, Any],
+    mandate_geography: dict[str, Any],
+    mandate_context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Call Claude to produce context-aware planning parameters based on the mandate.
 
@@ -152,8 +154,8 @@ class BudgetAllocator:
     def allocate_by_phase(
         self,
         total_budget: float,
-        phase_split: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, float]:
+        phase_split: dict[str, float] | None = None,
+    ) -> dict[str, float]:
         """Allocate budget across phases using provided split ratios."""
         phase_split = phase_split or {
             "Awareness": 0.40,
@@ -162,7 +164,7 @@ class BudgetAllocator:
         }
         return {phase: total_budget * ratio for phase, ratio in phase_split.items()}
 
-    def allocate_by_channel(self, phase_budget: float, channels: List[Dict[str, Any]]) -> Dict[str, float]:
+    def allocate_by_channel(self, phase_budget: float, channels: list[dict[str, Any]]) -> dict[str, float]:
         """Allocate phase budget across channels by weight."""
         allocations = {}
         total_weight = sum(ch.get("weight", 1.0) for ch in channels) or 1.0
@@ -172,7 +174,7 @@ class BudgetAllocator:
             allocations[channel_name] = phase_budget * (weight / total_weight)
         return allocations
 
-    def allocate_by_geography(self, channel_budget: float, geographies: List[str]) -> Dict[str, float]:
+    def allocate_by_geography(self, channel_budget: float, geographies: list[str]) -> dict[str, float]:
         """Allocate channel budget equally across geographies."""
         per_geography = channel_budget / len(geographies) if geographies else 0.0
         return {geo: per_geography for geo in geographies}
@@ -252,7 +254,7 @@ class OfflineConstraintHandler:
     def calculate_scheduled_date(self, channel_name: str, phase_start: date) -> date:
         return phase_start - timedelta(days=self.get_lead_time_days(channel_name))
 
-    def get_offline_constraints_note(self, channel_name: str) -> Optional[str]:
+    def get_offline_constraints_note(self, channel_name: str) -> str | None:
         if not self.is_offline(channel_name):
             return None
         lead_time = self.get_lead_time_days(channel_name)
@@ -269,7 +271,7 @@ class OfflineConstraintHandler:
 class ActivationValidator:
     """Validates Activation objects against the Pydantic schema."""
 
-    def validate_schema(self, activation_dict: dict) -> List[str]:
+    def validate_schema(self, activation_dict: dict) -> list[str]:
         try:
             Activation(**activation_dict)
             return []
@@ -309,11 +311,11 @@ def _resolve_channel_enum(channel_name: str) -> ChannelEnum:
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 async def media_planner_agent(
-    campaign_concept: Dict[str, Any],
-    budget_envelope: Dict[str, Any],
-    mandate_geography: Dict[str, Any],
-    mandate_context: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    campaign_concept: dict[str, Any],
+    budget_envelope: dict[str, Any],
+    mandate_geography: dict[str, Any],
+    mandate_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Main orchestrator: LLM-intelligence → allocation → activation generation → validation.
 
@@ -366,7 +368,7 @@ async def media_planner_agent(
     # ── Phase allocation ──────────────────────────────────────────────────────
     phase_budgets = allocator.allocate_by_phase(total_budget, phase_split)
     allocation_log.append(
-        f"Phase budget allocation (objective-driven): "
+        "Phase budget allocation (objective-driven): "
         + ", ".join(f"{p}={v:.2f}" for p, v in phase_budgets.items())
     )
 
@@ -506,7 +508,7 @@ async def media_planner_agent(
     }
 
 
-def _campaign_duration_days(campaign_phasing: Dict[str, Any], phase_name: str) -> int:
+def _campaign_duration_days(campaign_phasing: dict[str, Any], phase_name: str) -> int:
     """Derive phase duration from phasing dates, default 14 days.
 
     Tolerates both dict shape ({"start":..., "end":...}) and string shape

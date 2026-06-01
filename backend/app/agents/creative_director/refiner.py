@@ -5,8 +5,7 @@ Escalates to partial status if max_attempts exceeded.
 """
 
 import logging
-from typing import Dict, Any
-import asyncio
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +26,11 @@ class Refiner:
 
     async def refine(
         self,
-        creative: Dict[str, Any],
-        validation_result: Dict[str, Any],
+        creative: dict[str, Any],
+        validation_result: dict[str, Any],
         platform: str,
-        brand_rules: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        brand_rules: dict[str, Any]
+    ) -> dict[str, Any]:
         """Refine creative iteratively based on validation violations.
 
         Args:
@@ -144,10 +143,10 @@ class Refiner:
 
     def _validate_refined_creative(
         self,
-        creative: Dict[str, Any],
+        creative: dict[str, Any],
         platform: str,
-        brand_rules: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        brand_rules: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate a refined creative.
 
         Args:

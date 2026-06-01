@@ -8,24 +8,24 @@ and synthesizing whitespace opportunities via LLM.
 import asyncio
 import json
 import logging
-from backend.app.agents.json_parsing import extract_json
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from celery import shared_task
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from anthropic import AsyncAnthropic
+from celery import shared_task
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pydantic import BaseModel, ValidationError
 
+from backend.app.agents.json_parsing import extract_json
 from backend.app.schemas.competitive_intel import (
+    ChannelMetrics,
     CIReport,
     CompetitorMetrics,
-    ChannelMetrics,
     WhitespaceOpportunities,
 )
-from backend.app.tools.serpapi import search_competitor_ads
 from backend.app.tools.meta_ads import lookup_meta_ads
+from backend.app.tools.serpapi import search_competitor_ads
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,9 @@ LLM_MODEL = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 # Pydantic model for LLM synthesis response validation
 class SynthesisResponse(BaseModel):
     """Validated response structure from LLM synthesis."""
-    untapped_channels: List[str]
-    messaging_gaps: List[str]
-    geographic_gaps: List[str]
+    untapped_channels: list[str]
+    messaging_gaps: list[str]
+    geographic_gaps: list[str]
     market_concentration: str
 
 
@@ -61,7 +61,7 @@ async def get_mongo_db() -> AsyncIOMotorDatabase:
 
 async def get_competitor_cache(
     db: AsyncIOMotorDatabase, competitor_name: str, tenant_id: str
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Look up cached competitor metrics, check freshness.
 
@@ -91,12 +91,12 @@ async def get_competitor_cache(
             return None
 
         # Calculate age with timezone awareness
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at)
             # Ensure timezone-aware
             if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
+                created_at = created_at.replace(tzinfo=UTC)
 
         age_days = (now - created_at).days
         if age_days > CACHE_TTL_METRICS_DAYS:
@@ -114,10 +114,10 @@ async def get_competitor_cache(
 async def save_competitor_cache(
     db: AsyncIOMotorDatabase,
     competitor_name: str,
-    channels: Dict[str, Any],
-    messaging_themes: List[str],
-    geographic_focus: List[str],
-    estimated_spend: Optional[float],
+    channels: dict[str, Any],
+    messaging_themes: list[str],
+    geographic_focus: list[str],
+    estimated_spend: float | None,
     tenant_id: str,
 ) -> None:
     """
@@ -138,7 +138,7 @@ async def save_competitor_cache(
         cache_doc = {
             "competitor_name": competitor_name,
             "tenant_id": tenant_id,
-            "created_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
+            "created_at": datetime.utcnow().replace(tzinfo=UTC).isoformat(),
             "metrics": {
                 "channels": channels,
                 "messaging_themes": messaging_themes,
@@ -161,10 +161,10 @@ async def save_competitor_cache(
 
 async def fetch_competitor_metrics_single(
     competitor_name: str,
-    geography: List[str],
+    geography: list[str],
     db: AsyncIOMotorDatabase,
     tenant_id: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fetch metrics for ONE competitor from APIs or cache.
 
@@ -215,7 +215,7 @@ async def fetch_competitor_metrics_single(
             }
 
         # Build channels dict from results
-        channels: Dict[str, ChannelMetrics] = {}
+        channels: dict[str, ChannelMetrics] = {}
 
         # Google Ads / SerpAPI channels
         if "google_ads" in serpapi_result.get("channels_detected", []):
@@ -287,9 +287,9 @@ async def fetch_competitor_metrics_single(
 
 
 async def synthesize_competitive_report(
-    competitors_metrics: List[Dict[str, Any]],
-    mandate: Dict[str, Any],
-) -> Dict[str, Any]:
+    competitors_metrics: list[dict[str, Any]],
+    mandate: dict[str, Any],
+) -> dict[str, Any]:
     """
     Synthesize competitive report using Claude Sonnet LLM.
 
@@ -405,8 +405,8 @@ Identify untapped channels, messaging gaps, and geographic gaps. Also assess mar
 
 async def _async_fetch_competitor_metrics(
     mandate_id: str,
-    competitor_names: List[str],
-    mandate_dict: Dict[str, Any],
+    competitor_names: list[str],
+    mandate_dict: dict[str, Any],
     tenant_id: str,
     job_id: str,
 ) -> None:
@@ -458,8 +458,8 @@ async def _async_fetch_competitor_metrics(
 
     # Build CompetitorMetrics list (with confidence scores)
     competitor_objects = []
-    for idx, (comp_name, metrics) in enumerate(
-        zip(competitor_names, competitors_metrics)
+    for _idx, (comp_name, metrics) in enumerate(
+        zip(competitor_names, competitors_metrics, strict=False)
     ):
         # Assign confidence based on data completeness
         channel_count = len(metrics.get("channels", {}))
@@ -485,7 +485,7 @@ async def _async_fetch_competitor_metrics(
     ci_report = CIReport(
         mandate_id=mandate_id,
         job_id=job_id,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         tenant_id=tenant_id,
         competitors=competitor_objects,
         whitespace_opportunities=WhitespaceOpportunities(
@@ -495,8 +495,8 @@ async def _async_fetch_competitor_metrics(
         ),
         market_concentration=synthesis_result.get("market_concentration", "unknown"),
         status="complete",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     # Store in MongoDB
@@ -513,8 +513,8 @@ async def _async_fetch_competitor_metrics(
 def fetch_competitor_metrics(
     self,
     mandate_id: str,
-    competitor_names: List[str],
-    mandate_dict: Dict[str, Any],
+    competitor_names: list[str],
+    mandate_dict: dict[str, Any],
     tenant_id: str,
     job_id: str,
 ) -> None:
@@ -552,7 +552,7 @@ def fetch_competitor_metrics(
             partial_report = {
                 "mandate_id": mandate_id,
                 "job_id": job_id,
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "tenant_id": tenant_id,
                 "competitors": [],
                 "whitespace_opportunities": {
@@ -563,8 +563,8 @@ def fetch_competitor_metrics(
                 "market_concentration": "unknown",
                 "status": "failed",
                 "error": str(e),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
 
             # Insert without awaiting
@@ -579,8 +579,9 @@ def fetch_competitor_metrics(
 
 async def _run_competitive_intel_pipeline(mandate_id: str, tenant_id: str) -> None:
     """Async: fetch mandate + client from MongoDB, run AGT-02 phase 1, dispatch phase 2."""
-    from backend.app.agents.competitive_intel import competitive_intel_agent
     import uuid
+
+    from backend.app.agents.competitive_intel import competitive_intel_agent
 
     mongo_client = AsyncIOMotorClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
     try:

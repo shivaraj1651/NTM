@@ -1,16 +1,15 @@
 """FastAPI router for Creative Director Agent (AGT-06) endpoints."""
 
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from backend.app.agents.creative_director_orchestrator import (
-    CreativeDirectorAgent,
-    creative_director_agent,
-)
 from backend.app.agents.creative_director.models import (
     CampaignInput,
     CreativeDirectorOutput,
+)
+from backend.app.agents.creative_director_orchestrator import (
+    CreativeDirectorAgent,
+    creative_director_agent,
 )
 from backend.app.core.dependencies import require_role
 from backend.app.core.models import User, UserRole

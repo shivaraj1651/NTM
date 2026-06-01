@@ -2,6 +2,7 @@
 import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+
 from backend.app.core.config import settings
 from backend.app.core.models import User, user_tenant_access
 

@@ -8,27 +8,25 @@ Orchestrates the entire creative generation pipeline:
 5. Output compilation
 """
 
-import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone
+from typing import Any
 
+from backend.app.agents.creative_director.generator import CreativeGenerator
+from backend.app.agents.creative_director.input_aggregator import InputAggregator
 from backend.app.agents.creative_director.models import (
     CampaignInput,
-    CreativeDirectorOutput,
-    CoreConcept,
-    GenerationMetadata,
-    PlatformCreatives,
     Copy,
+    CoreConcept,
+    CreativeDirectorOutput,
+    GenerationMetadata,
     ImagePrompt,
+    PlatformCreatives,
     VideoConcept,
     VoiceoverScript,
 )
-from backend.app.agents.creative_director.input_aggregator import InputAggregator
-from backend.app.agents.creative_director.generator import CreativeGenerator
-from backend.app.agents.creative_director.validator import Validator
 from backend.app.agents.creative_director.refiner import Refiner
+from backend.app.agents.creative_director.validator import Validator
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +36,7 @@ class CreativeDirectorAgent:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "claude-opus-4-7"
     ):
         """Initialize Creative Director Agent with components.
@@ -82,8 +80,8 @@ class CreativeDirectorAgent:
         """
         start_time = time.time()
         errors = []
-        platforms_dict: Dict[str, PlatformCreatives] = {}
-        core_concept: Optional[CoreConcept] = None
+        platforms_dict: dict[str, PlatformCreatives] = {}
+        core_concept: CoreConcept | None = None
 
         try:
             # Step 1: Aggregate inputs
@@ -193,9 +191,9 @@ class CreativeDirectorAgent:
     async def _generate_platform_creatives(
         self,
         platform: str,
-        core_concept: Dict[str, Any],
+        core_concept: dict[str, Any],
         campaign_input: CampaignInput,
-        campaign_data: Dict[str, Any]
+        campaign_data: dict[str, Any]
     ) -> PlatformCreatives:
         """Generate all creative types for a platform.
 
@@ -287,7 +285,7 @@ class CreativeDirectorAgent:
         self,
         platform_creatives: PlatformCreatives,
         platform: str,
-        brand_rules: Dict[str, Any]
+        brand_rules: dict[str, Any]
     ) -> PlatformCreatives:
         """Validate all creatives in a platform group.
 
@@ -327,7 +325,7 @@ class CreativeDirectorAgent:
         self,
         platform_creatives: PlatformCreatives,
         platform: str,
-        brand_rules: Dict[str, Any]
+        brand_rules: dict[str, Any]
     ) -> PlatformCreatives:
         """Refine creatives that failed validation.
 
@@ -353,7 +351,7 @@ class CreativeDirectorAgent:
 
         return platform_creatives
 
-    def _extract_brand_rules(self, campaign_input: CampaignInput) -> Dict[str, Any]:
+    def _extract_brand_rules(self, campaign_input: CampaignInput) -> dict[str, Any]:
         """Extract brand rules from campaign input.
 
         Args:
@@ -374,7 +372,7 @@ class CreativeDirectorAgent:
 
     def _determine_validation_status(
         self,
-        platforms_dict: Dict[str, PlatformCreatives]
+        platforms_dict: dict[str, PlatformCreatives]
     ) -> str:
         """Determine overall validation status from all platforms.
 
@@ -426,7 +424,7 @@ class CreativeDirectorAgent:
 
     def _generate_validation_summary(
         self,
-        platforms_dict: Dict[str, PlatformCreatives]
+        platforms_dict: dict[str, PlatformCreatives]
     ) -> str:
         """Generate human-readable validation summary.
 

@@ -2,7 +2,6 @@
 
 import logging
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +43,7 @@ class ReportService:
         mandate_id: str,
         report_type: str,
         tenant_id: str,
-    ) -> Optional[Report]:
+    ) -> Report | None:
         """Return the most recent Report for a mandate+type, or None."""
         stmt = (
             select(Report)

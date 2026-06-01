@@ -1,27 +1,28 @@
 """Pydantic schemas for Creatives resource endpoints (PRD Section 10)."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class CreativeResponse(BaseModel):
     id: str
-    campaign_id: Optional[str] = None
-    tenant_id: Optional[str] = None
-    generation_id: Optional[str] = None
-    platform: Optional[str] = None
-    creative_type: Optional[str] = None
-    content: Optional[Dict[str, Any]] = None
-    validation_status: Optional[str] = None
-    refinement_attempts: Optional[int] = None
-    internal_approved_at: Optional[str] = None
-    client_approved_at: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    campaign_id: str | None = None
+    tenant_id: str | None = None
+    generation_id: str | None = None
+    platform: str | None = None
+    creative_type: str | None = None
+    content: dict[str, Any] | None = None
+    validation_status: str | None = None
+    refinement_attempts: int | None = None
+    internal_approved_at: str | None = None
+    client_approved_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class CreativeListResponse(BaseModel):
-    creatives: List[CreativeResponse]
+    creatives: list[CreativeResponse]
     total: int
 
 

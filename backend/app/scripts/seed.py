@@ -1,10 +1,12 @@
 """Idempotent dev seed: roles, one tenant, one user per role."""
 import asyncio
 import uuid
+
 from sqlalchemy import select
-from backend.app.core.config import DEFAULT_RBAC_ROLES
-from backend.app.core.models import User, Role, Tenant
+
 from backend.app.core.auth_helpers import hash_password
+from backend.app.core.config import DEFAULT_RBAC_ROLES
+from backend.app.core.models import Role, Tenant, User
 from backend.app.db import get_session_local
 
 TENANT_ID = "tenant-acme"
@@ -51,7 +53,7 @@ async def _main():
     factory = get_session_local()
     async with factory() as session:
         await seed_all(session)
-    print("Seed complete: tenant=%s, users=%d" % (TENANT_ID, len(EMAIL_BY_ROLE)))
+    print(f"Seed complete: tenant={TENANT_ID}, users={len(EMAIL_BY_ROLE)}")
 
 
 if __name__ == "__main__":

@@ -7,16 +7,17 @@ Validates mandates for completeness and contradictions, produces structured summ
 import json
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from anthropic import AsyncAnthropic
+
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
 
-def _extract_json(text: str) -> Optional[dict]:
+def _extract_json(text: str) -> dict | None:
     """Parse JSON from a real LLM response.
 
     Production models often wrap JSON in ```json fences or add stray prose despite
@@ -64,7 +65,7 @@ class MandateValidator:
         """Initialize validator."""
         self.total_required = sum(len(v) for v in self.REQUIRED_FIELDS.values())
 
-    def validate(self, mandate: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, mandate: dict[str, Any]) -> dict[str, Any]:
         """
         Validate mandate for required fields.
 
@@ -74,7 +75,7 @@ class MandateValidator:
         Returns:
             Dict with is_complete, missing_fields, field_count, field_total
         """
-        missing_fields: List[str] = []
+        missing_fields: list[str] = []
         field_count = 0
 
         # Check top-level fields
@@ -114,7 +115,7 @@ class MandateValidator:
         }
 
 
-async def analyze_mandate_with_llm(mandate: Dict[str, Any], validation_result: Dict[str, Any]) -> Dict[str, Any]:
+async def analyze_mandate_with_llm(mandate: dict[str, Any], validation_result: dict[str, Any]) -> dict[str, Any]:
     """
     Call Claude Sonnet to detect contradictions and produce summary card.
 
@@ -211,7 +212,7 @@ Mandate data:
     return result
 
 
-async def mandate_analyst_agent(mandate: Dict[str, Any]) -> Dict[str, Any]:
+async def mandate_analyst_agent(mandate: dict[str, Any]) -> dict[str, Any]:
     """
     AGT-01 Mandate Analyst Agent entry point.
 
@@ -238,7 +239,7 @@ async def mandate_analyst_agent(mandate: Dict[str, Any]) -> Dict[str, Any]:
         "missing_fields": validation_result["missing_fields"],
         "contradictions": llm_result.get("contradictions", []),
         "mandate_summary": llm_result.get("mandate_summary", {}),
-        "validated_at": datetime.now(timezone.utc).isoformat()
+        "validated_at": datetime.now(UTC).isoformat()
     }
 
     return final_output

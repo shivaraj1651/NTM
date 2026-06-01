@@ -2,7 +2,6 @@
 
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class WhatsAppTool:
         to: str,
         entity_type: str,
         entity_id: str,
-        approval_url: Optional[str] = None,
+        approval_url: str | None = None,
     ) -> dict:
         """Send a structured approval-gate notification."""
         lines = [f"NTM: Action required — {entity_type} is ready for your approval."]

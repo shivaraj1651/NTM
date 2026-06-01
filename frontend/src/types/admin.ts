@@ -363,7 +363,7 @@ export interface ScriptAsset {
 
 export interface ImageAsset {
   id: string
-  format: 'square' | 'landscape' | 'portrait'
+  format: 'square' | 'landscape' | 'portrait' | 'ooh_billboard'
   url: string
   approved: boolean | null
   revision_count: number

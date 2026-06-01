@@ -11,8 +11,9 @@ TASK-021
 
 import json
 import logging
+from typing import Any
+
 from backend.app.agents.json_parsing import extract_json
-from typing import Any, Dict, List, Tuple
 from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ _OVERPERFORM_THRESHOLD = 10.0
 class ActivationScorer:
     """Scores activations by worst (minimum) KPI achievement_percent."""
 
-    def score(self, analytics_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def score(self, analytics_summary: dict[str, Any]) -> list[dict[str, Any]]:
         """Attach a 'score' field (min achievement_percent) to each activation.
 
         Args:
@@ -49,12 +50,12 @@ class ActivationScorer:
             scored.append(entry)
         return scored
 
-    def get_underperformers(self, scored: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def get_underperformers(self, scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Return top 3 Red/Amber activations sorted by worst score ascending."""
         candidates = [a for a in scored if a["status"] in ("red", "amber")]
         return sorted(candidates, key=lambda a: a["score"])[:3]
 
-    def get_overperformers(self, scored: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def get_overperformers(self, scored: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Return top 3 Green activations with score > +10%, sorted descending."""
         candidates = [
             a for a in scored
@@ -74,7 +75,7 @@ class RecommendationMapper:
         direction: str,
         worst_kpi_name: str,
         score: float,
-    ) -> Tuple[str, float]:
+    ) -> tuple[str, float]:
         """Return (recommendation_type, cost_change_pct).
 
         cost_change_pct is a percentage float:
@@ -122,9 +123,9 @@ class LLMEnricher:
 
     async def enrich(
         self,
-        candidates: List[Dict[str, Any]],
-        activation_plan: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        candidates: list[dict[str, Any]],
+        activation_plan: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """Enrich candidates with rationale and expected_impact via one LLM call.
 
         Falls back to safe placeholder strings if the LLM call fails or returns
@@ -162,7 +163,7 @@ class LLMEnricher:
                 result.append(enriched)
             return result
 
-        enriched_index: Dict[str, Dict[str, str]] = {}
+        enriched_index: dict[str, dict[str, str]] = {}
         try:
             response = await self.client.messages.create(
                 model=self._MODEL,
@@ -171,7 +172,7 @@ class LLMEnricher:
                 messages=[{"role": "user", "content": user_message}],
             )
             raw = response.content[0].text
-            parsed: List[Dict[str, Any]] = extract_json(raw)
+            parsed: list[dict[str, Any]] = extract_json(raw)
             enriched_index = {item["activation_id"]: item for item in parsed}
         except Exception as exc:
             logger.warning("LLM enrichment failed (%s) — applying fallback strings", exc)
@@ -202,9 +203,9 @@ class ReplanningAgent:
     async def run_weekly_replan(
         self,
         mandate_id: str,
-        analytics_summary: Dict[str, Any],
-        activation_plan: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        analytics_summary: dict[str, Any],
+        activation_plan: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """Generate ReplanRecommendation list for a mandate.
 
         Args:
@@ -223,7 +224,7 @@ class ReplanningAgent:
         underperformers = self.scorer.get_underperformers(scored)
         overperformers = self.scorer.get_overperformers(scored)
 
-        candidates: List[Dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
 
         for act in underperformers:
             rec_type, cost_change = self.mapper.map_type(
@@ -249,11 +250,11 @@ class ReplanningAgent:
     @staticmethod
     def _build_candidate(
         mandate_id: str,
-        activation: Dict[str, Any],
+        activation: dict[str, Any],
         direction: str,
         rec_type: str,
         cost_change: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "mandate_id": mandate_id,
             "activation_id": activation["activation_id"],

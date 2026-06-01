@@ -1,9 +1,9 @@
 """Tests for Mandate Analyst Agent (AGT-01)."""
 
-import pytest
 import json
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 @pytest.fixture
@@ -96,7 +96,7 @@ def test_mandate_validator_missing_fields(incomplete_mandate):
 @pytest.mark.asyncio
 async def test_analyze_mandate_with_llm_happy_path(complete_mandate):
     """LLM analysis should return valid JSON with contradictions and summary."""
-    from backend.app.agents.mandate_analyst import analyze_mandate_with_llm, MandateValidator
+    from backend.app.agents.mandate_analyst import MandateValidator, analyze_mandate_with_llm
 
     validator = MandateValidator()
     validation_result = validator.validate(complete_mandate)

@@ -1,6 +1,7 @@
-import pytest
 from datetime import date
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

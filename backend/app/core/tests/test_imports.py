@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_can_import_config():
@@ -7,27 +6,27 @@ def test_can_import_config():
 
 
 def test_can_import_models():
-    from backend.app.core import User, Role, Tenant, Base
+    from backend.app.core import User
     assert User is not None
 
 
 def test_can_import_schemas():
-    from backend.app.core import UserCreate, UserRead, TokenResponse
+    from backend.app.core import UserCreate
     assert UserCreate is not None
 
 
 def test_can_import_auth():
-    from backend.app.core import fastapi_users, current_user
+    from backend.app.core import fastapi_users
     assert fastapi_users is not None
 
 
 def test_can_import_exceptions():
-    from backend.app.core import TenantMismatchException, InvalidTokenException
+    from backend.app.core import TenantMismatchException
     assert TenantMismatchException is not None
 
 
 def test_can_import_utilities():
-    from backend.app.core import get_user_by_email, validate_user_role
+    from backend.app.core import get_user_by_email
     assert get_user_by_email is not None
 
 

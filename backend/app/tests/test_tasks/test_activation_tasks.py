@@ -7,16 +7,16 @@ Tests platform activation tasks (Google, Meta, LinkedIn) with:
 - Completion callback aggregation
 """
 
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
-from unittest.mock import patch, AsyncMock, MagicMock, call
-import asyncio
+
+import pytest
 
 from backend.app.tasks.activation_tasks import (
-    platform_activate_google,
-    platform_activate_meta,
-    platform_activate_linkedin,
     activation_completion_callback,
+    platform_activate_google,
+    platform_activate_linkedin,
+    platform_activate_meta,
 )
 
 
@@ -50,18 +50,18 @@ class TestPlatformActivateGoogle:
     @pytest.mark.asyncio
     async def test_google_ads_activation_success(self):
         """Test successful Google Ads activation with mapping storage."""
-        activation = {
+        _activation = {
             "id": str(uuid4()),
             "tenant_id": str(uuid4()),
             "name": "Test Campaign",
             "cost_estimated": 1000.0,
         }
-        platform_config = {
+        _platform_config = {
             "age_range": "25-54",
             "interests": ["marketing", "business"],
             "geographic": "US",
         }
-        creative_url = "https://example.com/ad.jpg"
+        _creative_url = "https://example.com/ad.jpg"
 
         with patch(
             "backend.app.tasks.activation_tasks.activate_google",
@@ -69,7 +69,7 @@ class TestPlatformActivateGoogle:
         ) as mock_activate, patch(
             "backend.app.tasks.activation_tasks._store_platform_mapping_async",
             new_callable=AsyncMock,
-        ) as mock_store:
+        ) as _mock_store:
             # Mock successful activation
             mock_activate.return_value = {
                 "campaign_id": "camps_123",
@@ -85,12 +85,12 @@ class TestPlatformActivateGoogle:
     @pytest.mark.asyncio
     async def test_google_ads_activation_failure(self):
         """Test Google Ads activation failure with retry."""
-        activation = {
+        _activation = {
             "id": str(uuid4()),
             "tenant_id": str(uuid4()),
         }
-        platform_config = {}
-        creative_url = "https://example.com/ad.jpg"
+        _platform_config = {}
+        _creative_url = "https://example.com/ad.jpg"
 
         with patch(
             "backend.app.tasks.activation_tasks.activate_google",
@@ -98,7 +98,7 @@ class TestPlatformActivateGoogle:
         ) as mock_activate, patch(
             "backend.app.tasks.activation_tasks._store_platform_mapping_async",
             new_callable=AsyncMock,
-        ) as mock_store:
+        ) as _mock_store:
             # Mock API error
             mock_activate.side_effect = Exception("API rate limit exceeded")
 
@@ -119,17 +119,17 @@ class TestPlatformActivateMeta:
     @pytest.mark.asyncio
     async def test_meta_ads_activation_success(self):
         """Test successful Meta Ads activation."""
-        activation = {
+        _activation = {
             "id": str(uuid4()),
             "tenant_id": str(uuid4()),
             "name": "Test Campaign",
             "cost_estimated": 500.0,
         }
-        platform_config = {
+        _platform_config = {
             "interests": ["marketing"],
             "age_range": "18-65",
         }
-        creative_url = "https://example.com/video.mp4"
+        _creative_url = "https://example.com/video.mp4"
 
         with patch(
             "backend.app.tasks.activation_tasks.activate_meta",
@@ -137,7 +137,7 @@ class TestPlatformActivateMeta:
         ) as mock_activate, patch(
             "backend.app.tasks.activation_tasks._store_platform_mapping_async",
             new_callable=AsyncMock,
-        ) as mock_store:
+        ) as _mock_store:
             mock_activate.return_value = {
                 "campaign_id": "meta_camps_123",
                 "ad_id": "meta_ads_456",
@@ -160,19 +160,19 @@ class TestPlatformActivateLinkedIn:
     @pytest.mark.asyncio
     async def test_linkedin_ads_activation_success(self):
         """Test successful LinkedIn Ads activation."""
-        activation = {
+        _activation = {
             "id": str(uuid4()),
             "tenant_id": str(uuid4()),
             "name": "B2B Campaign",
             "cost_estimated": 2000.0,
         }
-        platform_config = {
+        _platform_config = {
             "seniority": ["C-level", "Manager"],
             "job_title": ["Marketing", "CMO"],
             "industries": ["Technology"],
             "locations": ["US"],
         }
-        creative_url = "https://example.com/b2b-creative.jpg"
+        _creative_url = "https://example.com/b2b-creative.jpg"
 
         with patch(
             "backend.app.tasks.activation_tasks.activate_linkedin",
@@ -180,7 +180,7 @@ class TestPlatformActivateLinkedIn:
         ) as mock_activate, patch(
             "backend.app.tasks.activation_tasks._store_platform_mapping_async",
             new_callable=AsyncMock,
-        ) as mock_store:
+        ) as _mock_store:
             mock_activate.return_value = {
                 "campaign_id": "li_camps_123",
                 "ad_id": "li_ads_456",
@@ -384,10 +384,10 @@ class TestTaskIntegration:
     def test_tasks_can_be_imported(self):
         """Verify all tasks can be imported."""
         from backend.app.tasks import (
-            platform_activate_google,
-            platform_activate_meta,
-            platform_activate_linkedin,
             activation_completion_callback,
+            platform_activate_google,
+            platform_activate_linkedin,
+            platform_activate_meta,
         )
 
         assert platform_activate_google is not None

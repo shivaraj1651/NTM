@@ -1,24 +1,24 @@
 """Pydantic schemas for Activation resource endpoints (PRD Section 10)."""
 
-from typing import List, Optional
+
 from pydantic import BaseModel
 
 
 class ActivationResponse(BaseModel):
     id: str
-    tenant_id: Optional[str] = None
-    campaign_id: Optional[str] = None
-    channel: Optional[str] = None
-    sub_channel: Optional[str] = None
-    audience_segment: Optional[str] = None
-    budget_allocated: Optional[float] = None
-    currency: Optional[str] = None
-    platform_config: Optional[dict] = None
-    status: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    tenant_id: str | None = None
+    campaign_id: str | None = None
+    channel: str | None = None
+    sub_channel: str | None = None
+    audience_segment: str | None = None
+    budget_allocated: float | None = None
+    currency: str | None = None
+    platform_config: dict | None = None
+    status: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class ActivationListResponse(BaseModel):
-    activations: List[ActivationResponse]
+    activations: list[ActivationResponse]
     total: int

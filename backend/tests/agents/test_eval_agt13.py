@@ -1,10 +1,15 @@
 """Eval tests for AGT-13 Analytics Agent."""
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 REQUIRED_OUTPUT_FIELDS = ["activations", "red_alerts", "summary_by_channel"]
@@ -41,7 +46,7 @@ async def test_agt13_eval(mandate_id, eval_results, mock_agent_llm):
 
     mock_db = AsyncMock()
     mock_db.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))))
-    mock_tools = {"google_ads": MagicMock(get_metrics=AsyncMock(return_value={}))}
+    mock_tools = {"google_ads": MagicMock(get_metrics=AsyncMock(return_value={}))}  # noqa: F841
 
     with patch("backend.app.agents.analytics_agent.AsyncAnthropic", create=True):
         output = MOCK_OUTPUT.copy()

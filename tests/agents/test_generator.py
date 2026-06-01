@@ -1,8 +1,10 @@
 """Tests for Creative Brief Generator (AGT-06) with Claude API integration."""
 
-import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from backend.app.agents.creative_director.generator import CreativeGenerator
 
 

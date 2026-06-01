@@ -1,9 +1,17 @@
 import os
-import pytest
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
-from unittest.mock import patch, AsyncMock
+
+import pytest
 
 from backend.app.tools.google_ads import activate_google
+
+
+def _budget_response():
+    m = AsyncMock()
+    m.json = lambda: {"results": [{"resourceName": "customers/123/campaignBudgets/101"}]}
+    m.raise_for_status = lambda: None
+    return m
 
 
 def _campaign_response():
@@ -44,7 +52,7 @@ async def test_activate_google_success():
 
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=[
-            _campaign_response(), _ad_group_response(), _ad_response()
+            _budget_response(), _campaign_response(), _ad_group_response(), _ad_response()
         ])
         mock_cls.return_value.__aenter__.return_value = mock_client
 
@@ -92,7 +100,7 @@ async def test_activate_google_returns_dict_with_required_fields():
 
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=[
-            _campaign_response(), _ad_group_response(), _ad_response()
+            _budget_response(), _campaign_response(), _ad_group_response(), _ad_response()
         ])
         mock_cls.return_value.__aenter__.return_value = mock_client
 
@@ -130,7 +138,7 @@ async def test_activate_google_sends_developer_token_header():
 
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=[
-            _campaign_response(), _ad_group_response(), _ad_response()
+            _budget_response(), _campaign_response(), _ad_group_response(), _ad_response()
         ])
         mock_cls.return_value.__aenter__.return_value = mock_client
 
@@ -138,7 +146,7 @@ async def test_activate_google_sends_developer_token_header():
             activation=activation, platform_config={}, creative_url="https://example.com/c.mp4"
         )
 
-        assert mock_client.post.call_count == 3
+        assert mock_client.post.call_count == 4
         for call in mock_client.post.call_args_list:
             call_kwargs = call[1]
             assert call_kwargs["headers"]["developer-token"] == "my-dev-token"

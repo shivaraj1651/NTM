@@ -1,8 +1,9 @@
 """Tests for ActivationNotificationService."""
 
-import pytest
-from uuid import uuid4
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
+
+import pytest
 
 from backend.app.services.activation_notifications import ActivationNotificationService
 
@@ -97,7 +98,7 @@ async def test_send_activation_success_failure_handling():
     service = ActivationNotificationService()
 
     with patch.object(service, 'send_email', new_callable=AsyncMock) as mock_email, \
-         patch.object(service, 'send_whatsapp', new_callable=AsyncMock) as mock_whatsapp:
+         patch.object(service, 'send_whatsapp', new_callable=AsyncMock) as mock_whatsapp:  # noqa: F841
 
         # Simulate email send failure
         mock_email.side_effect = Exception("Email service down")

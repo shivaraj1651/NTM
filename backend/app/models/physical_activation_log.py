@@ -1,10 +1,12 @@
 """SQLAlchemy model for PhysicalActivationLog — insert-only event log for channel activations."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Index, JSON
+from sqlalchemy import JSON, Column, DateTime, Index, String
+
 from backend.app.models.base import Base
+
 
 class PhysicalActivationLog(Base):
     __tablename__ = "physical_activation_logs"
@@ -18,12 +20,12 @@ class PhysicalActivationLog(Base):
     payload = Column(JSON, nullable=False, default=lambda: {})
     logged_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

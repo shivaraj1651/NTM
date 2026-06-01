@@ -259,11 +259,11 @@ export function GoLivePage() {
             <span className="text-muted-foreground">Concept</span>
             <span className="font-medium">{selectedConcept?.name ?? '—'}</span>
           </div>
-          {(selectedConcept as Record<string, unknown>)?.tagline && (
+          {selectedConcept?.tagline && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tagline</span>
               <span className="italic">
-                &ldquo;{(selectedConcept as Record<string, unknown>).tagline as string}&rdquo;
+                &ldquo;{selectedConcept.tagline}&rdquo;
               </span>
             </div>
           )}

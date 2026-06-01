@@ -1,12 +1,14 @@
 """SQLAlchemy model for GeneratedImage output from Image Generator Agent (AGT-09)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Index, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
+
 from backend.app.models.base import Base
 
-from sqlalchemy.dialects.postgresql import JSONB
+
 class GeneratedImage(Base):
     """Generated image record. Multi-tenant isolated, one row per generation."""
 
@@ -23,7 +25,7 @@ class GeneratedImage(Base):
     image_format = Column(String, nullable=False)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

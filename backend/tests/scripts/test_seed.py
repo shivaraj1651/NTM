@@ -1,11 +1,11 @@
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from backend.app.models.base import Base
 import backend.app.core.models  # noqa: F401  (registers User/Role/Tenant on Base.metadata)
-from backend.app.core.models import User, Role, Tenant
+from backend.app.core.models import Role, Tenant, User
+from backend.app.models.base import Base
 from backend.app.scripts.seed import seed_all
 
 

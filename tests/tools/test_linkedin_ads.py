@@ -1,8 +1,10 @@
 """Tests for LinkedIn Ads activation tool."""
 
-import pytest
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
-from unittest.mock import patch, AsyncMock
+
+import pytest
+
 from backend.app.tools.linkedin_ads import activate_linkedin
 
 

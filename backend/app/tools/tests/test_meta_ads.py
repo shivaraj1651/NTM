@@ -1,9 +1,20 @@
-import pytest
 import os
-import httpx
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
-from unittest.mock import patch, AsyncMock
-from backend.app.tools.meta_ads import activate_meta, _get_access_token, create_campaign, create_ad_set, create_ad, get_ad_insights, pause_ad, update_ad_budget
+
+import httpx
+import pytest
+
+from backend.app.tools.meta_ads import (
+    _get_access_token,
+    activate_meta,
+    create_ad,
+    create_ad_set,
+    create_campaign,
+    get_ad_insights,
+    pause_ad,
+    update_ad_budget,
+)
 
 
 def _mock_post_response(response_id: str):

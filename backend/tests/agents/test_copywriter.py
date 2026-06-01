@@ -1,14 +1,12 @@
 """Tests for Copywriter Agent (AGT-07)."""
 
-import asyncio
 import json
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from backend.app.agents.copywriter import (
     ASSET_CONFIGS,
-    CopyOutput,
-    CopyVariant,
     CopywriterAgent,
     CreativeBrief,
 )
@@ -273,7 +271,7 @@ class TestPersistence:
             async def commit(self):
                 pass
 
-        output = await agent.generate(sample_brief, db_session=FakeSession())
+        output = await agent.generate(sample_brief, db_session=FakeSession())  # noqa: F841
 
         assert len(persisted) > 0
         for row in persisted:

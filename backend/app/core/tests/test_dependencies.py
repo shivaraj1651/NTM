@@ -1,8 +1,10 @@
-import pytest
 from contextvars import ContextVar
 from unittest.mock import MagicMock
+
+import pytest
 from fastapi import HTTPException
-from backend.app.core.dependencies import get_current_tenant, tenant_context, require_role
+
+from backend.app.core.dependencies import get_current_tenant, require_role, tenant_context
 from backend.app.core.models import UserRole
 
 

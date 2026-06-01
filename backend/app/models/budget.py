@@ -1,10 +1,12 @@
 """SQLAlchemy model for Budget — campaign budget with approval tracking."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Float, String, Index, JSON
+from sqlalchemy import JSON, Column, DateTime, Float, Index, String
+
 from backend.app.models.base import Base
+
 
 class Budget(Base):
     __tablename__ = "budgets"
@@ -21,13 +23,13 @@ class Budget(Base):
     approved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

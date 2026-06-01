@@ -1,9 +1,10 @@
 """Fixtures for services tests."""
 
+import os
+
 import pytest
 import pytest_asyncio
-import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.app.models.activation_platform_mapping import Base as Base1

@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +39,7 @@ async def test_create_budget(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_budget_approval_fields(db_session: AsyncSession):
     approver_id = str(uuid4())
-    approved_time = datetime.now(timezone.utc)
+    approved_time = datetime.now(UTC)
     tenant_id = str(uuid4())
     budget = Budget(
         tenant_id=tenant_id,

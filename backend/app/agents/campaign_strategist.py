@@ -8,14 +8,14 @@ import asyncio
 import json
 import logging
 import uuid
-from backend.app.agents.json_parsing import extract_json
-from typing import Dict, List, Any, Optional
+from typing import Any
 
-from pydantic import ValidationError
 from anthropic import AsyncAnthropic
+from pydantic import ValidationError
 
-from backend.app.schemas.campaign_concept import CampaignConcept
+from backend.app.agents.json_parsing import extract_json
 from backend.app.external.stubs import stub_enabled
+from backend.app.schemas.campaign_concept import CampaignConcept
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class RiskFilter:
     """Assesses and filters campaigns for legal/regulatory/sensitivity risks."""
 
-    def should_regenerate(self, risk_flags: Dict[str, Optional[str]]) -> bool:
+    def should_regenerate(self, risk_flags: dict[str, str | None]) -> bool:
         """
         Determine if a concept must be dropped. In production, an LLM self-assessment
         will almost always note minor risks (e.g. "comparative claims may need
@@ -73,7 +73,7 @@ class RiskFilter:
 class CampaignConceptValidator:
     """Validates CampaignConcept JSON against Pydantic schema."""
 
-    def validate_schema(self, concept_dict: dict) -> List[str]:
+    def validate_schema(self, concept_dict: dict) -> list[str]:
         """
         Validate a campaign concept dict against CampaignConcept schema.
 
@@ -99,10 +99,10 @@ class CampaignConceptValidator:
 
 
 async def generate_campaign(
-    mandate: Dict[str, Any],
-    ci_report: Dict[str, Any],
+    mandate: dict[str, Any],
+    ci_report: dict[str, Any],
     campaign_number: int,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Generate a single campaign concept with risk filtering.
 
@@ -262,9 +262,9 @@ Generate a comprehensive campaign concept that:
 
 
 async def campaign_strategist_agent(
-    mandate: Dict[str, Any],
-    ci_report: Dict[str, Any],
-) -> Dict[str, Any]:
+    mandate: dict[str, Any],
+    ci_report: dict[str, Any],
+) -> dict[str, Any]:
     """
     Orchestrate generation of 3 campaign concepts with risk filtering and validation.
 
@@ -278,9 +278,9 @@ async def campaign_strategist_agent(
             - validation_errors: List[str]
             - regeneration_log: List[str]
     """
-    campaigns: List[Dict[str, Any]] = []
-    validation_errors: List[str] = []
-    regeneration_log: List[str] = []
+    campaigns: list[dict[str, Any]] = []
+    validation_errors: list[str] = []
+    regeneration_log: list[str] = []
 
     validator = CampaignConceptValidator()
     risk_filter = RiskFilter()

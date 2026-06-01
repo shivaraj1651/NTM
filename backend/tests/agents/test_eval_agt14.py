@@ -1,10 +1,15 @@
 """Eval tests for AGT-14 Replanning Agent."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import pytest
+
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 REQUIRED_OUTPUT_FIELDS = ["recommendations", "mandate_id"]
@@ -42,7 +47,7 @@ async def test_agt14_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-14 scores completeness + format >= 80 on each golden mandate."""
     load_golden(mandate_id)
 
-    mock_db = AsyncMock()
+    mock_db = AsyncMock()  # noqa: F841
 
     with patch("backend.app.agents.replanning_agent.AsyncAnthropic", create=True):
         output = MOCK_OUTPUT.copy()

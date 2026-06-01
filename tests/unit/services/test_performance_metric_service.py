@@ -1,11 +1,12 @@
 """Tests for PerformanceMetricService."""
 
-import pytest
 from datetime import date, timedelta
 from uuid import uuid4
-from backend.app.services.performance_metric_service import PerformanceMetricService
-from backend.app.models.performance_metric import PerformanceMetric
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.services.performance_metric_service import PerformanceMetricService
 
 
 @pytest.mark.asyncio
@@ -41,7 +42,7 @@ async def test_get_latest_metric(db_session: AsyncSession):
     today = date.today()
     yesterday = today - timedelta(days=1)
 
-    metric1 = await service.store_metric(
+    metric1 = await service.store_metric(  # noqa: F841
         activation_id=activation_id,
         date=yesterday,
         metrics_json={"impressions": 4000},
@@ -49,7 +50,7 @@ async def test_get_latest_metric(db_session: AsyncSession):
         tenant_id=tenant_id
     )
 
-    metric2 = await service.store_metric(
+    metric2 = await service.store_metric(  # noqa: F841
         activation_id=activation_id,
         date=today,
         metrics_json={"impressions": 5000},

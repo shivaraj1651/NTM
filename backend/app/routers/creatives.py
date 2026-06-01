@@ -8,8 +8,7 @@ GET  /api/v1/creatives/{id}/download              — download asset URL
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, update
@@ -35,8 +34,8 @@ CREATIVE_ROLES = [
 
 @router.get("/creatives", status_code=200)
 async def list_creatives(
-    activation_id: Optional[str] = Query(None),
-    campaign_id: Optional[str] = Query(None),
+    activation_id: str | None = Query(None),
+    campaign_id: str | None = Query(None),
     user: User = Depends(require_role(CREATIVE_ROLES)),
     tenant_id: str = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
@@ -71,7 +70,7 @@ async def internal_approve_creative(
         )
         .values(
             validation_status="internal_approved",
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
     )
     await db.commit()
@@ -96,7 +95,7 @@ async def client_approve_creative(
         )
         .values(
             validation_status="client_approved",
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
     )
     await db.commit()
@@ -119,7 +118,7 @@ async def request_revision(
     feedback_log = content.get("feedback_log", [])
     feedback_log.append({
         "comment": body.comment,
-        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "requested_at": datetime.now(UTC).isoformat(),
         "requested_by": str(user.id),
     })
     content["feedback_log"] = feedback_log
@@ -133,7 +132,7 @@ async def request_revision(
             validation_status="revision_requested",
             refinement_attempts=new_attempts,
             content=content,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
     )
     await db.commit()

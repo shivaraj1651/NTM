@@ -6,8 +6,9 @@ error responses with error_code, message, and timestamp for consistent
 error handling across the API.
 """
 
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
-from datetime import datetime, UTC
 
 
 class AuthException(HTTPException):

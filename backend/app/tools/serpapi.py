@@ -1,13 +1,13 @@
-import httpx
-import json
 import logging
 import os
-from typing import Dict, List, Any
+from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY")
 
-def _extract_channels_from_result(result_text: str) -> List[str]:
+def _extract_channels_from_result(result_text: str) -> list[str]:
     """Parse text for advertising channels (google_ads, facebook, linkedin, tiktok, youtube)."""
     channels = []
     channel_patterns = {
@@ -23,7 +23,7 @@ def _extract_channels_from_result(result_text: str) -> List[str]:
             channels.append(channel)
     return channels
 
-def _extract_messaging_themes(snippets: List[str]) -> List[str]:
+def _extract_messaging_themes(snippets: list[str]) -> list[str]:
     """Extract messaging themes from snippets."""
     themes = []
     keywords = {
@@ -42,7 +42,7 @@ def _extract_messaging_themes(snippets: List[str]) -> List[str]:
 async def search_competitor_ads(
     competitor_name: str,
     year: int = 2026
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search SerpAPI for competitor ad campaigns."""
     if not SERPAPI_API_KEY:
         logger.error("SERPAPI_API_KEY not set")

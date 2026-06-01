@@ -1,6 +1,8 @@
 """FastAPI dependency injection for tenant context and current user."""
 from contextvars import ContextVar
+
 from fastapi import Depends, HTTPException, Request
+
 from backend.app.core.auth import current_user
 from backend.app.core.models import User, UserRole
 

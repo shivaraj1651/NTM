@@ -1,7 +1,8 @@
 """Tests for Creative Director Agent prompt templates (AGT-06)."""
 
+
 import pytest
-import json
+
 from backend.app.agents.creative_director.prompts import CreativePrompts
 
 

@@ -1,7 +1,8 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
-from backend.app.main import app
+from httpx import ASGITransport, AsyncClient
+
 from backend.app.db import get_db
+from backend.app.main import app
 
 
 class _FakeResult:

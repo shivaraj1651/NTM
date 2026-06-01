@@ -1,11 +1,17 @@
+import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.core.models import Role, Tenant, User, user_tenant_access
 from backend.app.core.utils import (
-    get_user_by_email, get_user_tenants, validate_user_role,
-    user_has_tenant_access, get_tenant_by_id
+    get_tenant_by_id,
+    get_user_by_email,
+    get_user_tenants,
+    user_has_tenant_access,
+    validate_user_role,
 )
-from backend.app.core.models import User, Role, Tenant, user_tenant_access
-import uuid
+
 
 @pytest.mark.asyncio
 async def test_get_user_by_email(async_session: AsyncSession):
@@ -68,7 +74,7 @@ async def test_validate_user_role_with_wildcard(async_session: AsyncSession):
     await async_session.commit()
 
     has_perm = await validate_user_role(async_session, user.id, "any.permission")
-    assert has_perm == True
+    assert has_perm is True
 
 @pytest.mark.asyncio
 async def test_validate_user_role_with_specific_permission(async_session: AsyncSession):
@@ -80,7 +86,7 @@ async def test_validate_user_role_with_specific_permission(async_session: AsyncS
     await async_session.commit()
 
     has_perm = await validate_user_role(async_session, user.id, "tenant.manage")
-    assert has_perm == True
+    assert has_perm is True
 
 @pytest.mark.asyncio
 async def test_validate_user_role_missing_permission(async_session: AsyncSession):
@@ -92,7 +98,7 @@ async def test_validate_user_role_missing_permission(async_session: AsyncSession
     await async_session.commit()
 
     has_perm = await validate_user_role(async_session, user.id, "tenant.manage")
-    assert has_perm == False
+    assert has_perm is False
 
 @pytest.mark.asyncio
 async def test_user_has_tenant_access_primary(async_session: AsyncSession):
@@ -104,7 +110,7 @@ async def test_user_has_tenant_access_primary(async_session: AsyncSession):
     await async_session.commit()
 
     has_access = await user_has_tenant_access(async_session, user.id, tenant.id)
-    assert has_access == True
+    assert has_access is True
 
 @pytest.mark.asyncio
 async def test_user_has_tenant_access_denied(async_session: AsyncSession):
@@ -117,7 +123,7 @@ async def test_user_has_tenant_access_denied(async_session: AsyncSession):
     await async_session.commit()
 
     has_access = await user_has_tenant_access(async_session, user.id, tenant2.id)
-    assert has_access == False
+    assert has_access is False
 
 @pytest.mark.asyncio
 async def test_get_tenant_by_id_active(async_session: AsyncSession):

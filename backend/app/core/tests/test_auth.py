@@ -6,7 +6,8 @@ Verifies JWT strategy setup, user database adapter, and auth dependencies.
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.core.auth import get_user_db, fastapi_users, current_user
+
+from backend.app.core.auth import current_user, fastapi_users, get_user_db
 
 
 @pytest.mark.asyncio

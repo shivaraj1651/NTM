@@ -9,13 +9,14 @@ Implements scheduled analytics tasks for KPI tracking and alerts:
 
 import asyncio
 import logging
+from typing import Any
 from uuid import UUID
-from typing import Any, Dict, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from celery import Task
-from backend.app.celery_app import celery_app
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.agents.analytics_agent import AnalyticsAgent
+from backend.app.celery_app import celery_app
 from backend.app.db import get_session_local
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class PlatformTool:
         self.db = db_session
         self.channel = channel
 
-    async def get_metrics(self, activation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def get_metrics(self, activation: dict[str, Any]) -> dict[str, Any] | None:
         """Fetch metrics for an activation from the platform API.
 
         Args:
@@ -77,7 +78,7 @@ class AsyncTask(Task):
     base=AsyncTask,
     bind=True,
 )
-async def run_daily_analytics_task(self, mandate_id: str) -> Dict[str, Any]:
+async def run_daily_analytics_task(self, mandate_id: str) -> dict[str, Any]:
     """Celery Beat scheduled task for daily analytics (runs every 24h at midnight UTC).
 
     Fetches live activations for a mandate, pulls metrics from platform tools,
@@ -94,7 +95,7 @@ async def run_daily_analytics_task(self, mandate_id: str) -> Dict[str, Any]:
     """
     try:
         logger.info(
-            f"Starting daily analytics analysis",
+            "Starting daily analytics analysis",
             extra={"mandate_id": mandate_id},
         )
 
@@ -116,7 +117,7 @@ async def run_daily_analytics_task(self, mandate_id: str) -> Dict[str, Any]:
             summary = await agent.run_daily_analysis(mandate_id=UUID(mandate_id))
 
         logger.info(
-            f"Daily analytics analysis completed",
+            "Daily analytics analysis completed",
             extra={
                 "mandate_id": mandate_id,
                 "num_activations": len(summary.get("activations", [])),

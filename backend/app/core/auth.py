@@ -4,12 +4,13 @@ FastAPI-Users configuration with JWT authentication.
 Sets up user management, JWT strategy, and auth dependencies.
 """
 
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
 from fastapi_users import FastAPIUsers
-from fastapi_users.authentication import AuthenticationBackend, JWTStrategy, BearerTransport
+from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from backend.app.core.models import User
+
 from backend.app.core.config import settings
+from backend.app.core.models import User
 
 
 # Database adapter for FastAPI-Users

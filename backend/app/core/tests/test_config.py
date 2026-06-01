@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+
 from backend.app.core.config import Settings
 
 
@@ -57,7 +58,7 @@ def test_settings_is_singleton(monkeypatch):
     settings1 = Settings()
 
     monkeypatch.setenv("SECRET_KEY", "changed-secret-32-chars-long-xxx22")
-    settings2 = Settings()
+    _settings2 = Settings()
 
     # In practice, app creates Settings once at startup
     # This test just verifies each instance reads from env at creation time

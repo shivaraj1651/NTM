@@ -1,7 +1,7 @@
 """PlatformConfigService — lookup platform configurations by channel and audience segment."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.platform_config_template import PlatformConfigTemplate
 

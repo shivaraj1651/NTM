@@ -1,7 +1,13 @@
-import pytest
-from backend.app.core.security import hash_password, verify_password, create_access_token, decode_token
 from datetime import timedelta
 
+import pytest
+
+from backend.app.core.security import (
+    create_access_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 
 # ── JWT strategy and auth backend ────────────────────────────────────────────
 
@@ -63,14 +69,14 @@ def test_verify_password_correct():
     password = "SecurePassword123!"
     hashed = hash_password(password)
 
-    assert verify_password(password, hashed) == True
+    assert verify_password(password, hashed) is True
 
 def test_verify_password_incorrect():
     """verify_password should return False for incorrect password"""
     password = "SecurePassword123!"
     hashed = hash_password(password)
 
-    assert verify_password("WrongPassword", hashed) == False
+    assert verify_password("WrongPassword", hashed) is False
 
 def test_create_access_token():
     """create_access_token should return a valid JWT"""
@@ -103,8 +109,9 @@ def test_decode_token_valid():
 
 def test_decode_token_expired():
     """decode_token should raise exception for expired token"""
-    from backend.app.core.security import TokenExpiredError
     import time
+
+    from backend.app.core.security import TokenExpiredError
 
     data = {"sub": "user-123"}
     token = create_access_token(data, expires_delta=timedelta(seconds=-1))

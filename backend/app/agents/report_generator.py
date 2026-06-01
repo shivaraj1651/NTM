@@ -8,16 +8,16 @@ TASK-022
 
 import json
 import logging
-from backend.app.agents.json_parsing import extract_json
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.agents.json_parsing import extract_json
+from backend.app.external.stubs import stub_enabled
 from backend.app.models.performance_metric import PerformanceMetric
 from backend.app.services.report_service import ReportService
-from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 

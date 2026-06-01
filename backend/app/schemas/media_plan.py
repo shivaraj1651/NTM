@@ -1,10 +1,10 @@
 """Media Plan schemas for AGT-04 output."""
 
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
-from uuid import UUID, uuid4
 from datetime import date
 from enum import Enum
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
 
 
 class ChannelEnum(str, Enum):
@@ -55,8 +55,8 @@ class Activation(BaseModel):
     estimated_cpm: float = Field(..., ge=0.01, description="Cost per thousand impressions")
     cost_estimated: float = Field(..., ge=0, description="Total activation cost")
     message_version_ref: str = Field(..., description="Reference to message architecture + tone board")
-    lead_time_days: Optional[int] = Field(None, ge=0, description="Production lead time for offline channels")
-    offline_constraints: Optional[str] = Field(None, description="Constraint notes for offline channels")
+    lead_time_days: int | None = Field(None, ge=0, description="Production lead time for offline channels")
+    offline_constraints: str | None = Field(None, description="Constraint notes for offline channels")
 
 
 class PhaseBreakdown(BaseModel):
@@ -84,11 +84,11 @@ class BudgetSummary(BaseModel):
     """Budget summary with phase/channel breakdown."""
     total_budget: float = Field(..., ge=0)
     currency: str = Field(..., description="Currency code (e.g., 'USD')")
-    phase_breakdown: Dict[str, PhaseBreakdown] = Field(
+    phase_breakdown: dict[str, PhaseBreakdown] = Field(
         ...,
         description="Budget breakdown by phase (Awareness, Engagement, Conversion)"
     )
-    channel_breakdown: Dict[str, ChannelSpend] = Field(
+    channel_breakdown: dict[str, ChannelSpend] = Field(
         ...,
         description="Budget breakdown by channel (TikTok, Google Search, etc.)"
     )
@@ -100,8 +100,8 @@ class BudgetSummary(BaseModel):
 
 class MediaPlanResponse(BaseModel):
     """Full media planner agent response."""
-    activations: List[Activation] = Field(..., description="List of generated activations")
+    activations: list[Activation] = Field(..., description="List of generated activations")
     budget_summary: BudgetSummary = Field(..., description="Budget breakdown summary")
-    validation_errors: List[str] = Field(default_factory=list, description="Validation errors found")
-    allocation_log: List[str] = Field(default_factory=list, description="Audit trail of allocation decisions")
+    validation_errors: list[str] = Field(default_factory=list, description="Validation errors found")
+    allocation_log: list[str] = Field(default_factory=list, description="Audit trail of allocation decisions")
     status: str = Field(..., description="success|partial|failed")

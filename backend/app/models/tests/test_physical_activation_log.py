@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +11,7 @@ from backend.app.models.physical_activation_log import PhysicalActivationLog
 @pytest.mark.asyncio
 async def test_create_physical_activation_log(db_session: AsyncSession):
     tenant_id = str(uuid4())
-    event_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    event_time = datetime.now(UTC) - timedelta(minutes=5)
     log = PhysicalActivationLog(
         tenant_id=tenant_id,
         campaign_id=str(uuid4()),
@@ -44,7 +45,7 @@ async def test_physical_activation_log_no_activation_id(db_session: AsyncSession
         event_type="campaign_start",
         channel="google_ads",
         payload={"start_time": "2025-07-01T00:00:00Z"},
-        logged_at=datetime.now(timezone.utc),
+        logged_at=datetime.now(UTC),
     )
     db_session.add(log)
     await db_session.commit()
@@ -65,7 +66,7 @@ async def test_physical_activation_log_to_dict(db_session: AsyncSession):
         event_type="click",
         channel="linkedin_ads",
         payload={"url": "/landing", "clicks": 42},
-        logged_at=datetime.now(timezone.utc),
+        logged_at=datetime.now(UTC),
     )
     db_session.add(log)
     await db_session.commit()
@@ -89,7 +90,7 @@ async def test_physical_activation_log_to_dict(db_session: AsyncSession):
 async def test_physical_activation_log_tenant_isolation(db_session: AsyncSession):
     tenant_a = str(uuid4())
     tenant_b = str(uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     db_session.add(PhysicalActivationLog(
         tenant_id=tenant_a, campaign_id=str(uuid4()),
         event_type="impression", channel="meta_ads",

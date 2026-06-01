@@ -1,10 +1,12 @@
 """Tests for PlatformConfigService."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.services.platform_config import PlatformConfigService
+
 from backend.app.models.platform_config_template import PlatformConfigTemplate
+from backend.app.services.platform_config import PlatformConfigService
 
 
 @pytest.mark.asyncio

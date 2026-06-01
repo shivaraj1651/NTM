@@ -1,24 +1,25 @@
 """Pytest fixtures for Creative Director Agent (AGT-06) tests."""
 
+import uuid
+
 import pytest
+
 from backend.app.agents.creative_director.models import (
     BrandGuidelines,
-    TargetAudience,
     CampaignInput,
-    CreativeValidation,
     Copy,
     CoreConcept,
-    GenerationMetadata,
-    PlatformCreatives,
     CreativeDirectorOutput,
+    CreativeValidation,
+    GenerationMetadata,
     ImagePrompt,
+    PlatformCreatives,
+    TargetAudience,
     VideoConcept,
     VideoConceptScene,
     VoiceoverScript,
     utc_now,
 )
-from datetime import datetime
-import uuid
 
 
 @pytest.fixture

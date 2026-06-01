@@ -1,10 +1,12 @@
 """SQLAlchemy model for GeneratedVideo output from Video Generator Agent (AGT-11)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Float, Index, String
+
 from backend.app.models.base import Base
+
 
 class GeneratedVideo(Base):
     """Generated video record. Multi-tenant isolated, one row per generation."""
@@ -23,7 +25,7 @@ class GeneratedVideo(Base):
     status = Column(String, nullable=False)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

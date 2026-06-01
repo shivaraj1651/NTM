@@ -1,12 +1,13 @@
 """SQLAlchemy model for Mandate — client campaign mandate with geography and budget."""
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, Date, DateTime, Float, String, Text, Index
+from sqlalchemy import JSON, Column, Date, DateTime, Float, Index, String, Text
+
 from backend.app.models.base import Base
 
-from sqlalchemy import JSON
+
 class Mandate(Base):
     __tablename__ = "mandates"
 
@@ -26,13 +27,13 @@ class Mandate(Base):
     status = Column(String, nullable=False, default="draft")
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

@@ -4,10 +4,13 @@ Stores KPI targets for campaigns across different channels and audience segments
 Used for tracking performance metrics against defined targets.
 """
 
-from uuid import uuid4
 from datetime import datetime
-from sqlalchemy import Column, String, Float, DateTime, UniqueConstraint, Index
+from uuid import uuid4
+
+from sqlalchemy import Column, DateTime, Float, String, UniqueConstraint
+
 from backend.app.models.base import Base
+
 
 class KPI(Base):
     """

@@ -1,19 +1,10 @@
 """Unit tests for Campaign Strategist Agent (AGT-03)."""
 
-import pytest
 import json
-from uuid import uuid4
 from unittest.mock import AsyncMock, patch
-from anthropic import AsyncAnthropic
-from backend.app.schemas.campaign_concept import (
-    CampaignConcept,
-    AudienceSegmentation,
-    ChannelRecommendation,
-    MessageArchitecture,
-    CampaignPhasing,
-    ToneBoard,
-    RiskFlags,
-)
+
+import pytest
+
 from backend.app.agents.campaign_strategist import CampaignConceptValidator, RiskFilter
 
 
@@ -371,7 +362,7 @@ async def test_campaign_strategist_malformed_llm_json():
 def test_generate_campaign_injects_flat_mandate_fields():
     """Prompt must contain real flat-mandate field values (name, total_budget, region, countries)."""
     import asyncio
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import patch
 
     captured_messages = []
 

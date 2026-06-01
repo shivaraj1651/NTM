@@ -1,16 +1,18 @@
 """Integration tests for Creative Director Agent (AGT-06) orchestrator."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from backend.app.agents.creative_director.models import (
+    BrandGuidelines,
+    CampaignInput,
+    CreativeDirectorOutput,
+    TargetAudience,
+)
 from backend.app.agents.creative_director_orchestrator import (
     CreativeDirectorAgent,
     creative_director_agent,
-)
-from backend.app.agents.creative_director.models import (
-    CampaignInput,
-    TargetAudience,
-    BrandGuidelines,
-    CreativeDirectorOutput,
 )
 
 
@@ -148,7 +150,7 @@ class TestPublicEntryPoint:
         ) as MockAgent:
             mock_instance = AsyncMock()
             MockAgent.return_value = mock_instance
-            from backend.app.agents.creative_director.models import GenerationMetadata, CoreConcept
+            from backend.app.agents.creative_director.models import CoreConcept, GenerationMetadata
             mock_instance.generate = AsyncMock(
                 return_value=CreativeDirectorOutput(
                     campaign_id="camp-001",

@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Any
 
 import httpx
 
@@ -20,7 +20,7 @@ def is_available() -> bool:
     )
 
 
-def _get_access_token(token: Optional[str] = None) -> str:
+def _get_access_token(token: str | None = None) -> str:
     t = token or os.getenv("LINKEDIN_ACCESS_TOKEN", "")
     if not t:
         raise RuntimeError(
@@ -30,11 +30,11 @@ def _get_access_token(token: Optional[str] = None) -> str:
 
 
 async def activate_linkedin(
-    activation: Dict[str, Any],
-    platform_config: Dict[str, Any],
+    activation: dict[str, Any],
+    platform_config: dict[str, Any],
     creative_url: str,
-    access_token: Optional[str] = None,
-) -> Dict[str, Any]:
+    access_token: str | None = None,
+) -> dict[str, Any]:
     # NTM_STUB_EXTERNAL: stubbed external call
     if stub_enabled():
         logger.info("LinkedIn Ads activate_linkedin stubbed (NTM_STUB_EXTERNAL)")

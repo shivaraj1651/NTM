@@ -1,18 +1,19 @@
 """DigitalActivatorAgent — routes approved activations to platform-specific Celery subtasks."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.services.platform_config import PlatformConfigService
-from backend.app.services.activation_notifications import ActivationNotificationService
 from backend.app.models.campaign import Campaign
+from backend.app.services.activation_notifications import ActivationNotificationService
+from backend.app.services.platform_config import PlatformConfigService
 from backend.app.tasks.activation_tasks import (
     platform_activate_google,
-    platform_activate_meta,
     platform_activate_linkedin,
+    platform_activate_meta,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class DigitalActivatorAgent:
         self,
         activation: Any,
         creative_url: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Route an approved activation to platform-specific Celery subtasks.
 
@@ -118,7 +119,7 @@ class DigitalActivatorAgent:
             "subtask_count": len(subtasks)
         }
 
-    async def _get_campaign(self, campaign_id: UUID) -> Optional[Any]:
+    async def _get_campaign(self, campaign_id: UUID) -> Any | None:
         """
         Fetch campaign record by ID.
 
@@ -135,7 +136,7 @@ class DigitalActivatorAgent:
         )
         return result.scalar_one_or_none()
 
-    def _map_channel_to_platforms(self, channel_enum: str) -> List[str]:
+    def _map_channel_to_platforms(self, channel_enum: str) -> list[str]:
         """
         Map Activation channel_enum to platform(s) for activation.
 
@@ -159,7 +160,7 @@ class DigitalActivatorAgent:
         self,
         activation: Any,
         platform: str,
-        platform_config: Dict[str, Any],
+        platform_config: dict[str, Any],
         creative_url: str
     ) -> Any:
         """

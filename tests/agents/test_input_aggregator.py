@@ -1,8 +1,8 @@
 """Unit tests for InputAggregator in Creative Director Agent (AGT-06)."""
 
 import pytest
+
 from backend.app.agents.creative_director.input_aggregator import InputAggregator
-from backend.app.agents.creative_director.models import CampaignInput
 
 
 class TestInputAggregator:

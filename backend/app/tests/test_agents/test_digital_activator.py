@@ -1,15 +1,15 @@
 """Tests for DigitalActivatorAgent."""
 
-import pytest
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
-from datetime import date
-from unittest.mock import patch, AsyncMock, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.agents.digital_activator import DigitalActivatorAgent
-from backend.app.models.platform_config_template import PlatformConfigTemplate
 from backend.app.models.activation_platform_mapping import ActivationPlatformMapping
+from backend.app.models.platform_config_template import PlatformConfigTemplate
 
 
 @pytest.mark.asyncio
@@ -167,7 +167,7 @@ async def test_digital_activator_returns_correct_platforms(db_session: AsyncSess
     campaign.manager_phone = "+1234567890"
 
     with patch.object(DigitalActivatorAgent, '_get_campaign', return_value=campaign), \
-         patch.object(DigitalActivatorAgent, '_queue_platform_activation') as mock_queue:
+         patch.object(DigitalActivatorAgent, '_queue_platform_activation') as mock_queue:  # noqa: F841
 
         agent = DigitalActivatorAgent(db_session)
         result = await agent.activate(activation, creative_url="https://example.com/ad.jpg")

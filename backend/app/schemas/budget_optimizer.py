@@ -1,9 +1,9 @@
 """Budget Optimizer output schemas."""
 
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
 from datetime import date
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class OptimizationActionEnum(str, Enum):
@@ -32,8 +32,8 @@ class OptimizedActivation(BaseModel):
     original_cost_estimated: float = Field(..., ge=0, description="Original cost from Media Planner")
     optimized_cost_estimated: float = Field(..., ge=0, description="Optimized cost after reallocation")
     message_version_ref: str = Field(..., description="Message reference")
-    lead_time_days: Optional[int] = Field(None, ge=0, description="Lead time (locked)")
-    offline_constraints: Optional[str] = Field(None, description="Offline constraints (locked)")
+    lead_time_days: int | None = Field(None, ge=0, description="Lead time (locked)")
+    offline_constraints: str | None = Field(None, description="Offline constraints (locked)")
     estimated_conversion_rate: float = Field(..., ge=0.0, le=1.0, description="Estimated conversion rate")
     reach_weighted_conversions: int = Field(..., ge=0, description="reach × conversion_rate")
     roi_per_dollar: float = Field(..., ge=0, description="reach_weighted_conversions / cost")
@@ -47,7 +47,7 @@ class PhaseROISummary(BaseModel):
     total_reach: int = Field(..., ge=0, description="Total reach in phase")
     total_reach_weighted_conversions: int = Field(..., ge=0, description="Total reach-weighted conversions")
     average_roi: float = Field(..., ge=0, description="Average ROI per dollar")
-    channel_breakdown: Dict[str, float] = Field(..., description="Budget per channel in phase")
+    channel_breakdown: dict[str, float] = Field(..., description="Budget per channel in phase")
 
 
 class ChannelROISummary(BaseModel):
@@ -61,8 +61,8 @@ class ChannelROISummary(BaseModel):
 
 class ROIAnalysis(BaseModel):
     """Complete ROI analysis."""
-    phase_summary: Dict[str, PhaseROISummary] = Field(..., description="Summary by phase")
-    channel_summary: Dict[str, ChannelROISummary] = Field(..., description="Summary by channel")
+    phase_summary: dict[str, PhaseROISummary] = Field(..., description="Summary by phase")
+    channel_summary: dict[str, ChannelROISummary] = Field(..., description="Summary by channel")
     total_budget: float = Field(..., ge=0, description="Total campaign budget")
     total_reach: int = Field(..., ge=0, description="Total reach across all activations")
     total_reach_weighted_conversions: int = Field(..., ge=0, description="Total reach-weighted conversions")
@@ -112,16 +112,16 @@ class ConstraintsValidation(BaseModel):
 class OptimizationReport(BaseModel):
     """Detailed optimization report."""
     summary: str = Field(..., description="One-line summary of optimization")
-    budget_shifts: List[BudgetShift] = Field(default_factory=list, description="All budget reallocations")
-    prioritized_activations: List[PrioritizedActivation] = Field(default_factory=list, description="Prioritized activations")
-    deprioritized_activations: List[DeprioritizedActivation] = Field(default_factory=list, description="Deprioritized activations")
+    budget_shifts: list[BudgetShift] = Field(default_factory=list, description="All budget reallocations")
+    prioritized_activations: list[PrioritizedActivation] = Field(default_factory=list, description="Prioritized activations")
+    deprioritized_activations: list[DeprioritizedActivation] = Field(default_factory=list, description="Deprioritized activations")
     constraints_maintained: ConstraintsValidation = Field(..., description="Verification of constraints")
 
 
 class BudgetOptimizerResponse(BaseModel):
     """Complete Budget Optimizer response."""
-    optimized_activations: List[OptimizedActivation] = Field(..., description="Optimized activation list")
+    optimized_activations: list[OptimizedActivation] = Field(..., description="Optimized activation list")
     roi_analysis: ROIAnalysis = Field(..., description="ROI analysis and metrics")
     optimization_report: OptimizationReport = Field(..., description="Detailed optimization report")
-    validation_errors: List[str] = Field(default_factory=list, description="Validation errors")
+    validation_errors: list[str] = Field(default_factory=list, description="Validation errors")
     status: str = Field(..., description="success|partial|failed")

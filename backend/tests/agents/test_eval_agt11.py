@@ -1,9 +1,14 @@
 """Eval tests for AGT-11 Video Generator."""
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from backend.tests.agents.conftest_evals import (
-    ScoreCard, load_golden, score_completeness, score_format, PASS_THRESHOLD
+    PASS_THRESHOLD,
+    ScoreCard,
+    load_golden,
+    score_completeness,
+    score_format,
 )
 
 REQUIRED_OUTPUT_FIELDS = ["script", "scenes", "runway_prompt"]

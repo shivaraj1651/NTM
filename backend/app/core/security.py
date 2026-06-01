@@ -4,11 +4,13 @@ Password hashing and JWT token utilities.
 Uses bcrypt for password hashing and python-jose for JWT encoding/decoding.
 """
 
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import bcrypt
 from jose import JWTError, jwt
-from datetime import datetime, timedelta, timezone
+
 from backend.app.core.config import settings
-from typing import Dict, Any, Optional
 
 
 def hash_password(password: str) -> str:
@@ -36,8 +38,8 @@ class InvalidTokenError(Exception):
 
 # JWT token management
 def create_access_token(
-    data: Dict[str, Any],
-    expires_delta: Optional[timedelta] = None
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None
 ) -> str:
     """
     Create a JWT access token.
@@ -52,13 +54,13 @@ def create_access_token(
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+    to_encode.update({"exp": expire, "iat": datetime.now(UTC)})
 
     encoded_jwt = jwt.encode(
         to_encode,
@@ -68,7 +70,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_token(token: str) -> Dict[str, Any]:
+def decode_token(token: str) -> dict[str, Any]:
     """
     Decode a JWT token and return claims.
 

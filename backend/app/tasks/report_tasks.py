@@ -8,16 +8,16 @@ Schedules:
 import asyncio
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 import anthropic
 from celery import Task
 
-from backend.app.celery_app import celery_app
 from backend.app.agents.analytics_agent import AnalyticsAgent
 from backend.app.agents.replanning_agent import ReplanningAgent
 from backend.app.agents.report_generator import ReportAgent
+from backend.app.celery_app import celery_app
 from backend.app.db import get_session_local
 from backend.app.tasks.analytics_tasks import PlatformTool
 
@@ -40,7 +40,7 @@ class AsyncTask(Task):
     base=AsyncTask,
     bind=True,
 )
-async def generate_daily_report_task(self, mandate_id: str, tenant_id: str) -> Dict[str, Any]:
+async def generate_daily_report_task(self, mandate_id: str, tenant_id: str) -> dict[str, Any]:
     """Daily 09:00 UTC — run AGT-13 then produce daily digest report.
 
     Args:
@@ -86,7 +86,7 @@ async def generate_daily_report_task(self, mandate_id: str, tenant_id: str) -> D
     base=AsyncTask,
     bind=True,
 )
-async def generate_weekly_report_task(self, mandate_id: str, tenant_id: str) -> Dict[str, Any]:
+async def generate_weekly_report_task(self, mandate_id: str, tenant_id: str) -> dict[str, Any]:
     """Monday 10:00 UTC — run AGT-13 + AGT-14 then produce weekly full report.
 
     Args:

@@ -13,17 +13,16 @@ TASK-020 — Analytics Agent implementation.
 
 import logging
 from datetime import date
-from typing import Dict, Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.activation_platform_mapping import ActivationPlatformMapping
-from backend.app.models.kpi import KPI
+from backend.app.services.analytics_summary_service import AnalyticsSummaryService
 from backend.app.services.kpi_service import KPIService
 from backend.app.services.performance_metric_service import PerformanceMetricService
-from backend.app.services.analytics_summary_service import AnalyticsSummaryService
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 class AnalyticsAgent:
     """Daily scheduled analytics agent for KPI tracking and alerting."""
 
-    def __init__(self, db_session: AsyncSession, platform_tools: Dict[str, Any]):
+    def __init__(self, db_session: AsyncSession, platform_tools: dict[str, Any]):
         """Initialize AnalyticsAgent.
 
         Args:
@@ -49,7 +48,7 @@ class AnalyticsAgent:
     # Public entry point
     # ------------------------------------------------------------------ #
 
-    async def run_daily_analysis(self, mandate_id: UUID) -> Dict[str, Any]:
+    async def run_daily_analysis(self, mandate_id: UUID) -> dict[str, Any]:
         """Main entry point: analyze all live activations for a mandate.
 
         Fetches live activations, pulls metrics from platform tools, computes
@@ -63,8 +62,8 @@ class AnalyticsAgent:
         """
         activations = await self._get_live_activations(mandate_id)
         today = date.today()
-        summary_entries: List[Dict[str, Any]] = []
-        red_alerts: List[Dict[str, Any]] = []
+        summary_entries: list[dict[str, Any]] = []
+        red_alerts: list[dict[str, Any]] = []
 
         for activation in activations:
             try:
@@ -91,7 +90,7 @@ class AnalyticsAgent:
     # Internal helpers
     # ------------------------------------------------------------------ #
 
-    async def _get_live_activations(self, mandate_id: UUID) -> List[Dict[str, Any]]:
+    async def _get_live_activations(self, mandate_id: UUID) -> list[dict[str, Any]]:
         """Fetch all live ActivationPlatformMappings.
 
         NOTE: ActivationPlatformMapping does not carry mandate_id directly.
@@ -125,7 +124,7 @@ class AnalyticsAgent:
 
     async def _analyze_activation(
         self,
-        activation: Dict[str, Any],
+        activation: dict[str, Any],
         analysis_date: date,
     ) -> tuple:
         """Analyze a single activation: fetch metrics, compute KPIs, flag status.
@@ -159,8 +158,8 @@ class AnalyticsAgent:
             return None, []
 
         # 4. Compute KPI results
-        kpi_results: List[Dict[str, Any]] = []
-        red_alerts: List[Dict[str, Any]] = []
+        kpi_results: list[dict[str, Any]] = []
+        red_alerts: list[dict[str, Any]] = []
 
         for kpi in kpis:
             actual = self._extract_metric(metrics, kpi.kpi_name)
@@ -207,8 +206,8 @@ class AnalyticsAgent:
         return entry, red_alerts
 
     async def _fetch_metrics(
-        self, activation: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, activation: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Call the appropriate platform tool to fetch live metrics.
 
         Args:
@@ -230,8 +229,8 @@ class AnalyticsAgent:
             return None
 
     async def _get_activation_kpis(
-        self, activation: Dict[str, Any]
-    ) -> List[Any]:
+        self, activation: dict[str, Any]
+    ) -> list[Any]:
         """Delegate KPI lookup to KPIService.
 
         Args:
@@ -248,8 +247,8 @@ class AnalyticsAgent:
         )
 
     def _extract_metric(
-        self, metrics: Dict[str, Any], kpi_name: str
-    ) -> Optional[float]:
+        self, metrics: dict[str, Any], kpi_name: str
+    ) -> float | None:
         """Extract a single metric value from the platform metrics dict.
 
         Performs a direct key match. KPI names are expected to align with
@@ -275,9 +274,9 @@ class AnalyticsAgent:
         self,
         mandate_id: UUID,
         analysis_date: date,
-        entries: List[Dict[str, Any]],
-        red_alerts: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        entries: list[dict[str, Any]],
+        red_alerts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Build the final AnalyticsSummary JSON for the mandate.
 
         Args:
@@ -289,7 +288,7 @@ class AnalyticsAgent:
         Returns:
             Fully structured summary dict.
         """
-        summary_by_channel: Dict[str, Dict[str, int]] = {}
+        summary_by_channel: dict[str, dict[str, int]] = {}
 
         for entry in entries:
             channel = entry["channel"]
@@ -314,7 +313,7 @@ class AnalyticsAgent:
             "summary_by_channel": summary_by_channel,
         }
 
-    async def _send_notifications(self, red_alerts: List[Dict[str, Any]]) -> None:
+    async def _send_notifications(self, red_alerts: list[dict[str, Any]]) -> None:
         """Send alert notifications for Red KPIs.
 
         Placeholder for email / WhatsApp / Slack notification integration.

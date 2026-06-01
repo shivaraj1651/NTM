@@ -1,5 +1,5 @@
-import pytest
 from uuid import uuid4
+
 from backend.app.services.analytics_summary_service import AnalyticsSummaryService
 
 

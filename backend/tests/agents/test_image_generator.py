@@ -1,16 +1,15 @@
 """Tests for Image Generator Agent (AGT-09)."""
 
 import base64
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from backend.app.agents.image_generator import (
-    IMAGE_DIMENSIONS,
     ImageGenerationBrief,
     ImageGenerationOutput,
     ImageGeneratorAgent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers & fixtures

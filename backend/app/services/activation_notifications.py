@@ -2,7 +2,6 @@
 
 import logging
 from uuid import UUID
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class ActivationNotificationService:
         activation_name: str,
         campaign_manager_email: str,
         campaign_manager_phone: str,
-        platforms_live: List[str],
+        platforms_live: list[str],
         budget_spent: float
     ) -> bool:
         """Send success notification when activation completes successfully.
@@ -163,8 +162,8 @@ Monitor your campaigns in the dashboard.
         activation_name: str,
         campaign_manager_email: str,
         campaign_manager_phone: str,
-        failed_platforms: Dict[str, str],
-        partial_success: Optional[Dict[str, str]] = None
+        failed_platforms: dict[str, str],
+        partial_success: dict[str, str] | None = None
     ) -> bool:
         """Send failure notification when activation encounters errors.
 

@@ -1,12 +1,13 @@
-import pytest
 from fastapi import HTTPException
+
 from backend.app.core.exceptions import (
     AuthException,
+    InsufficientPermissionsException,
     InvalidTokenException,
-    TenantMismatchException,
     MissingTenantHeaderException,
-    InsufficientPermissionsException
+    TenantMismatchException,
 )
+
 
 def test_auth_exception_structure():
     """AuthException should create structured error response"""

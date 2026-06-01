@@ -1,19 +1,15 @@
 """Tests for Media Planner Agent (AGT-04)."""
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
+
 from backend.app.agents.media_planner import (
-    BudgetAllocator,
     ActivationGenerator,
-    OfflineConstraintHandler,
     ActivationValidator,
+    BudgetAllocator,
+    OfflineConstraintHandler,
     media_planner_agent,
-)
-from backend.app.schemas.media_plan import (
-    Activation,
-    PhaseEnum,
-    ChannelEnum,
-    AudienceSegmentEnum,
 )
 
 

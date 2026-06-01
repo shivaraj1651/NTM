@@ -1,20 +1,19 @@
 """Unit tests for Creative Director Agent (AGT-06) models."""
 
-import pytest
 from backend.app.agents.creative_director.models import (
     BrandGuidelines,
     CampaignInput,
-    TargetAudience,
-    CreativeValidation,
     Copy,
     CoreConcept,
-    GenerationMetadata,
     CreativeDirectorOutput,
+    CreativeValidation,
+    GenerationMetadata,
     ImagePrompt,
+    PlatformCreatives,
+    TargetAudience,
     VideoConcept,
     VideoConceptScene,
     VoiceoverScript,
-    PlatformCreatives,
 )
 
 

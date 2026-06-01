@@ -1,10 +1,11 @@
 """Tests for PlatformConfigTemplate model."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.platform_config_template import PlatformConfigTemplate
 
