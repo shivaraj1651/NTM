@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,30 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/store/useAuthStore'
 import { login as loginApi, register as registerApi } from '@/api/admin'
+
+// ── Email identity parsing ────────────────────────────────────────────────────
+
+const EMAIL_ROLE_MAP: Record<string, string> = {
+  admin:    'Platform Admin',
+  platform: 'Platform Admin',
+  tenant:   'Tenant Admin',
+  brand:    'Brand Manager',
+  cmo:      'CMO',
+  creative: 'Creative Lead',
+  campaign: 'Campaign Manager',
+  viewer:   'Viewer',
+}
+
+function parseEmailIdentity(email: string): { role: string; tenant: string } | null {
+  if (!email.includes('@')) return null
+  const [local, domain] = email.toLowerCase().split('@')
+  if (!domain || !domain.includes('.')) return null
+  const prefix = local.split('.')[0]
+  const tenant = domain.split('.')[0]
+  if (!tenant) return null
+  const role = EMAIL_ROLE_MAP[prefix] ?? 'Brand Manager'
+  return { role, tenant }
+}
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +90,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
+                <Input type="email" placeholder="e.g. tenant@yourcompany.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -117,6 +141,9 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
     defaultValues: { email: '', password: '', confirmPassword: '' },
   })
 
+  const emailValue = useWatch({ control: form.control, name: 'email' })
+  const identity = parseEmailIdentity(emailValue ?? '')
+
   const onSubmit = async (data: RegisterFormValues) => {
     setError(null)
     setLoading(true)
@@ -147,8 +174,15 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
+                <Input type="email" placeholder="e.g. tenant@yourcompany.com" {...field} />
               </FormControl>
+              {identity && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className="font-medium text-foreground">Role:</span> {identity.role}
+                  {' · '}
+                  <span className="font-medium text-foreground">Tenant:</span> {identity.tenant}
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
