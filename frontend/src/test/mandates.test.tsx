@@ -147,3 +147,65 @@ describe('MandateFormPage', () => {
     )
   })
 })
+
+describe('MandateFormPage — cities', () => {
+  it('does not show cities section before any country is selected', () => {
+    renderWithProviders(<MandateFormPage />, {
+      route: '/admin/mandates/new',
+      path: '/admin/mandates/new',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+    expect(screen.queryByText('Cities')).not.toBeInTheDocument()
+  })
+
+  it('shows cities for a selected country', async () => {
+    renderWithProviders(<MandateFormPage />, {
+      route: '/admin/mandates/new',
+      path: '/admin/mandates/new',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+
+    // Find the Region trigger by its placeholder text
+    const regionTrigger = screen.getByText('Select region…').closest('button')!
+    fireEvent.click(regionTrigger)
+    // Click the radix dropdown option (span), not any native <option>
+    await waitFor(() => expect(screen.getByRole('option', { name: 'APAC' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('option', { name: 'APAC' }))
+
+    // India checkbox should appear
+    await waitFor(() => expect(screen.getByLabelText('India')).toBeInTheDocument())
+    fireEvent.click(screen.getByLabelText('India'))
+
+    // Cities section with Mumbai and Delhi should appear
+    await waitFor(() => {
+      expect(screen.getByText('Cities')).toBeInTheDocument()
+      expect(screen.getByLabelText('Mumbai')).toBeInTheDocument()
+      expect(screen.getByLabelText('Delhi')).toBeInTheDocument()
+    })
+  })
+
+  it('removes city checkboxes when their country is deselected', async () => {
+    renderWithProviders(<MandateFormPage />, {
+      route: '/admin/mandates/new',
+      path: '/admin/mandates/new',
+      user: CAMPAIGN_MANAGER_USER,
+    })
+
+    // Select APAC region
+    const regionTrigger = screen.getByText('Select region…').closest('button')!
+    fireEvent.click(regionTrigger)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'APAC' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('option', { name: 'APAC' }))
+
+    // Check India, then uncheck it
+    await waitFor(() => expect(screen.getByLabelText('India')).toBeInTheDocument())
+    fireEvent.click(screen.getByLabelText('India'))
+    await waitFor(() => expect(screen.getByLabelText('Mumbai')).toBeInTheDocument())
+    fireEvent.click(screen.getByLabelText('India'))
+
+    // Mumbai should disappear
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Mumbai')).not.toBeInTheDocument()
+    })
+  })
+})
