@@ -1,56 +1,35 @@
 import { http, HttpResponse } from 'msw'
-
-const MOCK_CREATIVES = [
-  {
-    id: 'asset-001',
-    campaign_id: 'campaign-001',
-    asset_type: 'image',
-    asset_url: 'https://placehold.co/800x600?text=Hero+Banner',
-    status: 'client_review',
-    message_variant: 'Variant A',
-    format_spec: '1200x628px',
-    notes: null,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'asset-002',
-    campaign_id: 'campaign-001',
-    asset_type: 'copy',
-    asset_url: null,
-    status: 'ai_draft',
-    message_variant: 'Variant B',
-    format_spec: 'Social caption',
-    notes: 'Tone: energetic, max 280 chars',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'asset-003',
-    campaign_id: 'campaign-001',
-    asset_type: 'audio',
-    asset_url: null,
-    status: 'approved',
-    message_variant: 'Radio VO',
-    format_spec: '30s MP3',
-    notes: null,
-    created_at: new Date().toISOString(),
-  },
-] as const
+import { creativesStore } from '../db/campaigns'
 
 export const creativesHandlers = [
-  http.get('/api/v1/creatives', () => {
-    return HttpResponse.json([...MOCK_CREATIVES])
+  http.get('/api/v1/creatives', ({ request }) => {
+    const campaignId = new URL(request.url).searchParams.get('campaign_id')
+    const all = Object.values(creativesStore) as Record<string, unknown>[]
+    const filtered = campaignId
+      ? all.filter((c) => c.campaign_id === campaignId)
+      : all
+    return HttpResponse.json({ creatives: filtered, total: filtered.length })
   }),
 
   http.get('/api/v1/creatives/:id', ({ params }) => {
-    const creative = MOCK_CREATIVES.find((c) => c.id === params.id)
+    const creative = creativesStore[params.id as string]
     if (!creative) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     return HttpResponse.json(creative)
   }),
 
   http.patch('/api/v1/creatives/:id/status', async ({ params, request }) => {
-    const body = await request.json() as { status: string; notes?: string }
-    const creative = MOCK_CREATIVES.find((c) => c.id === params.id)
+    const id = params.id as string
+    const creative = creativesStore[id] as Record<string, unknown> | undefined
     if (!creative) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
-    return HttpResponse.json({ ...creative, status: body.status, notes: body.notes ?? creative.notes })
+    const body = await request.json() as { status: string; notes?: string }
+    const updated = {
+      ...creative,
+      validation_status: body.status,
+      status: body.status,
+      notes: body.notes ?? (creative.notes as string | null) ?? null,
+      updated_at: new Date().toISOString(),
+    }
+    creativesStore[id] = updated
+    return HttpResponse.json(updated)
   }),
 ]
