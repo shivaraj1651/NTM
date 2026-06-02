@@ -56,6 +56,35 @@ export function renderWithProviders(
   )
 }
 
+interface NestedRenderOptions {
+  route?: string
+  parentPath?: string
+  user?: typeof ADMIN_USER | typeof CAMPAIGN_MANAGER_USER
+  queryClient?: QueryClient
+}
+
+export function renderWithNestedRoutes(
+  ui: React.ReactNode,
+  {
+    route = '/',
+    parentPath = '/',
+    user = ADMIN_USER,
+    queryClient,
+  }: NestedRenderOptions = {}
+): RenderResult {
+  useAuthStore.setState({ token: 'test-token', user })
+  const qc = queryClient ?? createTestQueryClient()
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={[route]}>
+        <Routes>
+          <Route path={`${parentPath}/*`} element={<>{ui}</>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+}
+
 export function renderCampaignPage(
   ui: React.ReactNode,
   campaignId: string,

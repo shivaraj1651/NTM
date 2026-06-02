@@ -63,7 +63,7 @@ export function KPIDashboardPage() {
   const isAdmin = !!user
 
   const { data: tenants = [] } = useTenants()
-  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(user?.tenant_id ?? null)
   const [mandateId, setMandateId] = useState<string | null>(null)
   const [days, setDays] = useState<7 | 30>(7)
 

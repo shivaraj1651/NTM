@@ -42,7 +42,7 @@ export function CampaignsPage() {
   const isAdmin = !!user
 
   const { data: tenants = [] } = useTenants()
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(user?.tenant_id ?? null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedMandateId, setSelectedMandateId] = useState<string | null>(null)
 

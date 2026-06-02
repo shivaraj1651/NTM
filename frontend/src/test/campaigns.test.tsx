@@ -30,7 +30,7 @@ describe('CampaignsPage', () => {
       path: '/admin/campaigns',
       user: CAMPAIGN_MANAGER_USER,
     })
-    expect(screen.getByText(/Campaigns/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /campaigns/i })).toBeInTheDocument()
   })
 
   it('loads all 4 seeded campaigns for tenant t1', async () => {
