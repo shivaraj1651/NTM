@@ -44,7 +44,7 @@ const schema = z
     objective: z.enum(OBJECTIVE_VALUES),
     region: z.string().min(1, 'Region is required'),
     countries: z.array(z.string()).min(1, 'Select at least one country'),
-    cities: z.array(z.string()).optional().default([]),
+    cities: z.array(z.string()),
     total_budget: z.number().min(10000, 'Budget must be at least 10,000'),
     currency: z.enum(CURRENCY_VALUES),
     start_date: z.string()
