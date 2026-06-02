@@ -254,6 +254,87 @@ export function generateCreativeAssets(campaignId: string): CreativeAssets {
   return { campaign_id: campaignId, stage: 'internal_review' as CreativeStage, copy, scripts, images, audio }
 }
 
+export function flattenCreativeAssets(
+  campaignId: string,
+  assets: CreativeAssets,
+): Record<string, unknown>[] {
+  const now = new Date().toISOString()
+  const flat: Record<string, unknown>[] = []
+
+  assets.images.forEach((img, i) => {
+    flat.push({
+      id: (img as any).id ?? `${campaignId}-img-${i}`,
+      campaign_id: campaignId,
+      creative_type: 'image',
+      platform: img.format,
+      content: {
+        url: img.url,
+        label: img.format.replace(/_/g, ' '),
+        tagline: null,
+        campaign_theme: null,
+      },
+      validation_status: 'ai_draft',
+      created_at: now,
+      updated_at: null,
+    })
+  })
+
+  assets.copy.forEach((copy, i) => {
+    flat.push({
+      id: `${campaignId}-copy-${i}`,
+      campaign_id: campaignId,
+      creative_type: 'copy',
+      platform: copy.asset_type,
+      content: {
+        asset_type: copy.asset_type,
+        label: copy.asset_type.replace(/_/g, ' '),
+        preview: copy.variants[0]?.content?.slice(0, 120) ?? '',
+      },
+      validation_status: 'ai_draft',
+      created_at: now,
+      updated_at: null,
+    })
+  })
+
+  assets.scripts.forEach((script) => {
+    flat.push({
+      id: script.id,
+      campaign_id: campaignId,
+      creative_type: 'script',
+      platform: script.format,
+      content: {
+        format: script.format,
+        label: script.format.replace(/_/g, ' '),
+        duration_estimate: script.duration_estimate,
+        content_preview: script.content.slice(0, 200),
+      },
+      validation_status: 'ai_draft',
+      created_at: now,
+      updated_at: null,
+    })
+  })
+
+  assets.audio.forEach((audio) => {
+    flat.push({
+      id: audio.id,
+      campaign_id: campaignId,
+      creative_type: 'audio',
+      platform: audio.format,
+      content: {
+        url: audio.url,
+        duration_seconds: audio.duration_seconds,
+        voice_style: audio.voice_style,
+        label: audio.format.replace(/_/g, ' '),
+      },
+      validation_status: 'ai_draft',
+      created_at: now,
+      updated_at: null,
+    })
+  })
+
+  return flat
+}
+
 const initialCampaigns: Record<string, Campaign> = {
   'c-001': {
     id: 'c-001',
@@ -406,3 +487,18 @@ export function generateBudgetProposal(activations: Activation[]): BudgetProposa
   }))
   return { total_budget: total, currency, allocations }
 }
+
+// Seed creativesStore from seed campaigns that already have creative_assets.
+// "don't overwrite" so existing localStorage values (with updated statuses) win.
+function _seedCreativesFromInitial(): void {
+  for (const [campaignId, campaign] of Object.entries(initialCampaigns)) {
+    if (!campaign.creative_assets) continue
+    for (const c of flattenCreativeAssets(campaignId, campaign.creative_assets)) {
+      const id = c.id as string
+      if (!creativesStore[id]) {
+        creativesStore[id] = c
+      }
+    }
+  }
+}
+_seedCreativesFromInitial()
