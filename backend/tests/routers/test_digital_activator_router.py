@@ -26,9 +26,11 @@ def make_app():
     app = FastAPI()
     app.include_router(router)
     mock_user = make_mock_user()
+    mock_db = MagicMock()
+    mock_db["campaigns"].update_one = AsyncMock(return_value=None)
     app.dependency_overrides[current_user] = lambda: mock_user
     app.dependency_overrides[get_current_tenant] = lambda: "tenant-001"
-    app.dependency_overrides[get_db] = lambda: MagicMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
     return app
 
 
@@ -48,30 +50,36 @@ _MOCK_CAMPAIGN_DOC = {
     "updated_at": "2026-01-01T00:00:00",
 }
 
+_FAKE_GOOGLE_RESULT = {
+    "campaign_id": "google-test-123",
+    "ad_id": "ad-test-456",
+    "status": "test_live",
+    "test_mode": True,
+    "error": None,
+}
 
-def test_activate_campaign_returns_job_queued():
-    from unittest.mock import MagicMock, patch
+_FAKE_META_RESULT = {
+    "campaign_id": "meta-test-789",
+    "ad_set_id": "adset-test-001",
+    "ad_id": "ad-test-002",
+    "status": "test_live",
+    "test_mode": True,
+    "error": None,
+}
+
+
+def test_activate_campaign_returns_activation_results():
+    """POST /activate returns activation_results synchronously — no Celery."""
+    from unittest.mock import patch
 
     app = make_app()
     svc = MagicMock()
     svc.get = AsyncMock(return_value=_MOCK_CAMPAIGN_DOC)
 
-    mock_google = MagicMock()
-    mock_google.delay = MagicMock()
-    mock_meta = MagicMock()
-    mock_meta.delay = MagicMock()
-    mock_li = MagicMock()
-    mock_li.delay = MagicMock()
-
-    fake_map = {
-        "google_ads": mock_google,
-        "meta_ads": mock_meta,
-        "linkedin_ads": mock_li,
-    }
-
     with (
         patch("backend.app.routers.digital_activator.CampaignService", return_value=svc),
-        patch("backend.app.routers.digital_activator._PLATFORM_TASK_MAP", fake_map),
+        patch("backend.app.routers.digital_activator.activate_google", new_callable=AsyncMock, return_value=_FAKE_GOOGLE_RESULT),
+        patch("backend.app.routers.digital_activator.activate_meta", new_callable=AsyncMock, return_value=_FAKE_META_RESULT),
     ):
         client = TestClient(app)
         response = client.post(
@@ -81,12 +89,12 @@ def test_activate_campaign_returns_job_queued():
 
     assert response.status_code == 202
     body = response.json()
-    assert body["status"] == "queued"
     assert body["campaign_id"] == "camp-001"
     assert "job_id" in body
-    mock_google.delay.assert_called_once()
-    mock_meta.delay.assert_called_once()
-    mock_li.delay.assert_not_called()
+    assert "activation_results" in body
+    assert body["activation_results"]["google_ads"]["status"] == "test_live"
+    assert body["activation_results"]["meta_ads"]["status"] == "test_live"
+    assert body["activation_results"]["google_ads"]["campaign_id"] == "google-test-123"
 
 
 def test_activate_campaign_not_found():
