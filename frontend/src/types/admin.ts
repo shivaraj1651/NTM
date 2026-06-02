@@ -148,6 +148,7 @@ export interface Mandate {
   objective?: MandateObjective
   region?: string
   countries?: string[]
+  cities?: string[]
   competitors?: string[]
   start_date?: string
   end_date?: string
@@ -176,6 +177,7 @@ export interface MandateCreate {
   objective: MandateObjective
   region: string
   countries: string[]
+  cities?: string[]
   total_budget: number
   currency: string
   start_date: string
@@ -191,6 +193,7 @@ export interface MandateSummaryCard extends Mandate {
   objective: MandateObjective
   region: string
   countries: string[]
+  cities?: string[]
   start_date: string
   end_date: string
   total_budget: number
