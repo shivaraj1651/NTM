@@ -234,7 +234,7 @@ export function MandateFormPage() {
                             if (!e.target.checked) {
                               const removedCities = CITIES[country] ?? []
                               const currentCities = form.getValues('cities') ?? []
-                              form.setValue('cities', currentCities.filter((c) => !removedCities.includes(c)))
+                              form.setValue('cities', currentCities.filter((c) => !removedCities.includes(c)), { shouldDirty: true })
                             }
                           }}
                           className="h-4 w-4 rounded border-gray-300"
