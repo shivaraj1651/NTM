@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Loader2, CheckCircle2, XCircle, Clock, ExternalLink,
-  Rocket, FlaskConical, AlertTriangle,
+  Rocket, FlaskConical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -289,18 +289,6 @@ export function GoLivePage() {
         </CardContent>
       </Card>
 
-      {/* Test mode notice */}
-      <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-        <div>
-          <p className="font-semibold">Developer Test Mode active (NTM_ADS_TEST_MODE=1)</p>
-          <p className="mt-0.5">
-            Real API calls will be made to Google Ads and Meta Ads.
-            Campaigns are created as <strong>PAUSED</strong> with a [TEST] prefix — no budget will be spent.
-            Disable NTM_ADS_TEST_MODE to launch live.
-          </p>
-        </div>
-      </div>
 
       {(goLive.isError || activate.isError) && (
         <p className="text-destructive text-sm">Launch failed — check logs and retry.</p>
