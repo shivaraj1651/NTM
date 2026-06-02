@@ -320,9 +320,7 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
             tone_board.get("tone", "") if isinstance(tone_board, dict) else str(tone_board)
         )
         target_audience = str(concept.get("audience_segmentation", {}).get("primary", ""))
-        brand_name      = (await (AsyncIOMotorClient(MONGO_DB_URL)[MONGO_DB_NAME]["mandates"].find_one(
-            {"_id": campaign_doc.get("mandate_id"), "tenant_id": tenant_id}
-        ) or {}) if False else {}).get("name", "")  # non-blocking passthrough
+        # brand_name lookup omitted — not used in prompt
 
         prompt = (
             f"{campaign_theme} — {concept.get('strategic_narrative', '')} "

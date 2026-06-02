@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.app.core.models import User
 from backend.app.db import get_db
 from backend.app.main import app
 

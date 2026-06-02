@@ -83,30 +83,27 @@ def _make_db(campaigns_col, mandates_col, ci_reports_col):
 
 class TestCreate:
 
-    async def test_create_returns_concepts_ready(self):
-        concept_id = str(uuid.uuid4())
+    async def test_create_returns_pending_and_dispatches_task(self):
         mandate = _mandate()
-        ci = _ci_report()
 
         campaigns_col = AsyncMock()
         mandates_col = AsyncMock()
         ci_reports_col = AsyncMock()
         mandates_col.find_one = AsyncMock(return_value=mandate)
-        ci_reports_col.find_one = AsyncMock(return_value=ci)
         campaigns_col.insert_one = AsyncMock(return_value=MagicMock())
 
         db = _make_db(campaigns_col, mandates_col, ci_reports_col)
         svc = CampaignService(db)
 
         with patch(
-            "backend.app.services.campaign_service.campaign_strategist_agent",
-            new=AsyncMock(return_value={"campaigns": [_concept(concept_id)], "validation_errors": [], "regeneration_log": []}),
-        ):
+            "backend.app.tasks.campaign_tasks.run_concept_generation",
+        ) as mock_task:
+            mock_task.delay = MagicMock()
             result = await svc.create("m-001", "t-001")
 
-        assert result["status"] == "concepts_ready"
-        assert len(result["concepts"]) == 1
+        assert result["status"] == "pending"
         assert result["tenant_id"] == "t-001"
+        assert result["concepts"] == []
         campaigns_col.insert_one.assert_called_once()
 
     async def test_create_404_missing_mandate(self):
@@ -123,22 +120,22 @@ class TestCreate:
         assert exc.value.status_code == 404
 
     async def test_create_proceeds_without_ci_report(self):
-        """CI report is optional now — create() proceeds with empty CI context."""
+        """create() proceeds even when no CI report exists — dispatches task with pending status."""
         campaigns_col = AsyncMock()
         mandates_col = AsyncMock()
         ci_reports_col = AsyncMock()
         mandates_col.find_one = AsyncMock(return_value=_mandate())
-        ci_reports_col.find_one = AsyncMock(return_value=None)
+        campaigns_col.insert_one = AsyncMock(return_value=MagicMock())
 
         db = _make_db(campaigns_col, mandates_col, ci_reports_col)
         svc = CampaignService(db)
 
         with patch(
-            "backend.app.services.campaign_service.campaign_strategist_agent",
-            new=AsyncMock(return_value={"campaigns": [{"id": "concept-1", "name": "C1"}]}),
-        ):
+            "backend.app.tasks.campaign_tasks.run_concept_generation",
+        ) as mock_task:
+            mock_task.delay = MagicMock()
             result = await svc.create("m-001", "t-001")
-        assert result["status"] == "concepts_ready"
+        assert result["status"] == "pending"
 
 
 # ---------------------------------------------------------------------------
@@ -226,35 +223,22 @@ class TestConfirm:
 
 class TestGetActivationPlan:
 
-    async def test_get_activation_plan_triggers_agt04(self):
-        concept_id = str(uuid.uuid4())
-        doc = _campaign(status="confirmed", concept_id=concept_id)
-        doc["selected_concept_id"] = concept_id
-        doc["activation_plan"] = None
-        mandate = _mandate()
-
+    async def test_get_activation_plan_returns_campaign_doc(self):
+        """get_activation_plan delegates to get() — AGT-04 runs via Celery from confirm()."""
+        doc = _campaign(status="planned")
         campaigns_col = AsyncMock()
         campaigns_col.find_one = AsyncMock(return_value=doc)
-        campaigns_col.find_one_and_update = AsyncMock(
-            return_value={**doc, "status": "planned", "activation_plan": [{"id": "act-1"}]}
-        )
-        mandates_col = AsyncMock()
-        mandates_col.find_one = AsyncMock(return_value=mandate)
 
-        db = _make_db(campaigns_col, mandates_col, AsyncMock())
+        db = _make_db(campaigns_col, AsyncMock(), AsyncMock())
         svc = CampaignService(db)
 
-        with patch(
-            "backend.app.services.campaign_service.media_planner_agent",
-            new=AsyncMock(return_value={"activations": [{"id": "act-1"}], "budget_summary": {}}),
-        ):
-            result = await svc.get_activation_plan("camp-001", "t-001")
+        result = await svc.get_activation_plan("camp-001", "t-001")
 
-        assert result["status"] == "planned"
-        assert result["activation_plan"] is not None
+        assert result["_id"] == "camp-001"
+        campaigns_col.find_one.assert_called_once_with({"_id": "camp-001", "tenant_id": "t-001"})
 
-    async def test_get_activation_plan_cached(self):
-        doc = _campaign(status="planned")  # already has activation_plan
+    async def test_get_activation_plan_returns_existing_plan(self):
+        doc = _campaign(status="planned")
 
         campaigns_col = AsyncMock()
         campaigns_col.find_one = AsyncMock(return_value=doc)
@@ -262,24 +246,20 @@ class TestGetActivationPlan:
         db = _make_db(campaigns_col, AsyncMock(), AsyncMock())
         svc = CampaignService(db)
 
-        mock_agt04 = AsyncMock()
-        with patch("backend.app.services.campaign_service.media_planner_agent", new=mock_agt04):
-            result = await svc.get_activation_plan("camp-001", "t-001")
+        result = await svc.get_activation_plan("camp-001", "t-001")
 
-        mock_agt04.assert_not_called()
         assert result["activation_plan"] is not None
 
-    async def test_get_activation_plan_409_not_confirmed(self):
-        doc = _campaign(status="concepts_ready")
+    async def test_get_activation_plan_404_missing(self):
         campaigns_col = AsyncMock()
-        campaigns_col.find_one = AsyncMock(return_value=doc)
+        campaigns_col.find_one = AsyncMock(return_value=None)
 
         db = _make_db(campaigns_col, AsyncMock(), AsyncMock())
         svc = CampaignService(db)
 
         with pytest.raises(HTTPException) as exc:
-            await svc.get_activation_plan("camp-001", "t-001")
-        assert exc.value.status_code == 409
+            await svc.get_activation_plan("camp-missing", "t-001")
+        assert exc.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -288,28 +268,27 @@ class TestGetActivationPlan:
 
 class TestProposeBudget:
 
-    async def test_propose_budget_triggers_agt05(self):
+    async def test_propose_budget_sets_budget_pending(self):
+        """propose_budget sets status→budget_pending and dispatches AGT-05 via Celery."""
         doc = _campaign(status="planned")
 
         campaigns_col = AsyncMock()
         campaigns_col.find_one = AsyncMock(return_value=doc)
         campaigns_col.find_one_and_update = AsyncMock(
-            return_value={**doc, "status": "budget_proposed", "budget_proposal": {"total_approved": 95000}}
+            return_value={**doc, "status": "budget_pending"}
         )
-        mandates_col = AsyncMock()
-        mandates_col.find_one = AsyncMock(return_value=_mandate())
 
-        db = _make_db(campaigns_col, mandates_col, AsyncMock())
+        db = _make_db(campaigns_col, AsyncMock(), AsyncMock())
         svc = CampaignService(db)
 
         with patch(
-            "backend.app.services.campaign_service.budget_optimizer_agent",
-            new=AsyncMock(return_value={"total_approved": 95000, "optimization_report": {}}),
-        ):
+            "backend.app.tasks.campaign_tasks.run_budget_optimization",
+        ) as mock_task:
+            mock_task.delay = MagicMock()
             result = await svc.propose_budget("camp-001", "t-001")
 
-        assert result["status"] == "budget_proposed"
-        assert result["budget_proposal"] is not None
+        assert result["status"] == "budget_pending"
+        campaigns_col.find_one_and_update.assert_called_once()
 
     async def test_propose_budget_409_wrong_status(self):
         doc = _campaign(status="confirmed")

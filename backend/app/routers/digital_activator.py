@@ -12,8 +12,8 @@ from backend.app.core.dependencies import get_current_tenant, require_role
 from backend.app.core.models import User, UserRole
 from backend.app.services.campaign_service import CampaignService
 from backend.app.tools.google_ads import activate_google
-from backend.app.tools.meta_ads import activate_meta
 from backend.app.tools.linkedin_ads import activate_linkedin
+from backend.app.tools.meta_ads import activate_meta
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["digital-activator"])
