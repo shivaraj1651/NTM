@@ -1,0 +1,7 @@
+# Force LF for files that run in Linux containers
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+
+# Windows-friendly defaults for everything else
+* text=auto
