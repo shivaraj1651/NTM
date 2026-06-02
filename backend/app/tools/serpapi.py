@@ -7,6 +7,75 @@ import httpx
 logger = logging.getLogger(__name__)
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY")
 
+_SERPAPI_BASE = "https://serpapi.com/search"
+
+
+async def _serpapi_get(params: dict) -> dict:
+    """Shared SerpAPI GET helper. Returns raw response dict or empty dict on error."""
+    if not SERPAPI_API_KEY:
+        logger.warning("SERPAPI_API_KEY not set — skipping search")
+        return {}
+    params["api_key"] = SERPAPI_API_KEY
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(_SERPAPI_BASE, params=params, timeout=10.0)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("SerpAPI request failed: %s", exc)
+            return {}
+
+
+async def search_brand_info(brand_name: str) -> dict[str, Any]:
+    """Search for company-specific taglines, products, and ad context.
+
+    Returns a dict with:
+      taglines      – list[str] candidate taglines/slogans found
+      products      – list[str] product names / offerings
+      logo_hint     – str  description of visual identity
+      recent_campaigns – list[str] recent campaign themes
+      raw_snippets  – list[str] first-page organic snippets for prompt enrichment
+    """
+    # Query 1: brand tagline / slogan
+    slogan_data = await _serpapi_get({
+        "q": f"{brand_name} tagline slogan official",
+        "num": 5,
+    })
+    # Query 2: products and ads
+    product_data = await _serpapi_get({
+        "q": f"{brand_name} products advertising campaign",
+        "num": 5,
+    })
+
+    def _snippets(data: dict) -> list[str]:
+        return [r.get("snippet", "") for r in data.get("organic_results", []) if r.get("snippet")]
+
+    slogan_snippets = _snippets(slogan_data)
+    product_snippets = _snippets(product_data)
+    all_snippets = slogan_snippets + product_snippets
+
+    # Heuristic extraction of short slogan-like phrases (≤ 8 words, sentence-final)
+    import re
+    taglines: list[str] = []
+    for snippet in slogan_snippets:
+        matches = re.findall(r'"([^"]{5,60})"', snippet)
+        taglines.extend(m for m in matches if len(m.split()) <= 10)
+    taglines = list(dict.fromkeys(taglines))[:5]  # deduplicate, cap at 5
+
+    # Product names: first-sentence nouns from product snippets (simple heuristic)
+    products: list[str] = []
+    for snippet in product_snippets[:3]:
+        first_sent = snippet.split(".")[0]
+        products.append(first_sent[:120])
+
+    return {
+        "taglines": taglines,
+        "products": products[:5],
+        "logo_hint": f"{brand_name} brand visual identity",
+        "recent_campaigns": _extract_messaging_themes(all_snippets),
+        "raw_snippets": all_snippets[:8],
+    }
+
 def _extract_channels_from_result(result_text: str) -> list[str]:
     """Parse text for advertising channels (google_ads, facebook, linkedin, tiktok, youtube)."""
     channels = []

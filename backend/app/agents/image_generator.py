@@ -1,36 +1,51 @@
 """Image Generator Agent (AGT-09).
 
-Takes an ImageGenerationBrief, builds an optimised T2I prompt via hybrid
-Claude Haiku enrichment, calls Stability AI SDXL (with DALL-E 3 fallback),
-uploads the result via an injected storage client, and returns the asset URL.
+Takes an ImageGenerationBrief, builds a context-rich prompt using:
+  - The approved campaign concept (name, tagline, tone_board)
+  - SerpAPI brand research (real taglines, product info, visual identity hints)
+  - Claude Haiku for final prompt enrichment
+
+Calls OpenAI DALL-E 3 as the primary model. No Stability AI.
+
+Env vars:
+  OPENAI_API_KEY    — required for DALL-E 3
+  SERPAPI_API_KEY   — optional; enriches prompts with live brand data
 """
 
-import asyncio
 import base64
 import logging
 import os
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
 
 from backend.app.external.stubs import stub_enabled
-from backend.app.tools import stability_ai
+from backend.app.tools.serpapi import search_brand_info
 
 logger = logging.getLogger(__name__)
 
-HAIKU_MODEL = "claude-haiku-4-5-20251001"
-STABILITY_MODEL = "stability-sdxl"
-DALLE_MODEL = "dall-e-3"
-MAX_RETRIES = 2
+HAIKU_MODEL  = "claude-haiku-4-5-20251001"
+DALLE_MODEL  = "dall-e-3"
+MAX_RETRIES  = 2
 
+# DALL-E 3 only supports these three sizes.
+# Map our format keys to the closest valid DALL-E 3 size.
 IMAGE_DIMENSIONS: dict[str, tuple[int, int]] = {
     "square":        (1024, 1024),
-    "landscape":     (1344, 768),
-    "portrait":      (768, 1344),
-    "ooh_billboard": (1344, 768),
+    "landscape":     (1792, 1024),
+    "portrait":      (1024, 1792),
+    "ooh_billboard": (1792, 1024),
+}
+
+# DALL-E 3 size strings accepted by the API
+_DALLE_SIZE: dict[str, str] = {
+    "square":        "1024x1024",
+    "landscape":     "1792x1024",
+    "portrait":      "1024x1792",
+    "ooh_billboard": "1792x1024",
 }
 
 
@@ -53,6 +68,10 @@ class ImageGenerationBrief(BaseModel):
     headline_text: str = ""
     tagline: str = ""
     master_message: str = ""
+    # Concept context — populated from the user-approved campaign concept
+    concept_name: str = ""
+    concept_tagline: str = ""
+    concept_tone: str = ""
 
 
 class ImageGenerationOutput(BaseModel):
@@ -61,7 +80,7 @@ class ImageGenerationOutput(BaseModel):
     tenant_id: str
     asset_url: str
     prompt_used: str
-    model_used: Literal["stability-sdxl", "dall-e-3"]
+    model_used: str
     generation_params: dict[str, Any]
     image_format: str
     generated_at: datetime = Field(
@@ -74,7 +93,7 @@ class ImageGenerationOutput(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ImageGeneratorAgent:
-    """Generates images via Stability AI SDXL with DALL-E 3 fallback."""
+    """Generates images via OpenAI DALL-E 3, enriched with concept + brand context."""
 
     def __init__(self, api_key: str | None = None, openai_client=None):
         self.anthropic_client = AsyncAnthropic(api_key=api_key)
@@ -93,7 +112,7 @@ class ImageGeneratorAgent:
         prompt = await self._build_prompt(brief)
         generation_id = str(uuid.uuid4())
 
-        img_bytes, model_used = await self._generate_image(prompt, width, height)
+        img_bytes = await self._generate_image(prompt, brief.image_format)
 
         asset_url = ""
         if storage_client is not None:
@@ -106,8 +125,13 @@ class ImageGeneratorAgent:
             tenant_id=brief.tenant_id,
             asset_url=asset_url,
             prompt_used=prompt,
-            model_used=model_used,
-            generation_params={"width": width, "height": height, "steps": 30, "cfg_scale": 7.0},
+            model_used=DALLE_MODEL,
+            generation_params={
+                "width": width,
+                "height": height,
+                "size": _DALLE_SIZE[brief.image_format],
+                "quality": "hd",
+            },
             image_format=brief.image_format,
         )
 
@@ -117,43 +141,79 @@ class ImageGeneratorAgent:
         return output
 
     # ------------------------------------------------------------------
-    # Internal
+    # Prompt construction
     # ------------------------------------------------------------------
 
     async def _build_prompt(self, brief: ImageGenerationBrief) -> str:
+        """Build a rich, context-aware prompt using concept + SerpAPI brand data."""
         palette_csv  = ", ".join(brief.brand_palette) if brief.brand_palette else "bold brand colors"
         tone_csv     = ", ".join(brief.tone_adjectives) if brief.tone_adjectives else "premium, modern"
         brand_str    = f"for {brief.brand_name}" if brief.brand_name else ""
-        product_str  = f"featuring {brief.product_details}" if brief.product_details else ""
         audience_str = f"targeting {brief.target_audience}" if brief.target_audience else ""
-        tagline_str  = f'"{brief.tagline}"' if brief.tagline else ""
-        msg_str      = f'"{brief.master_message}"' if brief.master_message else ""
 
+        # Use concept tagline first, fall back to brief tagline
+        effective_tagline = brief.concept_tagline or brief.tagline
+        tagline_str = f'"{effective_tagline}"' if effective_tagline else ""
+        msg_str = f'"{brief.master_message}"' if brief.master_message else ""
+
+        # SerpAPI brand enrichment
+        brand_context_str = ""
+        if brief.brand_name:
+            try:
+                brand_info = await search_brand_info(brief.brand_name)
+                real_taglines = brand_info.get("taglines", [])
+                products      = brand_info.get("products", [])
+                snippets      = brand_info.get("raw_snippets", [])
+
+                parts = []
+                if real_taglines and not effective_tagline:
+                    # Use real brand tagline if concept didn't specify one
+                    effective_tagline = real_taglines[0]
+                    tagline_str = f'"{effective_tagline}"'
+                    parts.append(f"brand tagline: {effective_tagline}")
+                if products:
+                    parts.append(f"products: {', '.join(products[:2])}")
+                if snippets:
+                    parts.append(snippets[0][:150])
+                if parts:
+                    brand_context_str = " | ".join(parts)
+            except Exception as exc:
+                logger.warning("SerpAPI brand search failed for image: %s", exc)
+
+        # Concept context block
+        concept_parts = []
+        if brief.concept_name:
+            concept_parts.append(f"Concept: '{brief.concept_name}'")
+        if brief.concept_tone:
+            concept_parts.append(f"Tone: {brief.concept_tone}")
+        if brief.campaign_theme:
+            concept_parts.append(f"Theme: {brief.campaign_theme}")
+        concept_context = ". ".join(concept_parts)
+
+        # Format-specific layout directive
         if brief.image_format == "ooh_billboard":
-            # Concept tagline IS the billboard headline — display it large
-            hl = brief.headline_text or brief.tagline or brief.master_message
-            headline_part = f'with bold oversized headline text "{hl}", ' if hl else "with bold oversized headline text area, "
+            hl = brief.headline_text or effective_tagline or brief.master_message
+            headline_part = f'bold oversized headline text "{hl}", ' if hl else "bold oversized headline, "
             fmt_hint = (
-                f"ultra-wide outdoor OOH billboard advertisement {brand_str}, "
-                f"roadside hoarding poster seen from 50 meters, {headline_part}"
+                f"ultra-wide OOH billboard advertisement {brand_str}, "
+                f"roadside hoarding seen from 50 metres, {headline_part}"
                 f"massive high-contrast design, {palette_csv} color scheme, "
                 f"aspirational hero image — {brief.visual_direction}, "
-                f"minimal copy, maximum visual impact, photorealistic billboard printing quality, "
-                f"architectural scale, city street perspective"
+                f"minimal copy, maximum visual impact, photorealistic billboard quality, "
+                f"city street perspective"
             )
         elif brief.image_format == "landscape":
             fmt_hint = (
-                f"wide horizontal digital display ad {brand_str}, 16:9 landscape format, "
+                f"wide horizontal 16:9 digital display ad {brand_str}, "
                 f"digital billboard / DOOH screen, {brief.visual_direction}, "
-                f"product or lifestyle hero shot center-right, "
-                f"text overlay zone on left: tagline {tagline_str}, "
-                f"{palette_csv} dominant palette, clean premium layout"
+                f"hero shot centre-right, text overlay zone left: tagline {tagline_str}, "
+                f"{palette_csv} palette, clean premium layout"
             )
         elif brief.image_format == "portrait":
             fmt_hint = (
-                f"vertical 9:16 mobile story advertisement {brand_str}, "
-                f"Instagram/TikTok story format, full-bleed {brief.visual_direction}, "
-                f"lifestyle hero shot lower two-thirds, top third reserved for tagline {tagline_str}, "
+                f"vertical 9:16 mobile story ad {brand_str}, "
+                f"Instagram/TikTok Story format, full-bleed {brief.visual_direction}, "
+                f"lifestyle hero lower two-thirds, top third reserved for tagline {tagline_str}, "
                 f"{palette_csv}, bold typography space"
             )
         else:  # square
@@ -166,10 +226,11 @@ class ImageGeneratorAgent:
 
         base = (
             f"Professional advertising creative {brand_str}. "
-            f"Campaign: {brief.campaign_theme}. "
+            + (f"{concept_context}. " if concept_context else "")
+            + (f"Brand context: {brand_context_str}. " if brand_context_str else "")
             + (f"Tagline: {tagline_str}. " if tagline_str else "")
             + (f"Core message: {msg_str}. " if msg_str else "")
-            + (f"{product_str}. " if product_str else "")
+            + (f"Product: {brief.product_details}. " if brief.product_details else "")
             + f"Visual direction: {brief.visual_direction}. "
             + (f"{audience_str}. " if audience_str else "")
             + f"Brand palette: {palette_csv}. Tone: {tone_csv}. "
@@ -177,34 +238,35 @@ class ImageGeneratorAgent:
             + "Style: REAL published advertising creative — NOT stock photo, NOT generic. "
             + "Bold composition, brand colors dominant, clear visual hierarchy, "
             + "commercial photography, high impact, sharp focus, professional studio lighting, "
-            + "highly detailed, 8K UHD, marketing poster aesthetic."
+            + "highly detailed, marketing poster aesthetic."
         )
         if brief.style_notes:
-            base += f" Competitor context: {brief.style_notes}."
+            base += f" Additional notes: {brief.style_notes}."
 
-        # NTM_STUB_EXTERNAL: stubbed external call
         if stub_enabled():
-            logger.info("Image generator prompt-enrichment LLM stubbed (NTM_STUB_EXTERNAL)")
+            logger.info("Image generator prompt-enrichment stubbed (NTM_STUB_EXTERNAL)")
             return base
 
+        # Claude Haiku enriches the prompt for DALL-E 3
         try:
             response = await self.anthropic_client.messages.create(
                 model=HAIKU_MODEL,
                 max_tokens=400,
                 system=(
-                    "You are a senior advertising creative director and Stability AI prompt engineer. "
+                    "You are a senior advertising creative director and DALL-E 3 prompt engineer. "
                     "Transform the brief into a single precise text-to-image prompt that produces a "
                     "PROFESSIONAL PUBLISHED AD CREATIVE — never stock photography or generic imagery. "
                     f"Brand: {brief.brand_name or 'the brand'}. "
-                    f"Tagline: {brief.tagline!r}. "
-                    f"Campaign: {brief.campaign_theme}. "
+                    + (f"Concept: {brief.concept_name}. " if brief.concept_name else "")
+                    + (f"Tagline: {effective_tagline!r}. " if effective_tagline else "")
+                    + f"Campaign theme: {brief.campaign_theme}. "
                     "Requirements: brand colors dominant, dedicated text/headline space, "
                     "product or lifestyle hero shot, aspirational mood matching brand tone, "
-                    "the tagline must be embedded as the central headline concept. "
-                    "Append style tokens: highly detailed, 8K UHD, commercial photography, "
+                    "the tagline must be the central headline concept. "
+                    "Append style tokens: highly detailed, commercial photography, "
                     "advertising creative, sharp focus, professional studio lighting, "
                     "brand identity, marketing poster aesthetic. "
-                    "Return ONLY the enriched prompt string, under 220 words."
+                    "Return ONLY the enriched prompt string, under 250 words."
                 ),
                 messages=[{"role": "user", "content": base}],
             )
@@ -213,52 +275,41 @@ class ImageGeneratorAgent:
             logger.warning("Haiku prompt enrichment failed (%s), using base template", exc)
             return base
 
-    async def _generate_image(
-        self, prompt: str, width: int, height: int
-    ) -> tuple[bytes, str]:
-        # NTM_STUB_EXTERNAL: stubbed external call — return 1x1 white PNG, no real API call
+    # ------------------------------------------------------------------
+    # DALL-E 3 generation
+    # ------------------------------------------------------------------
+
+    async def _generate_image(self, prompt: str, image_format: str) -> bytes:
         if stub_enabled():
             logger.info("Image generator _generate_image stubbed (NTM_STUB_EXTERNAL)")
-            import base64 as _b64
-            # Minimal 1x1 white PNG (67 bytes)
-            stub_png = _b64.b64decode(
+            stub_png = base64.b64decode(
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
             )
-            return stub_png, "stub"
+            return stub_png
 
-        # Primary: Stability AI
-        for attempt in range(MAX_RETRIES):
-            try:
-                img_bytes = await stability_ai.generate_image(prompt, width=width, height=height)
-                return img_bytes, STABILITY_MODEL
-            except Exception as exc:
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(2 ** attempt)
-                    logger.warning("Stability attempt %d failed: %s", attempt + 1, exc)
-                else:
-                    logger.warning("Stability exhausted retries, falling back to DALL-E 3")
-
-        # Fallback: DALL-E 3
-        for attempt in range(MAX_RETRIES):
-            try:
-                img_bytes = await self._dalle_generate(prompt, width, height)
-                return img_bytes, DALLE_MODEL
-            except Exception as exc:
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(2 ** attempt)
-                    logger.warning("DALL-E attempt %d failed: %s", attempt + 1, exc)
-
-        raise RuntimeError("All image generation providers failed")
-
-    async def _dalle_generate(self, prompt: str, width: int, height: int) -> bytes:
+        size = _DALLE_SIZE[image_format]
         client = self._get_openai_client()
-        response = await client.images.generate(
-            model=DALLE_MODEL,
-            prompt=prompt,
-            size=f"{width}x{height}",
-            response_format="b64_json",
-        )
-        return base64.b64decode(response.data[0].b64_json)
+
+        import asyncio
+        last_exc: Exception | None = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await client.images.generate(
+                    model=DALLE_MODEL,
+                    prompt=prompt,
+                    size=size,
+                    quality="hd",
+                    response_format="b64_json",
+                    n=1,
+                )
+                return base64.b64decode(response.data[0].b64_json)
+            except Exception as exc:
+                last_exc = exc
+                if attempt < MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** attempt)
+                    logger.warning("DALL-E 3 attempt %d failed: %s", attempt + 1, exc)
+
+        raise RuntimeError(f"DALL-E 3 failed after {MAX_RETRIES} attempts: {last_exc}")
 
     def _get_openai_client(self):
         if self._openai_client is not None:

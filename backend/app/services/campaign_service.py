@@ -32,17 +32,26 @@ _STATUS_ORDER = [
 _ASSET_KINDS = ("copy", "scripts", "images", "audio")
 
 
-def _make_stub_creative_assets(campaign_id: str) -> dict:
+def _make_stub_creative_assets(campaign_id: str, concept: dict | None = None) -> dict:
     """Generate placeholder creative assets when real generation is unavailable."""
+    concept = concept or {}
+    concept_name    = concept.get("name", "")
+    concept_tagline = concept.get("tagline", "")
+    concept_tone    = concept.get("tone_board", "")
+    headline_a = concept_tagline or "Bold Vision. Real Results."
+    headline_b = f"{concept_name} — Redefining the possible." if concept_name else "Your Brand, Amplified."
     return {
         "campaign_id": campaign_id,
+        "concept_name": concept_name,
+        "concept_tagline": concept_tagline,
+        "concept_tone": concept_tone,
         "stage": "internal_review",
         "copy": [
             {
                 "asset_type": "headline",
                 "variants": [
-                    {"variant": "A", "content": "Bold Vision. Real Results.", "word_count": 4},
-                    {"variant": "B", "content": "Your Brand, Amplified.", "word_count": 3},
+                    {"variant": "A", "content": headline_a, "word_count": len(headline_a.split())},
+                    {"variant": "B", "content": headline_b, "word_count": len(headline_b.split())},
                 ],
                 "approved": None,
                 "revision_count": 0,
@@ -340,6 +349,14 @@ class CampaignService:
         if doc["status"] != "approved":
             raise HTTPException(status_code=409, detail=f"Cannot generate creatives from status '{doc['status']}'")
 
+        # Resolve the user-approved concept for context-aware generation
+        selected_concept_id = doc.get("selected_concept_id")
+        concepts = doc.get("concepts", [])
+        selected_concept = next(
+            (c for c in concepts if str(c.get("id", "")) == str(selected_concept_id)),
+            None,
+        )
+
         updated = await self._campaigns.find_one_and_update(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {"status": "creative_generating", "updated_at": _utc_now()}},
@@ -347,9 +364,24 @@ class CampaignService:
         )
         from backend.app.tasks.campaign_tasks import run_creative_generation
         try:
-            run_creative_generation.delay(campaign_id, tenant_id)
+            run_creative_generation.delay(
+                campaign_id,
+                tenant_id,
+                concept=selected_concept or {},
+            )
         except Exception as exc:
-            logger.warning("creative generation task dispatch failed: %s", exc)
+            logger.warning("creative generation task dispatch failed: %s — using stub", exc)
+            # Inline fallback: set creative_ready with concept-aware stub assets
+            stub_assets = _make_stub_creative_assets(campaign_id, selected_concept)
+            await self._campaigns.update_one(
+                {"_id": campaign_id, "tenant_id": tenant_id},
+                {"$set": {
+                    "status": "creative_ready",
+                    "creative_assets": stub_assets,
+                    "updated_at": _utc_now(),
+                }},
+            )
+            return await self.get(campaign_id, tenant_id)
         return updated
 
     # ------------------------------------------------------------------

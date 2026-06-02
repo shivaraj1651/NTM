@@ -1,9 +1,18 @@
 """Video Generator Agent (AGT-11).
 
-Takes a VideoGenerationBrief, submits a Runway ML Gen-3 job, polls for
-completion, downloads the MP4, uploads via injected storage client, and
-returns the asset URL + metadata. Runway unavailability yields
-status="manual_production_required" instead of raising.
+Takes a VideoGenerationBrief, submits a Kling AI video generation task, polls
+for completion, downloads the MP4, uploads via injected storage client, and
+returns the asset URL + metadata.
+
+Before generating, enriches the prompt with:
+  - The approved campaign concept (name, tagline, tone_board, channels)
+  - SerpAPI brand research (company taglines, products, recent campaigns)
+
+Kling unavailability yields status="manual_production_required" instead of raising.
+
+Env vars:
+  KLING_AI_ACCESS_KEY, KLING_AI_SECRET_KEY  — required for video generation
+  SERPAPI_API_KEY                            — optional; enriches prompts with brand data
 """
 
 import asyncio
@@ -14,14 +23,16 @@ from datetime import UTC, datetime
 import httpx
 from pydantic import BaseModel, Field
 
-from backend.app.tools import runway
+from backend.app.external.stubs import stub_enabled
+from backend.app.tools import kling_ai
+from backend.app.tools.serpapi import search_brand_info
 
 logger = logging.getLogger(__name__)
 
-RUNWAY_MODEL          = "gen3a_turbo"
+KLING_MODEL           = "kling-v1"
 MAX_RETRIES           = 2
-MAX_POLL_ATTEMPTS     = 10
-POLL_INTERVAL_SECONDS = 6
+MAX_POLL_ATTEMPTS     = 20
+POLL_INTERVAL_SECONDS = 10
 STATUS_COMPLETED      = "completed"
 STATUS_MANUAL         = "manual_production_required"
 
@@ -38,7 +49,14 @@ class VideoGenerationBrief(BaseModel):
     reference_image_url: str | None = None
     duration_seconds: int = 5
     script_format: str = "social_video"
+    # Concept context — populated from the user-approved campaign concept
     campaign_theme: str = ""
+    concept_name: str = ""
+    concept_tagline: str = ""
+    concept_tone: str = ""
+    # Brand context
+    brand_name: str = ""
+    target_audience: str = ""
 
 
 class VideoGenerationOutput(BaseModel):
@@ -61,7 +79,7 @@ class VideoGenerationOutput(BaseModel):
 # ---------------------------------------------------------------------------
 
 class VideoGeneratorAgent:
-    """Generates video via Runway ML Gen-3."""
+    """Generates video via Kling AI, enriched with concept context and brand research."""
 
     async def generate(
         self,
@@ -71,19 +89,39 @@ class VideoGeneratorAgent:
     ) -> VideoGenerationOutput:
         generation_id = str(uuid.uuid4())
 
-        # Submit job with retry
+        if stub_enabled():
+            logger.info("VideoGeneratorAgent stubbed (NTM_STUB_EXTERNAL)")
+            output = VideoGenerationOutput(
+                campaign_id=brief.campaign_id,
+                generation_id=generation_id,
+                tenant_id=brief.tenant_id,
+                asset_url="",
+                job_id="stub",
+                model_used=KLING_MODEL,
+                duration_seconds=brief.duration_seconds,
+                status=STATUS_MANUAL,
+                script_format=brief.script_format,
+            )
+            if db_session is not None:
+                await self._persist(output, db_session)
+            return output
+
+        # Enrich prompt with brand research + concept context
+        enriched_prompt = await self._build_prompt(brief)
+
+        # Submit Kling job with retry
         job_id = ""
         try:
-            job_id = await self._submit_with_retry(brief)
+            job_id = await self._submit_with_retry(brief, enriched_prompt)
         except Exception as exc:
-            logger.warning("Runway submit failed after retries: %s", exc)
+            logger.warning("Kling AI submit failed after retries: %s", exc)
             output = VideoGenerationOutput(
                 campaign_id=brief.campaign_id,
                 generation_id=generation_id,
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id="",
-                model_used=RUNWAY_MODEL,
+                model_used=KLING_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
                 script_format=brief.script_format,
@@ -95,14 +133,14 @@ class VideoGeneratorAgent:
         # Poll for completion URL
         completion_url = await self._poll_for_completion(job_id)
         if completion_url is None:
-            logger.warning("Runway poll timed out or failed for job %s", job_id)
+            logger.warning("Kling AI poll timed out or failed for task %s", job_id)
             output = VideoGenerationOutput(
                 campaign_id=brief.campaign_id,
                 generation_id=generation_id,
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id=job_id,
-                model_used=RUNWAY_MODEL,
+                model_used=KLING_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
                 script_format=brief.script_format,
@@ -111,7 +149,7 @@ class VideoGeneratorAgent:
                 await self._persist(output, db_session)
             return output
 
-        # Download MP4 bytes from Runway CDN
+        # Download MP4 bytes from Kling CDN
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.get(completion_url)
         video_bytes = resp.content
@@ -128,7 +166,7 @@ class VideoGeneratorAgent:
             tenant_id=brief.tenant_id,
             asset_url=asset_url,
             job_id=job_id,
-            model_used=RUNWAY_MODEL,
+            model_used=KLING_MODEL,
             duration_seconds=brief.duration_seconds,
             status=STATUS_COMPLETED,
             script_format=brief.script_format,
@@ -139,30 +177,90 @@ class VideoGeneratorAgent:
 
         return output
 
-    async def _submit_with_retry(self, brief: VideoGenerationBrief) -> str:
+    # ------------------------------------------------------------------
+    # Prompt enrichment
+    # ------------------------------------------------------------------
+
+    async def _build_prompt(self, brief: VideoGenerationBrief) -> str:
+        """Build a context-rich video prompt from concept + brand research."""
+        # Fetch brand info from SerpAPI if brand name is available
+        brand_context = ""
+        if brief.brand_name:
+            try:
+                brand_info = await search_brand_info(brief.brand_name)
+                taglines = brand_info.get("taglines", [])
+                products = brand_info.get("products", [])
+                snippets = brand_info.get("raw_snippets", [])
+
+                if taglines:
+                    brand_context += f"Brand slogans/taglines: {'; '.join(taglines[:3])}. "
+                if products:
+                    brand_context += f"Products/offerings: {'; '.join(products[:2])}. "
+                if snippets:
+                    brand_context += f"Brand context: {snippets[0][:200]}. "
+            except Exception as exc:
+                logger.warning("SerpAPI brand search failed: %s", exc)
+
+        # Build concept context
+        concept_parts = []
+        if brief.concept_name:
+            concept_parts.append(f"Campaign concept: '{brief.concept_name}'")
+        if brief.concept_tagline:
+            concept_parts.append(f"Tagline: \"{brief.concept_tagline}\"")
+        if brief.campaign_theme:
+            concept_parts.append(f"Theme: {brief.campaign_theme}")
+        if brief.concept_tone:
+            concept_parts.append(f"Tone: {brief.concept_tone}")
+        if brief.target_audience:
+            concept_parts.append(f"Audience: {brief.target_audience}")
+        concept_context = ". ".join(concept_parts)
+
+        # Base script text
+        script_excerpt = brief.script_text[:400] if brief.script_text else brief.prompt
+
+        prompt = (
+            f"Cinematic advertising video for {brief.brand_name or 'the brand'}. "
+            + (f"{brand_context}" if brand_context else "")
+            + (f"{concept_context}. " if concept_context else "")
+            + f"Script: {script_excerpt}. "
+            + f"Format: {brief.script_format.replace('_', ' ')}. "
+            + "Style: professional advertising creative, broadcast quality, "
+            + "brand colors prominent, aspirational visuals, "
+            + "cinematic lighting, sharp focus, 4K resolution. "
+            + "NOT generic stock footage — brand-specific storytelling."
+        )
+
+        return prompt
+
+    # ------------------------------------------------------------------
+    # Kling API calls
+    # ------------------------------------------------------------------
+
+    async def _submit_with_retry(self, brief: VideoGenerationBrief, prompt: str) -> str:
         last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
-                return await runway.generate_video(
-                    brief.prompt,
-                    brief.reference_image_url,
-                    brief.duration_seconds,
+                return await kling_ai.generate_video(
+                    prompt=prompt,
+                    image_url=brief.reference_image_url,
+                    duration=brief.duration_seconds,
+                    model=KLING_MODEL,
                 )
             except Exception as exc:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:
                     wait = 2 ** attempt
                     logger.warning(
-                        "Runway submit attempt %d/%d failed (%s), retrying in %ds",
+                        "Kling AI submit attempt %d/%d failed (%s), retrying in %ds",
                         attempt + 1, MAX_RETRIES, exc, wait,
                     )
                     await asyncio.sleep(wait)
-        raise last_exc or RuntimeError("Runway submit failed after retries")
+        raise last_exc or RuntimeError("Kling AI submit failed after retries")
 
-    async def _poll_for_completion(self, job_id: str) -> str | None:
+    async def _poll_for_completion(self, task_id: str) -> str | None:
         """Poll until SUCCEEDED (returns URL) or FAILED/timeout (returns None)."""
         for _ in range(MAX_POLL_ATTEMPTS):
-            result = await runway.get_video_status(job_id)
+            result = await kling_ai.get_video_status(task_id)
             status = result.get("status", "PENDING")
             if status == "SUCCEEDED":
                 return result.get("url")

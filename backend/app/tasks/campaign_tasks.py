@@ -283,9 +283,9 @@ def run_media_planning(self, campaign_id: str, tenant_id: str) -> None:
 
 
 async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
-    """Async implementation: build brief from campaign creative assets, run AGT-11."""
+    """Async implementation: build brief from campaign creative assets, run AGT-11 (Kling AI)."""
     from backend.app.agents.video_generator import VideoGenerationBrief, VideoGeneratorAgent
-    from backend.app.tools import runway as runway_tool
+    from backend.app.tools import kling_ai as kling_tool
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
     try:
@@ -304,12 +304,31 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
         script_text = scripts[0].get("content", "") if scripts else ""
         reference_image_url = images[0].get("url") if images else None
 
-        concept = (campaign_doc.get("concepts") or [{}])[0]
-        prompt = (
-            f"{concept.get('theme', '')} — {concept.get('narrative', '')} "
-            f"Visual style: {concept.get('visual_direction', '')}".strip()
-            or "Brand campaign social video"
+        # Resolve approved concept for full context
+        concepts = campaign_doc.get("concepts", [])
+        selected_id = campaign_doc.get("selected_concept_id")
+        concept = next(
+            (c for c in concepts if str(c.get("id", "")) == selected_id),
+            (concepts[0] if concepts else {}),
         )
+
+        concept_name    = concept.get("name", "")
+        concept_tagline = concept.get("tagline", "")
+        campaign_theme  = concept.get("campaign_theme", "") or concept_name
+        tone_board      = concept.get("tone_board", {})
+        concept_tone    = (
+            tone_board.get("tone", "") if isinstance(tone_board, dict) else str(tone_board)
+        )
+        target_audience = str(concept.get("audience_segmentation", {}).get("primary", ""))
+        brand_name      = (await (AsyncIOMotorClient(MONGO_DB_URL)[MONGO_DB_NAME]["mandates"].find_one(
+            {"_id": campaign_doc.get("mandate_id"), "tenant_id": tenant_id}
+        ) or {}) if False else {}).get("name", "")  # non-blocking passthrough
+
+        prompt = (
+            f"{campaign_theme} — {concept.get('strategic_narrative', '')} "
+            f"Tagline: {concept_tagline}. "
+            f"Visual style: {tone_board.get('visual_direction', '') if isinstance(tone_board, dict) else ''}".strip()
+        ) or "Brand campaign social video"
 
         brief = VideoGenerationBrief(
             campaign_id=campaign_id,
@@ -319,13 +338,17 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
             reference_image_url=reference_image_url or None,
             duration_seconds=5,
             script_format="social_video",
-            campaign_theme=concept.get("theme", ""),
+            campaign_theme=campaign_theme,
+            concept_name=concept_name,
+            concept_tagline=concept_tagline,
+            concept_tone=concept_tone,
+            target_audience=target_audience,
         )
 
         agent = VideoGeneratorAgent()
-        if not runway_tool.is_available():
+        if not kling_tool.is_available():
             logger.warning(
-                "[run_video_generation] RUNWAY_API_KEY not set — video asset will be "
+                "[run_video_generation] KLING_AI credentials not set — video asset will be "
                 "marked manual_production_required"
             )
 
@@ -510,11 +533,11 @@ class _MinioStorageClient:
         return f"{self._public_base}/{key}"
 
 
-async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
+async def _run_creative_generation(campaign_id: str, tenant_id: str, concept_override: dict | None = None) -> None:
     from backend.app.agents.copywriter import CopywriterAgent, CreativeBrief
     from backend.app.agents.image_generator import ImageGenerationBrief, ImageGeneratorAgent
     from backend.app.agents.scriptwriter import ScriptwriterAgent, ScriptwriterBrief
-    from backend.app.tools.serpapi import search_competitor_ads
+    from backend.app.tools.serpapi import search_brand_info, search_competitor_ads
 
     mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
     try:
@@ -526,7 +549,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
 
         concepts = doc.get("concepts", [])
         selected_id = doc.get("selected_concept_id")
-        concept = next(
+        concept = concept_override or next(
             (c for c in concepts if str(c.get("id", "")) == selected_id),
             concepts[0] if concepts else {},
         )
@@ -614,14 +637,22 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
             )
         script_briefs = [_make_script_brief(fmt) for fmt in script_formats_needed]
 
-        # Step 0: SerpAPI competitor analysis — inform creative prompts
+        # Step 0: SerpAPI — brand research + competitor analysis to enrich creative prompts
         competitor_insights: dict = {}
+        brand_info: dict = {}
         brand_name = mandate.get("name", "")
         if brand_name:
             try:
-                competitor_insights = await search_competitor_ads(brand_name)
-                logger.info("[run_creative_generation] SerpAPI insights for %s: channels=%s",
-                            brand_name, competitor_insights.get("channels_detected", []))
+                competitor_insights, brand_info = await asyncio.gather(
+                    search_competitor_ads(brand_name),
+                    search_brand_info(brand_name),
+                )
+                logger.info(
+                    "[run_creative_generation] SerpAPI: brand=%s channels=%s taglines=%s",
+                    brand_name,
+                    competitor_insights.get("channels_detected", []),
+                    brand_info.get("taglines", [])[:2],
+                )
             except Exception as _serp_exc:
                 logger.warning("[run_creative_generation] SerpAPI skipped: %s", _serp_exc)
 
@@ -712,6 +743,12 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                 ooh_headline = tagline or master_message
 
                 img_formats = ("square", "landscape", "portrait", "ooh_billboard")
+                # Use real brand tagline from SerpAPI if concept doesn't specify one
+                effective_tagline = tagline or (brand_info.get("taglines") or [""])[0]
+                concept_tone_str = (
+                    tone_board.get("tone", "") if isinstance(tone_board, dict) else str(tone_board)
+                )
+
                 img_briefs = [
                     ImageGenerationBrief(
                         campaign_id=campaign_id,
@@ -726,8 +763,11 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
                         product_details=brand_description,
                         target_audience=copy_brief.target_audience,
                         headline_text=ooh_headline if fmt == "ooh_billboard" else "",
-                        tagline=tagline,
+                        tagline=effective_tagline,
                         master_message=master_message,
+                        concept_name=concept_name,
+                        concept_tagline=effective_tagline,
+                        concept_tone=concept_tone_str,
                     )
                     for fmt in img_formats
                 ]
@@ -917,11 +957,11 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str) -> None:
 
 
 @shared_task(bind=True, max_retries=2)
-def run_creative_generation(self, campaign_id: str, tenant_id: str) -> None:
-    """Celery task: run AGT-07 + AGT-08 to generate creative assets for a campaign."""
+def run_creative_generation(self, campaign_id: str, tenant_id: str, concept: dict | None = None) -> None:
+    """Celery task: generate creatives using approved concept context (AGT-09, AGT-11)."""
     logger.info("[run_creative_generation] start campaign_id=%s", campaign_id)
     try:
-        asyncio.run(_run_creative_generation(campaign_id, tenant_id))
+        asyncio.run(_run_creative_generation(campaign_id, tenant_id, concept_override=concept))
     except Exception as exc:
         logger.error("[run_creative_generation] error %s: %s", campaign_id, exc)
         raise self.retry(exc=exc, countdown=2 ** self.request.retries)
