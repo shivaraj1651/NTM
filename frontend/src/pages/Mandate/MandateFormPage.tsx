@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
-import { REGIONS } from '@/lib/geography'
+import { REGIONS, CITIES } from '@/lib/geography'
 import { useCreateMandate, useUpdateMandate } from '@/hooks/useMandates'
 import { getMandateSummaryCard } from '@/api/admin'
 
@@ -44,6 +44,7 @@ const schema = z
     objective: z.enum(OBJECTIVE_VALUES),
     region: z.string().min(1, 'Region is required'),
     countries: z.array(z.string()).min(1, 'Select at least one country'),
+    cities: z.array(z.string()).optional().default([]),
     total_budget: z.number().min(10000, 'Budget must be at least 10,000'),
     currency: z.enum(CURRENCY_VALUES),
     start_date: z.string()
@@ -78,6 +79,7 @@ export function MandateFormPage() {
       objective: 'awareness',
       region: '',
       countries: [],
+      cities: [],
       total_budget: 50000,
       currency: 'USD',
       start_date: '',
@@ -92,6 +94,7 @@ export function MandateFormPage() {
         objective: existingMandate.objective,
         region: existingMandate.region,
         countries: existingMandate.countries,
+        cities: existingMandate.cities ?? [],
         total_budget: existingMandate.total_budget,
         currency: existingMandate.currency as typeof CURRENCY_VALUES[number],
         start_date: existingMandate.start_date,
@@ -105,6 +108,7 @@ export function MandateFormPage() {
   const isPending = createMandate.isPending || updateMandate.isPending
 
   const watchRegion = form.watch('region')
+  const watchCountries = form.watch('countries')
   const watchCurrency = form.watch('currency')
   const watchStartDate = form.watch('start_date')
   const today = useMemo(() => todayISO(), [])
@@ -185,6 +189,7 @@ export function MandateFormPage() {
                   onValueChange={(val) => {
                     field.onChange(val)
                     form.setValue('countries', [])
+                    form.setValue('cities', [])
                   }}
                   value={field.value}
                 >
@@ -222,10 +227,14 @@ export function MandateFormPage() {
                           type="checkbox"
                           checked={field.value.includes(country)}
                           onChange={(e) => {
-                            if (e.target.checked) {
-                              field.onChange([...field.value, country])
-                            } else {
-                              field.onChange(field.value.filter((c) => c !== country))
+                            const newCountries = e.target.checked
+                              ? [...field.value, country]
+                              : field.value.filter((c) => c !== country)
+                            field.onChange(newCountries)
+                            if (!e.target.checked) {
+                              const removedCities = CITIES[country] ?? []
+                              const currentCities = form.getValues('cities') ?? []
+                              form.setValue('cities', currentCities.filter((c) => !removedCities.includes(c)))
                             }
                           }}
                           className="h-4 w-4 rounded border-gray-300"
@@ -233,6 +242,54 @@ export function MandateFormPage() {
                         {country}
                       </label>
                     ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Cities — shown when at least one country is selected */}
+          {watchCountries.length > 0 && (
+            <FormField
+              control={form.control}
+              name="cities"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cities <span className="text-muted-foreground text-xs font-normal">(optional)</span></FormLabel>
+                  <div className="space-y-3">
+                    {watchCountries.map((country) => {
+                      const citiesForCountry = CITIES[country] ?? []
+                      if (citiesForCountry.length === 0) return null
+                      return (
+                        <div key={country}>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">{country}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {citiesForCountry.map((city) => (
+                              <label
+                                key={city}
+                                className="flex items-center gap-2 cursor-pointer text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={(field.value ?? []).includes(city)}
+                                  onChange={(e) => {
+                                    const current = field.value ?? []
+                                    if (e.target.checked) {
+                                      field.onChange([...current, city])
+                                    } else {
+                                      field.onChange(current.filter((c) => c !== city))
+                                    }
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                                {city}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                   <FormMessage />
                 </FormItem>
