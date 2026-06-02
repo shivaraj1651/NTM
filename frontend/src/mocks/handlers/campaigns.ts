@@ -107,11 +107,16 @@ export const campaignHandlers = [
   http.post('/api/v1/campaigns/:id/generate-creatives', ({ params }) => {
     const campaign = db.campaignStore[params.id as string]
     if (!campaign) return new HttpResponse(null, { status: 404 })
+    const creative_assets = db.generateCreativeAssets(campaign.id)
     db.campaignStore[campaign.id] = {
       ...campaign,
       status: 'creative_ready',
-      creative_assets: db.generateCreativeAssets(campaign.id),
+      creative_assets,
       updated_at: new Date().toISOString(),
+    }
+    // Populate creativesStore so Creative Studio shows these assets immediately
+    for (const c of db.flattenCreativeAssets(campaign.id, creative_assets)) {
+      db.creativesStore[c.id as string] = c
     }
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
@@ -170,6 +175,19 @@ export const campaignHandlers = [
     }
 
     db.campaignStore[campaign.id] = { ...campaign, creative_assets: assets, updated_at: new Date().toISOString() }
+
+    // Sync approval state into creativesStore so Creative Studio badge updates persist
+    const newStatus = approved === true ? 'internal_approved' : approved === false ? 'revision_requested' : 'ai_draft'
+    const existingCreative = db.creativesStore[assetId] as Record<string, unknown> | undefined
+    if (existingCreative) {
+      db.creativesStore[assetId] = {
+        ...existingCreative,
+        validation_status: newStatus,
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      }
+    }
+
     return HttpResponse.json(db.campaignStore[campaign.id])
   }),
 
