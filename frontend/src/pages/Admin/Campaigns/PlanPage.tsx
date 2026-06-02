@@ -1,5 +1,6 @@
 import { useState, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import {
   type ColumnDef,
   type ExpandedState,
@@ -24,14 +25,14 @@ export function PlanPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: campaign } = useCampaign(id!)
-  const { data: planResult, isLoading: planLoading } = useActivationPlan(
+  const { data: planResult } = useActivationPlan(
     id!,
     campaign?.status === 'confirmed'
   )
   const approveBudget = useApproveBudget(id!)
   const [expanded, setExpanded] = useState<ExpandedState>({})
 
-  const isGenerating = campaign?.status === 'confirmed' && planLoading
+  const isGenerating = campaign?.status === 'confirmed'
   const activations = (planResult ?? campaign)?.activation_plan ?? []
 
   const handleApprove = async () => {
@@ -95,75 +96,87 @@ export function PlanPage() {
   })
 
   if (isGenerating) {
-    return <p className="text-muted-foreground text-sm">Generating activation plan…</p>
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center">
+          <p className="font-semibold text-base">Please wait, Activation Plan is Generating...</p>
+          <p className="text-sm text-muted-foreground mt-1">This may take a few seconds.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">Activation Plan</h2>
 
-      <div className="rounded-md border mb-6">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <Fragment key={row.id}>
-                  <TableRow>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+      {activations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-center">
+            <p className="font-semibold text-base">Please wait, Activation Plan is Generating...</p>
+            <p className="text-sm text-muted-foreground mt-1">This may take a few seconds.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-md border mb-6">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
-                  {row.getIsExpanded() && (
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <Fragment key={row.id}>
                     <TableRow>
-                      <TableCell colSpan={columns.length} className="p-0">
-                        <div className="bg-muted/30 p-4 space-y-2 text-sm">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div><span className="font-medium">Channel:</span> {row.original.sub_channel || row.original.channel || '—'}</div>
-                            <div><span className="font-medium">Geography:</span> {row.original.geography || '—'}</div>
-                            <div><span className="font-medium">Phase:</span> {row.original.phase || '—'}</div>
-                            <div><span className="font-medium">Audience Segment:</span> {row.original.audience_segment || row.original.audience || '—'}</div>
-                            <div><span className="font-medium">Placement:</span> {row.original.placement || '—'}</div>
-                            <div><span className="font-medium">Format:</span> {row.original.format || '—'}</div>
-                            <div><span className="font-medium">Frequency:</span> {(row.original as any).frequency || '—'}</div>
-                            <div><span className="font-medium">CPM:</span> {row.original.estimated_cpm != null ? `$${row.original.estimated_cpm}` : '—'}</div>
-                          </div>
-                        </div>
-                      </TableCell>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </Fragment>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-center text-muted-foreground py-8">
-                  No activations.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    {row.getIsExpanded() && (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="p-0">
+                          <div className="bg-muted/30 p-4 space-y-2 text-sm">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div><span className="font-medium">Channel:</span> {row.original.sub_channel || row.original.channel || '—'}</div>
+                              <div><span className="font-medium">Geography:</span> {row.original.geography || '—'}</div>
+                              <div><span className="font-medium">Phase:</span> {row.original.phase || '—'}</div>
+                              <div><span className="font-medium">Audience Segment:</span> {row.original.audience_segment || row.original.audience || '—'}</div>
+                              <div><span className="font-medium">Placement:</span> {row.original.placement || '—'}</div>
+                              <div><span className="font-medium">Format:</span> {row.original.format || '—'}</div>
+                              <div><span className="font-medium">Frequency:</span> {(row.original as any).frequency || '—'}</div>
+                              <div><span className="font-medium">CPM:</span> {row.original.estimated_cpm != null ? `$${row.original.estimated_cpm}` : '—'}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-      {approveBudget.isError && (
-        <p className="text-destructive text-sm mb-2">Failed to approve budget. Please try again.</p>
+          {approveBudget.isError && (
+            <p className="text-destructive text-sm mb-2">Failed to approve budget. Please try again.</p>
+          )}
+
+          <Button onClick={handleApprove} disabled={approveBudget.isPending}>
+            {approveBudget.isPending ? 'Approving…' : 'Approve Budget'}
+          </Button>
+        </>
       )}
-
-      <Button onClick={handleApprove} disabled={approveBudget.isPending || (activations.length === 0 && campaign?.status !== 'planned')}>
-        {approveBudget.isPending ? 'Approving…' : 'Approve Budget'}
-      </Button>
     </div>
   )
 }
