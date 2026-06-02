@@ -170,6 +170,66 @@ describe('PlanPage', () => {
   })
 })
 
+// ── PlanPage — loading states ─────────────────────────────────────────────────
+
+describe('PlanPage — loading states', () => {
+  it('shows generating spinner when campaign status is confirmed', async () => {
+    server.use(
+      http.get('/api/v1/campaigns/:id', () =>
+        HttpResponse.json({
+          id: 'c-001', mandate_id: 'm-001', tenant_id: 't1',
+          status: 'confirmed',
+          concepts: [], selected_concept_id: null,
+          activation_plan: [], budget_proposal: null,
+          creative_assets: null, kpi_configs: [],
+          created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        })
+      ),
+      http.get('/api/v1/campaigns/:id/activation-plan', () =>
+        HttpResponse.json({
+          id: 'c-001', status: 'confirmed', activation_plan: [],
+          mandate_id: 'm-001', tenant_id: 't1',
+          concepts: [], selected_concept_id: null,
+          budget_proposal: null, creative_assets: null, kpi_configs: [],
+          created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        })
+      ),
+    )
+    renderCampaignPage(<PlanPage />, 'c-plan-loading')
+    await waitFor(() => {
+      expect(screen.getByText('Please wait, Activation Plan is Generating...')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: /approve budget/i })).not.toBeInTheDocument()
+  })
+
+  it('shows table and Approve Budget when activations arrive', async () => {
+    server.use(
+      http.get('/api/v1/campaigns/:id', () =>
+        HttpResponse.json({
+          id: 'c-001', mandate_id: 'm-001', tenant_id: 't1',
+          status: 'planned',
+          concepts: [], selected_concept_id: null,
+          activation_plan: [
+            {
+              id: 'act-1', channel: 'Google Ads', sub_channel: 'Search',
+              geography: 'India', phase: 'Phase 1',
+              estimated_reach: 50000, cost_estimated: 10000,
+            },
+          ],
+          budget_proposal: null, creative_assets: null, kpi_configs: [],
+          created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        })
+      ),
+    )
+    renderCampaignPage(<PlanPage />, 'c-plan-ready')
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /approve budget/i })).toBeInTheDocument()
+      expect(screen.getByText('Search')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Please wait, Activation Plan is Generating...')).not.toBeInTheDocument()
+  })
+})
+
 // ── BudgetPage (c-003 — creative_ready with budget_proposal) ─────────────────
 
 describe('BudgetPage', () => {
