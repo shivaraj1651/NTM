@@ -20,12 +20,57 @@ class _FakeSession:
 
 
 @pytest.mark.asyncio
-async def test_login_unknown_user_401():
-    app.dependency_overrides[get_db] = lambda: _FakeSession()
+async def test_login_unknown_user_autocreates():
+    """Unknown user is auto-created on first login — returns 200 with token."""
+    fake_db = _RegSession(tenant_exists=False, role_name="tenant_admin")
+    app.dependency_overrides[get_db] = lambda: fake_db
+
+    async def _fake_jwt(user):
+        return "mock-token"
+
     try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://t") as ac:
-            r = await ac.post("/api/v1/auth/login", json={"email": "nobody@x.com", "password": "x"})
+        with patch("backend.app.routers.auth_session.write_jwt", _fake_jwt), \
+             patch("backend.app.routers.auth_session.hash_password", return_value="hashed"):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://t") as ac:
+                r = await ac.post(
+                    "/api/v1/auth/login",
+                    json={"email": "tenant@nestle.com", "password": "devpass123"},
+                )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["token"] == "mock-token"
+        assert data["user"]["email"] == "tenant@nestle.com"
+        assert data["user"]["role"] == "tenant_admin"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.mark.asyncio
+async def test_login_wrong_password_401():
+    """Existing user with wrong password → 401."""
+
+    class _ExistingUserSession:
+        async def execute(self, *args, **kwargs):
+            result = MagicMock()
+            user = SimpleNamespace(
+                id="u-1", email="tenant@acme.com",
+                hashed_password="$2b$12$hashed", is_active=True,
+                role=SimpleNamespace(name="tenant_admin"),
+                tenant_id="t-1",
+            )
+            result.scalar_one_or_none.return_value = user
+            return result
+
+    app.dependency_overrides[get_db] = lambda: _ExistingUserSession()
+    try:
+        with patch("backend.app.routers.auth_session.verify_password", return_value=False):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://t") as ac:
+                r = await ac.post(
+                    "/api/v1/auth/login",
+                    json={"email": "tenant@acme.com", "password": "wrongpassword"},
+                )
         assert r.status_code == 401
     finally:
         app.dependency_overrides.pop(get_db, None)

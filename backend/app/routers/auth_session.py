@@ -60,14 +60,59 @@ def _user_payload(user: User, token: str) -> dict:
     }
 
 
-@router.post("/login")
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
+async def _get_or_create_user(email: str, password: str, db: AsyncSession) -> User:
+    """Return existing user (verified) or auto-create on first login."""
     result = await db.execute(
-        select(User).where(User.email == body.email).options(selectinload(User.role))
+        select(User).where(User.email == email).options(selectinload(User.role))
     )
     user = result.scalar_one_or_none()
-    if user is None or not user.is_active or not verify_password(body.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail={"error_code": "INVALID_CREDENTIALS", "message": "Invalid email or password"})
+
+    if user is not None:
+        if not user.is_active or not verify_password(password, user.hashed_password):
+            raise HTTPException(
+                status_code=401,
+                detail={"error_code": "INVALID_CREDENTIALS", "message": "Invalid email or password"},
+            )
+        return user
+
+    # User doesn't exist — auto-create from email pattern
+    role_name, tenant_slug = _parse_email(email)
+
+    tenant_row = (await db.execute(select(Tenant).where(Tenant.name == tenant_slug))).scalar_one_or_none()
+    if tenant_row is None:
+        tenant_row = Tenant(
+            id=str(_uuid.uuid4()),
+            name=tenant_slug,
+            is_active=True,
+            created_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+        db.add(tenant_row)
+        await db.flush()
+
+    role_row = (await db.execute(select(Role).where(Role.name == role_name))).scalar_one_or_none()
+    if role_row is None:
+        role_row = (await db.execute(select(Role).where(Role.name == "brand_manager"))).scalar_one_or_none()
+    if role_row is None:
+        raise HTTPException(status_code=500, detail={"error_code": "NO_ROLE", "message": "No roles seeded in database"})
+
+    user = User(
+        email=email,
+        hashed_password=hash_password(password),
+        tenant_id=tenant_row.id,
+        role_id=role_row.id,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    user.role = role_row
+    user.tenant_id = tenant_row.id
+    return user
+
+
+@router.post("/login")
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    user = await _get_or_create_user(body.email.lower().strip(), body.password, db)
     token = await write_jwt(user)
     return _user_payload(user, token)
 
