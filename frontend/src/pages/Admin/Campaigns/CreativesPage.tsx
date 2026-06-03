@@ -17,7 +17,7 @@ import {
   useRegenerateAsset,
 } from '@/hooks/useCampaigns'
 import type { ApproveAssetPayload, RegeneratePayload } from '@/hooks/useCampaigns'
-import type { CopyAsset, CopyAssetType, ScriptAsset, ImageAsset, AudioAsset } from '@/types/admin'
+import type { CopyAsset, CopyAssetType, ScriptAsset, ImageAsset, AudioAsset, VideoAsset } from '@/types/admin'
 
 const COPY_ASSET_LABELS: Record<CopyAssetType, string> = {
   social_caption: 'Social Caption',
@@ -345,8 +345,14 @@ function AudioTab({
                 <Badge variant="destructive" className="text-xs">Rejected</Badge>
               )}
             </div>
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <audio controls src={audio.url} className="w-full" />
+            {audio.url ? (
+              /* eslint-disable-next-line jsx-a11y/media-has-caption */
+              <audio controls src={audio.url} className="w-full" />
+            ) : (
+              <p className="text-xs text-muted-foreground bg-muted rounded px-3 py-2">
+                Audio not yet generated — ElevenLabs key required.
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <ApproveButtons
                 approved={audio.approved}
@@ -358,11 +364,13 @@ function AudioTab({
                 }
                 disabled={isPending}
               />
+              {audio.url && (
               <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
                 <a href={audio.url} download>
                   <Download className="h-3 w-3" /> Download
                 </a>
               </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -373,6 +381,56 @@ function AudioTab({
                 <RefreshCw className="h-3 w-3" /> Regenerate
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function VideoTab({ assets }: { assets: VideoAsset[] }) {
+  if (assets.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-8 text-center">
+        No videos generated yet. Video generation runs after creatives are created.
+      </p>
+    )
+  }
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {assets.map((vid) => (
+        <Card key={vid.id}>
+          <CardContent className="pt-4 space-y-2">
+            {vid.url ? (
+              /* eslint-disable-next-line jsx-a11y/media-has-caption */
+              <video
+                controls
+                src={vid.url}
+                className="w-full rounded"
+                style={{ aspectRatio: '16/9' }}
+              />
+            ) : (
+              <div className="w-full rounded bg-muted flex items-center justify-center text-xs text-muted-foreground" style={{ aspectRatio: '16/9' }}>
+                {vid.status === 'pending' || vid.status === 'processing'
+                  ? 'Video generating…'
+                  : 'Video unavailable'}
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs capitalize">
+                {vid.format?.replace(/_/g, ' ') ?? 'social video'}
+              </Badge>
+              {vid.duration_seconds && (
+                <span className="text-xs text-muted-foreground">{formatDuration(vid.duration_seconds)}</span>
+              )}
+            </div>
+            {vid.url && (
+              <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
+                <a href={vid.url} download>
+                  <Download className="h-3 w-3" /> Download
+                </a>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ))}
@@ -422,7 +480,9 @@ export function CreativesPage() {
     return <p className="text-muted-foreground text-sm">Generating creatives… this may take a minute.</p>
   }
 
-  if (status !== 'creative_ready' || !creative_assets) {
+  // Show assets for creative_ready AND any later stage (live, etc.)
+  const CREATIVE_STAGES = ['creative_ready', 'live']
+  if (!CREATIVE_STAGES.includes(status) || !creative_assets) {
     return <p className="text-muted-foreground text-sm">No assets available.</p>
   }
 
@@ -434,6 +494,7 @@ export function CreativesPage() {
           <TabsTrigger value="copy">Copy</TabsTrigger>
           <TabsTrigger value="scripts">Scripts</TabsTrigger>
           <TabsTrigger value="images">Images</TabsTrigger>
+          <TabsTrigger value="video">Video</TabsTrigger>
           <TabsTrigger value="audio">Audio</TabsTrigger>
         </TabsList>
         <TabsContent value="copy" className="mt-4">
@@ -459,6 +520,9 @@ export function CreativesPage() {
             onRegenerate={regenerateAsset.mutate}
             isPending={approveAsset.isPending || regenerateAsset.isPending}
           />
+        </TabsContent>
+        <TabsContent value="video" className="mt-4">
+          <VideoTab assets={creative_assets.video ?? []} />
         </TabsContent>
         <TabsContent value="audio" className="mt-4">
           <AudioTab

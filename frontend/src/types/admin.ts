@@ -382,6 +382,18 @@ export interface AudioAsset {
   revision_count: number
 }
 
+export interface VideoAsset {
+  id: string
+  format: string
+  url: string
+  job_id?: string
+  model_used?: string
+  duration_seconds?: number
+  status?: string
+  approved: boolean | null
+  revision_count: number
+}
+
 export interface CreativeAssets {
   campaign_id: string
   stage: CreativeStage
@@ -389,4 +401,5 @@ export interface CreativeAssets {
   scripts: ScriptAsset[]
   images: ImageAsset[]
   audio: AudioAsset[]
+  video?: VideoAsset[]
 }
