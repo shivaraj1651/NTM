@@ -518,59 +518,52 @@ def _store_platform_mapping_sync(
     error: str | None,
     tenant_id: str,
 ) -> None:
-    """Store platform mapping synchronously using SessionLocal.
+    """Store platform mapping using asyncpg directly (works in both FastAPI and Celery)."""
+    import os as _os
+    import uuid as _uuid
 
-    Args:
-        activation_id: Activation UUID
-        channel_enum: Platform name
-        campaign_id: Platform campaign ID
-        ad_id: Platform ad ID
-        status: Mapping status
-        error: Error message
-        tenant_id: Tenant UUID
-    """
-    # Import here to avoid circular imports and initialization issues
-    from backend.app.db import get_session_local
-
-    session_local = get_session_local()
-    if session_local is None:
-        logger.warning(
-            "SessionLocal not initialized, skipping platform mapping storage",
-            extra={"activation_id": activation_id, "channel": channel_enum},
-        )
+    raw_url = _os.getenv("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+    if not raw_url:
+        logger.warning("DATABASE_URL not set, skipping platform mapping storage")
         return
 
-    db = session_local()
-    try:
-        mapping = ActivationPlatformMapping(
-            activation_id=activation_id,
-            tenant_id=tenant_id,
-            channel_enum=channel_enum,
-            platform_campaign_id=campaign_id,
-            platform_ad_id=ad_id,
-            status=status,
-            error_message=error,
-        )
-        db.add(mapping)
-        db.commit()
+    async def _insert() -> None:
+        import asyncpg
+        conn = await asyncpg.connect(raw_url)
+        try:
+            await conn.execute(
+                """
+                INSERT INTO activation_platform_mapping
+                    (id, activation_id, tenant_id, channel_enum,
+                     platform_campaign_id, platform_ad_id, status, error_message,
+                     created_at, updated_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
+                ON CONFLICT DO NOTHING
+                """,
+                str(_uuid.uuid4()),
+                activation_id,
+                tenant_id,
+                channel_enum,
+                campaign_id,
+                ad_id,
+                status,
+                error,
+            )
+        finally:
+            await conn.close()
 
+    try:
+        asyncio.run(_insert())
         logger.debug(
-            "Stored platform mapping",
-            extra={
-                "activation_id": activation_id,
-                "channel": channel_enum,
-                "campaign_id": campaign_id,
-            },
+            "Stored platform mapping activation_id=%s channel=%s status=%s",
+            activation_id, channel_enum, status,
         )
     except Exception as e:
-        db.rollback()
         logger.error(
-            "Database error storing platform mapping",
-            extra={"channel": channel_enum, "error": str(e)},
+            "Database error storing platform mapping channel=%s: %s",
+            channel_enum, e,
             exc_info=True,
         )
-    finally:
-        db.close()
 
 
 def _update_activation_status(activation_id: str, status: str) -> None:

@@ -69,6 +69,7 @@ class VideoGenerationOutput(BaseModel):
     duration_seconds: int
     status: str
     script_format: str
+    task_type: str = "text2video"  # "text2video" or "image2video" — used for follow-up polling
     generated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC)
     )
@@ -141,6 +142,7 @@ class VideoGeneratorAgent:
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id=job_id,
+                task_type=task_type,
                 model_used=KLING_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
@@ -167,6 +169,7 @@ class VideoGeneratorAgent:
             tenant_id=brief.tenant_id,
             asset_url=asset_url,
             job_id=job_id,
+            task_type=task_type,
             model_used=KLING_MODEL,
             duration_seconds=brief.duration_seconds,
             status=STATUS_COMPLETED,

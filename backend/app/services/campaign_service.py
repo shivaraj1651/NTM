@@ -466,4 +466,89 @@ class CampaignService:
             {"$set": {"status": "live", "updated_at": _utc_now()}},
             return_document=True,
         )
+
+        # Dispatch platform activation tasks for each activation in the plan
+        try:
+            self._dispatch_activations(campaign_id, tenant_id, doc)
+        except Exception as exc:
+            logger.warning("[go_live] activation dispatch failed (non-fatal): %s", exc)
+
         return updated
+
+    def _dispatch_activations(self, campaign_id: str, tenant_id: str, doc: dict) -> None:
+        """Dispatch Celery platform tasks for each activation in the plan."""
+        from backend.app.tasks.activation_tasks import (
+            platform_activate_google, platform_activate_meta, platform_activate_linkedin,
+        )
+
+        activation_plan = doc.get("activation_plan") or []
+        if not activation_plan:
+            logger.info("[go_live] no activation_plan — skipping platform dispatch")
+            return
+
+        # Pick creative URL from first available image
+        assets = doc.get("creative_assets") or {}
+        images = assets.get("images") or []
+        creative_url = images[0].get("url", "") if images else ""
+
+        # Platform configs from env
+        google_cfg = {
+            "developer_token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", ""),
+            "client_id": os.getenv("GOOGLE_ADS_CLIENT_ID", ""),
+            "client_secret": os.getenv("GOOGLE_ADS_CLIENT_SECRET", ""),
+            "refresh_token": os.getenv("GOOGLE_ADS_REFRESH_TOKEN", ""),
+            "customer_id": os.getenv("GOOGLE_ADS_CUSTOMER_ID", ""),
+        }
+        meta_cfg = {
+            "app_id": os.getenv("META_APP_ID", ""),
+            "app_secret": os.getenv("META_APP_SECRET", ""),
+            "system_user_token": os.getenv("META_SYSTEM_USER_TOKEN", ""),
+            "ad_account_id": os.getenv("META_AD_ACCOUNT_ID", ""),
+            "page_id": os.getenv("META_PAGE_ID", ""),
+        }
+        linkedin_cfg = {
+            "client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
+            "client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", ""),
+            "access_token": os.getenv("LINKEDIN_ACCESS_TOKEN", ""),
+        }
+
+        _PLATFORM_MAP = {
+            "google_ads": (platform_activate_google, google_cfg),
+            "meta_ads": (platform_activate_meta, meta_cfg),
+            "linkedin_ads": (platform_activate_linkedin, linkedin_cfg),
+        }
+
+        def _infer_platform(sub_channel: str, channel_enum: str) -> str | None:
+            sc = (sub_channel or "").lower()
+            ce = (channel_enum or "").lower()
+            if any(k in sc for k in ("linkedin",)):
+                return "linkedin_ads"
+            if any(k in sc for k in ("meta", "facebook", "instagram")):
+                return "meta_ads"
+            if any(k in sc for k in ("google", "youtube", "search", "performance max")):
+                return "google_ads"
+            if "social" in ce:
+                return "meta_ads"
+            if "display" in ce or "search" in ce:
+                return "google_ads"
+            return None
+
+        dispatched_platforms: set[str] = set()
+        for act in activation_plan:
+            platform = _infer_platform(act.get("sub_channel", ""), act.get("channel_enum", ""))
+            if not platform or platform in dispatched_platforms:
+                continue  # unsupported channel or already dispatched this platform
+            task_fn, cfg = _PLATFORM_MAP[platform]
+            act_with_ctx = {
+                **act,
+                "campaign_id": campaign_id,
+                "tenant_id": tenant_id,
+            }
+            try:
+                task_fn.delay(act_with_ctx, cfg, creative_url)
+                dispatched_platforms.add(platform)
+                logger.info("[go_live] dispatched %s activation for campaign %s", platform, campaign_id)
+            except Exception as exc:
+                logger.warning("[go_live] could not dispatch %s: %s", platform, exc)
+
+        logger.info("[go_live] dispatched %d platform tasks: %s", len(dispatched_platforms), dispatched_platforms)

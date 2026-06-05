@@ -370,6 +370,7 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
             "format": "social_video",
             "url": output.asset_url,
             "job_id": output.job_id,
+            "task_type": output.task_type,
             "model_used": output.model_used,
             "duration_seconds": output.duration_seconds,
             "status": output.status,
@@ -394,6 +395,17 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
             "[run_video_generation] complete campaign_id=%s status=%s",
             campaign_id, output.status,
         )
+
+        # If Kling submitted but poll timed out, schedule a follow-up check
+        if output.status == "manual_production_required" and output.job_id:
+            try:
+                poll_kling_video.apply_async(
+                    args=[campaign_id, tenant_id, output.generation_id, output.job_id, output.task_type],
+                    countdown=120,  # check again in 2 minutes
+                )
+                logger.info("[run_video_generation] queued poll_kling_video for job %s", output.job_id)
+            except Exception as _poll_exc:
+                logger.warning("[run_video_generation] could not queue poll_kling_video: %s", _poll_exc)
     finally:
         mongo_client.close()
 
@@ -408,6 +420,80 @@ def run_video_generation(self, campaign_id: str, tenant_id: str) -> None:
     except Exception as exc:
         logger.error(f"[run_video_generation] error for {campaign_id}: {exc}")
         raise self.retry(exc=exc, countdown=30)
+
+
+async def _poll_kling_video(
+    campaign_id: str, tenant_id: str, generation_id: str, job_id: str, task_type: str
+) -> str:
+    """Poll Kling for a pending video. Returns 'completed', 'failed', or 'pending'."""
+    from backend.app.tools.kling_ai import get_video_status
+    import httpx
+
+    try:
+        result = await get_video_status(job_id, task_type)
+    except Exception as exc:
+        logger.warning("[poll_kling_video] status check error for job %s: %s", job_id, exc)
+        return "pending"
+
+    status = result.get("status", "PENDING")
+    if status == "SUCCEEDED":
+        completion_url = result.get("url")
+        if not completion_url:
+            logger.warning("[poll_kling_video] SUCCEEDED but no URL for job %s", job_id)
+            return "failed"
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.get(completion_url)
+        video_bytes = resp.content
+
+        storage = _MinioStorageClient()
+        key = f"{campaign_id}/{generation_id}.mp4"
+        asset_url = await storage.upload(video_bytes, key, content_type="video/mp4")
+
+        mongo_client = AsyncIOMotorClient(MONGO_DB_URL)
+        try:
+            db = mongo_client[MONGO_DB_NAME]
+            await db["campaigns"].update_one(
+                {"_id": campaign_id, "tenant_id": tenant_id, "creative_assets.video.job_id": job_id},
+                {"$set": {
+                    "creative_assets.video.$.url": asset_url,
+                    "creative_assets.video.$.status": "completed",
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }},
+            )
+        finally:
+            mongo_client.close()
+
+        logger.info("[poll_kling_video] video saved campaign=%s url=%s", campaign_id, asset_url[:70])
+        return "completed"
+
+    if status == "FAILED":
+        logger.warning("[poll_kling_video] Kling job %s returned FAILED", job_id)
+        return "failed"
+
+    return "pending"
+
+
+@shared_task(bind=True, max_retries=8)
+def poll_kling_video(
+    self, campaign_id: str, tenant_id: str, generation_id: str, job_id: str, task_type: str
+) -> None:
+    """Follow-up task: poll Kling for a video that was still processing after initial timeout.
+
+    Retries every 2 minutes up to 8 times (= 16 extra minutes beyond initial 6-min window).
+    """
+    logger.info("[poll_kling_video] checking job=%s attempt=%d", job_id, self.request.retries + 1)
+    try:
+        result = asyncio.run(_poll_kling_video(campaign_id, tenant_id, generation_id, job_id, task_type))
+        if result == "pending":
+            raise self.retry(countdown=120)
+        logger.info("[poll_kling_video] job=%s result=%s", job_id, result)
+    except self.MaxRetriesExceededError:
+        logger.warning("[poll_kling_video] job=%s gave up after %d retries", job_id, self.max_retries)
+    except Exception as exc:
+        if not isinstance(exc, self.retry.__self__.__class__):
+            logger.error("[poll_kling_video] unexpected error for job %s: %s", job_id, exc)
+            raise self.retry(exc=exc, countdown=120)
 
 
 async def _run_budget_optimization(campaign_id: str, tenant_id: str) -> None:
