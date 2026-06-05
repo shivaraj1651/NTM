@@ -3,27 +3,25 @@ import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { useCreatives, type Creative } from '@/hooks/useCreatives'
-import { Image, Video, FileText, AlignLeft, ExternalLink, Tag } from 'lucide-react'
+import { Image, Video, FileText, AlignLeft, ExternalLink, Tag, Newspaper, Linkedin, Monitor } from 'lucide-react'
+
+// ── constants ──────────────────────────────────────────────────────────────
 
 const VALIDATION_BADGE: Record<string, { label: string; className: string }> = {
-  ai_draft:          { label: 'AI Draft',       className: 'bg-gray-100 text-gray-700 border-gray-200' },
-  internal_approved: { label: 'Approved',        className: 'bg-green-100 text-green-700 border-green-200' },
-  client_approved:   { label: 'Client OK',       className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  revision_requested:{ label: 'Needs Revision',  className: 'bg-orange-100 text-orange-700 border-orange-200' },
+  ai_draft:           { label: 'AI Draft',      className: 'bg-gray-100 text-gray-700 border-gray-200' },
+  internal_approved:  { label: 'Approved',       className: 'bg-green-100 text-green-700 border-green-200' },
+  client_approved:    { label: 'Client OK',      className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  revision_requested: { label: 'Needs Revision', className: 'bg-orange-100 text-orange-700 border-orange-200' },
 }
 
-const FORMAT_ASPECT: Record<string, string> = {
-  square:        'aspect-square',
-  landscape:     'aspect-video',
-  portrait:      'aspect-[9/16] max-h-64',
-  ooh_billboard: 'aspect-[16/5]',
-}
-
-const FORMAT_LABEL: Record<string, string> = {
-  square:        'Square · 1:1',
-  landscape:     'Landscape · 16:9',
-  portrait:      'Story · 9:16',
-  ooh_billboard: 'OOH Billboard',
+// Maps image platform → CSS aspect ratio and display label
+const FORMAT_META: Record<string, { aspect: string; label: string }> = {
+  square:           { aspect: 'aspect-square',    label: 'Square · 1:1' },
+  landscape:        { aspect: 'aspect-video',      label: 'Landscape · 16:9' },
+  portrait:         { aspect: 'aspect-[9/16]',     label: 'Story · 9:16' },
+  ooh_billboard:    { aspect: 'aspect-[16/5]',     label: 'OOH Billboard' },
+  newspaper_insert: { aspect: 'aspect-[3/4]',      label: 'Newspaper Insert' },
+  linkedin_post:    { aspect: 'aspect-square',     label: 'LinkedIn Post' },
 }
 
 const COPY_ICON: Record<string, React.ElementType> = {
@@ -31,10 +29,35 @@ const COPY_ICON: Record<string, React.ElementType> = {
   headline:         Tag,
   social_caption:   AlignLeft,
   body_copy:        AlignLeft,
-  print_ad:         FileText,
+  print_ad:         Newspaper,
   email:            FileText,
   influencer_brief: FileText,
+  linkedin_post:    Linkedin,
 }
+
+// Maps copy asset_type → which creative tab it belongs to
+const COPY_SECTION: Record<string, string> = {
+  ooh_billboard:    'ooh',
+  print_ad:         'newspaper',
+  linkedin_post:    'linkedin',
+  social_caption:   'ads',
+  headline:         'ads',
+  body_copy:        'ads',
+  email:            'ads',
+  influencer_brief: 'ads',
+}
+
+// Maps image platform → which creative section it belongs to
+const IMAGE_SECTION: Record<string, string> = {
+  ooh_billboard:    'ooh',
+  newspaper_insert: 'newspaper',
+  linkedin_post:    'linkedin',
+  square:           'ads',
+  landscape:        'ads',
+  portrait:         'ads',
+}
+
+// ── card components ────────────────────────────────────────────────────────
 
 function BadgeStatus({ asset, className = '' }: { asset: Creative; className?: string }) {
   const key = asset.status ?? asset.validation_status ?? ''
@@ -47,21 +70,18 @@ function ImageCard({ asset }: { asset: Creative }) {
   const content = asset.content as Record<string, unknown> | undefined
   const url = asset.asset_url ?? content?.['url'] as string | undefined
   const fmt = asset.platform ?? ''
-  const label = content?.['label'] as string ?? FORMAT_LABEL[fmt] ?? fmt
+  const meta = FORMAT_META[fmt]
+  const label = content?.['label'] as string ?? meta?.label ?? fmt
   const tagline = content?.['tagline'] as string | undefined
   const theme = content?.['campaign_theme'] as string | undefined
-  const aspectClass = FORMAT_ASPECT[fmt] ?? 'aspect-video'
 
   return (
     <Link to={`/creative-studio/${asset.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border border-border">
-        <div className={`relative w-full overflow-hidden bg-muted ${aspectClass}`}>
+        <div className={`relative w-full overflow-hidden bg-muted ${meta?.aspect ?? 'aspect-video'}`}>
           {url ? (
-            <img
-              src={url}
-              alt={label}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+            <img src={url} alt={label}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800 to-slate-900">
               <Image className="h-10 w-10 text-slate-500" />
@@ -69,23 +89,15 @@ function ImageCard({ asset }: { asset: Creative }) {
             </div>
           )}
           <div className="absolute top-2 left-2">
-            <Badge className="text-xs bg-black/60 text-white border-0 backdrop-blur-sm">
-              {FORMAT_LABEL[fmt] ?? fmt}
-            </Badge>
+            <Badge className="text-xs bg-black/60 text-white border-0 backdrop-blur-sm">{label}</Badge>
           </div>
-          <div className="absolute top-2 right-2">
-            <BadgeStatus asset={asset} />
-          </div>
+          <div className="absolute top-2 right-2"><BadgeStatus asset={asset} /></div>
           <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-200">
             <ExternalLink className="h-4 w-4 text-white ml-auto" />
           </div>
         </div>
         <CardFooter className="py-2 px-3 flex flex-col items-start gap-0.5">
-          {tagline && (
-            <p className="text-sm font-semibold text-foreground italic truncate w-full">
-              &ldquo;{tagline}&rdquo;
-            </p>
-          )}
+          {tagline && <p className="text-sm font-semibold text-foreground italic truncate w-full">&ldquo;{tagline}&rdquo;</p>}
           {theme && <p className="text-xs text-muted-foreground truncate w-full">{theme}</p>}
           {!tagline && !theme && <p className="text-sm font-medium truncate w-full">{label}</p>}
         </CardFooter>
@@ -115,75 +127,78 @@ function CopyCard({ asset }: { asset: Creative }) {
             </div>
             <BadgeStatus asset={asset} />
           </div>
-          {tagline && (
-            <p className="text-xs font-medium text-primary italic line-clamp-1">
-              &ldquo;{tagline}&rdquo;
-            </p>
-          )}
-          {preview && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {preview}
-            </p>
-          )}
+          {tagline && <p className="text-xs font-medium text-primary italic line-clamp-1">&ldquo;{tagline}&rdquo;</p>}
+          {preview && <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{preview}</p>}
         </CardContent>
       </Card>
     </Link>
   )
 }
 
-function ScriptCard({ asset }: { asset: Creative }) {
+function VideoCard({ asset }: { asset: Creative }) {
   const content = asset.content as Record<string, unknown> | undefined
-  const fmt     = content?.['format'] as string ?? asset.platform ?? 'script'
-  const label   = content?.['label'] as string ?? fmt.replace(/_/g, ' ')
-  const duration = content?.['duration_estimate'] as string | undefined
-  const tagline = content?.['tagline'] as string | undefined
-  const preview = content?.['content_preview'] as string | undefined
+  const url = asset.asset_url ?? content?.['url'] as string | undefined
+  const status = (content?.['status'] as string | undefined) ?? asset.status
 
   return (
     <Link to={`/creative-studio/${asset.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-        <CardContent className="pt-4 pb-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="rounded-md bg-muted p-1.5 shrink-0">
-                <Video className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate">{label}</p>
-                {duration && <p className="text-xs text-muted-foreground">{duration}</p>}
-              </div>
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border border-border">
+        <div className="relative w-full overflow-hidden bg-muted aspect-video">
+          {url ? (
+            /* eslint-disable-next-line jsx-a11y/media-has-caption */
+            <video src={url} className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800 to-slate-900">
+              <Video className="h-10 w-10 text-slate-500" />
+              <p className="text-xs text-slate-400">
+                {status === 'manual_production_required' ? 'Manual production required' : 'Generating…'}
+              </p>
             </div>
-            <BadgeStatus asset={asset} />
+          )}
+          <div className="absolute top-2 left-2">
+            <Badge className="text-xs bg-black/60 text-white border-0 backdrop-blur-sm">Reel / Short Ad</Badge>
           </div>
-          {tagline && (
-            <p className="text-xs font-medium text-primary italic line-clamp-1">
-              &ldquo;{tagline}&rdquo;
-            </p>
-          )}
-          {preview && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-mono">
-              {preview}
-            </p>
-          )}
-        </CardContent>
+          <div className="absolute top-2 right-2"><BadgeStatus asset={asset} /></div>
+        </div>
+        <CardFooter className="py-2 px-3">
+          <p className="text-sm font-medium">Video Ad</p>
+        </CardFooter>
       </Card>
     </Link>
   )
 }
+
+// ── section component ──────────────────────────────────────────────────────
+
+function Section({
+  icon: Icon, title, count, children,
+}: {
+  icon: React.ElementType
+  title: string
+  count: number
+  children: React.ReactNode
+}) {
+  if (count === 0) return null
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          {title} ({count})
+        </h2>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+// ── page ───────────────────────────────────────────────────────────────────
 
 export function CreativeStudioPage() {
   const { data: creatives, isLoading, error } = useCreatives()
 
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading assets…</div>
   if (error)    return <div className="p-8 text-destructive">Failed to load assets.</div>
-
-  const images  = creatives?.filter(a => (a.creative_type ?? a.asset_type) === 'image')  ?? []
-  const copies  = creatives?.filter(a => (a.creative_type ?? a.asset_type) === 'copy')   ?? []
-  const scripts = creatives?.filter(a => (a.creative_type ?? a.asset_type) === 'script') ?? []
-  const others  = creatives?.filter(a => {
-    const t = a.creative_type ?? a.asset_type
-    return t !== 'image' && t !== 'copy' && t !== 'script'
-  }) ?? []
 
   if (!creatives || creatives.length === 0) {
     return (
@@ -196,77 +211,91 @@ export function CreativeStudioPage() {
     )
   }
 
+  const byType = (type: string) =>
+    creatives.filter(a => (a.creative_type ?? a.asset_type) === type)
+
+  const videos    = byType('video')
+  const allImages = byType('image')
+  const allCopy   = byType('copy')
+
+  // Partition images by section
+  const oohImages       = allImages.filter(a => IMAGE_SECTION[a.platform ?? ''] === 'ooh')
+  const newspaperImages = allImages.filter(a => IMAGE_SECTION[a.platform ?? ''] === 'newspaper')
+  const linkedinImages  = allImages.filter(a => IMAGE_SECTION[a.platform ?? ''] === 'linkedin')
+  const adImages        = allImages.filter(a => IMAGE_SECTION[a.platform ?? ''] === 'ads')
+
+  // Partition copy by section
+  const oohCopy       = allCopy.filter(a => COPY_SECTION[(a.content as Record<string,unknown>)?.['asset_type'] as string] === 'ooh')
+  const newspaperCopy = allCopy.filter(a => COPY_SECTION[(a.content as Record<string,unknown>)?.['asset_type'] as string] === 'newspaper')
+  const linkedinCopy  = allCopy.filter(a => COPY_SECTION[(a.content as Record<string,unknown>)?.['asset_type'] as string] === 'linkedin')
+  const adsCopy       = allCopy.filter(a => COPY_SECTION[(a.content as Record<string,unknown>)?.['asset_type'] as string] === 'ads')
+
   return (
     <div className="p-6 space-y-10">
       <PageHeader title="Creative Studio" description="Review and approve all campaign creative assets" />
 
-      {/* Visual Ads — images rendered at proper ad aspect ratios */}
-      {images.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Visual Ads ({images.length})
-          </h2>
+      {/* 1 — Video */}
+      <Section icon={Video} title="Video — Reel / Short Ad" count={videos.length}>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {videos.map(a => <VideoCard key={a.id} asset={a} />)}
+        </div>
+      </Section>
+
+      {/* 2 — OOH Billboard */}
+      <Section icon={Monitor} title="OOH Billboard" count={oohImages.length + oohCopy.length}>
+        {oohImages.length > 0 && (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {images.map(a => <ImageCard key={a.id} asset={a} />)}
+            {oohImages.map(a => <ImageCard key={a.id} asset={a} />)}
           </div>
-        </section>
-      )}
-
-      {/* Copy Assets */}
-      {copies.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Copy Assets ({copies.length})
-          </h2>
+        )}
+        {oohCopy.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {copies.map(a => <CopyCard key={a.id} asset={a} />)}
+            {oohCopy.map(a => <CopyCard key={a.id} asset={a} />)}
           </div>
-        </section>
-      )}
+        )}
+      </Section>
 
-      {/* Scripts */}
-      {scripts.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Scripts ({scripts.length})
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {scripts.map(a => <ScriptCard key={a.id} asset={a} />)}
+      {/* 3 — Newspaper Insert */}
+      <Section icon={Newspaper} title="Newspaper Insert / Print" count={newspaperImages.length + newspaperCopy.length}>
+        {newspaperImages.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {newspaperImages.map(a => <ImageCard key={a.id} asset={a} />)}
           </div>
-        </section>
-      )}
+        )}
+        {newspaperCopy.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {newspaperCopy.map(a => <CopyCard key={a.id} asset={a} />)}
+          </div>
+        )}
+      </Section>
 
-      {/* Other (audio, video, etc.) */}
-      {others.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Other Assets ({others.length})
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {others.map(a => {
-              const content = a.content as Record<string,unknown> | undefined
-              const label = a.message_variant ?? content?.['label'] as string ?? a.id
-              const typeKey = a.creative_type ?? a.asset_type
-              return (
-                <Link key={a.id} to={`/creative-studio/${a.id}`}>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="pt-4 pb-3 flex items-center gap-3">
-                      <div className="rounded-md bg-muted p-1.5 shrink-0">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{label}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{typeKey} · {a.platform}</p>
-                      </div>
-                      <BadgeStatus asset={a} />
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
+      {/* 4 — LinkedIn Post */}
+      <Section icon={Linkedin} title="LinkedIn Post / Content" count={linkedinImages.length + linkedinCopy.length}>
+        {linkedinImages.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {linkedinImages.map(a => <ImageCard key={a.id} asset={a} />)}
           </div>
-        </section>
-      )}
+        )}
+        {linkedinCopy.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {linkedinCopy.map(a => <CopyCard key={a.id} asset={a} />)}
+          </div>
+        )}
+      </Section>
+
+      {/* 5 — Ad Images */}
+      <Section icon={Image} title="Ad Images" count={adImages.length + adsCopy.length}>
+        {adImages.length > 0 && (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {adImages.map(a => <ImageCard key={a.id} asset={a} />)}
+          </div>
+        )}
+        {adsCopy.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {adsCopy.map(a => <CopyCard key={a.id} asset={a} />)}
+          </div>
+        )}
+      </Section>
     </div>
   )
 }

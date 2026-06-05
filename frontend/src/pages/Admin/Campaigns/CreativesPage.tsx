@@ -1,15 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Check, X, Copy, Download, RefreshCw, Loader2 } from 'lucide-react'
+import { Check, X, Copy, Download, RefreshCw, Loader2, Newspaper, Linkedin, Image, Video, Monitor } from 'lucide-react'
 import {
   useCampaign,
   useGenerateCreatives,
@@ -17,36 +11,9 @@ import {
   useRegenerateAsset,
 } from '@/hooks/useCampaigns'
 import type { ApproveAssetPayload, RegeneratePayload } from '@/hooks/useCampaigns'
-import type { CopyAsset, CopyAssetType, ScriptAsset, ImageAsset, AudioAsset, VideoAsset } from '@/types/admin'
+import type { CopyAsset, ImageAsset, AudioAsset, VideoAsset } from '@/types/admin'
 
-const COPY_ASSET_LABELS: Record<CopyAssetType, string> = {
-  social_caption: 'Social Caption',
-  headline: 'Headline',
-  body_copy: 'Body Copy',
-  print_ad: 'Print Ad',
-  email: 'Email',
-  ooh_billboard: 'OOH Billboard',
-  influencer_brief: 'Influencer Brief',
-}
-
-const MEDIA_FORMAT_LABELS: Record<string, string> = {
-  tvc_vo: 'TVC Voiceover',
-  radio: 'Radio',
-  social_video: 'Social Video',
-}
-
-const VOICE_LABELS: Record<string, string> = {
-  warm: 'Warm',
-  authoritative: 'Authoritative',
-  youthful: 'Youthful',
-}
-
-const IMAGE_FORMAT_LABELS: Record<string, string> = {
-  square:        'Square (1024×1024)',
-  landscape:     'Landscape (1344×768)',
-  portrait:      'Portrait (768×1344)',
-  ooh_billboard: 'OOH Billboard (1344×768)',
-}
+// ── helpers ────────────────────────────────────────────────────────────────
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -55,10 +22,7 @@ function formatDuration(seconds: number): string {
 }
 
 function ApproveButtons({
-  approved,
-  onApprove,
-  onReject,
-  disabled,
+  approved, onApprove, onReject, disabled,
 }: {
   approved: boolean | null
   onApprove: () => void
@@ -68,20 +32,16 @@ function ApproveButtons({
   return (
     <div className="flex gap-1">
       <Button
-        variant={approved === true ? 'default' : 'outline'}
-        size="sm"
+        variant={approved === true ? 'default' : 'outline'} size="sm"
         className={approved === true ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
-        onClick={onApprove}
-        disabled={disabled}
+        onClick={onApprove} disabled={disabled}
       >
         <Check className="h-3 w-3" />
       </Button>
       <Button
-        variant={approved === false ? 'default' : 'outline'}
-        size="sm"
+        variant={approved === false ? 'default' : 'outline'} size="sm"
         className={approved === false ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
-        onClick={onReject}
-        disabled={disabled}
+        onClick={onReject} disabled={disabled}
       >
         <X className="h-3 w-3" />
       </Button>
@@ -89,311 +49,104 @@ function ApproveButtons({
   )
 }
 
-function CopyTab({
-  assets,
-  onApprove,
-  onRegenerate,
-  isPending,
-}: {
-  assets: CopyAsset[]
-  onApprove: (p: ApproveAssetPayload) => void
-  onRegenerate: (p: RegeneratePayload) => void
-  isPending?: boolean
-}) {
-  return (
-    <Accordion type="single" collapsible className="w-full">
-      {assets.map((asset) => (
-        <AccordionItem key={asset.asset_type} value={asset.asset_type}>
-          <AccordionTrigger className="hover:no-underline">
-            <div className="flex items-center gap-3">
-              <span className="font-medium">{COPY_ASSET_LABELS[asset.asset_type]}</span>
-              {asset.approved === true && (
-                <Badge className="bg-green-600 text-white text-xs">Approved</Badge>
-              )}
-              {asset.approved === false && (
-                <Badge variant="destructive" className="text-xs">Rejected</Badge>
-              )}
-            </div>
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-3 pt-2">
-              <div className="grid grid-cols-2 gap-4">
-                {asset.variants.map((v) => (
-                  <Card key={v.variant}>
-                    <CardContent className="pt-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">Variant {v.variant}</Badge>
-                        <Badge variant="secondary" className="text-xs">{v.word_count} words</Badge>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
-                        {typeof v.content === 'string' ? v.content : (v.content?.text ?? JSON.stringify(v.content))}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 text-xs px-2"
-                        onClick={() => navigator.clipboard.writeText(typeof v.content === 'string' ? v.content : (v.content?.text ?? ''))}
-                      >
-                        <Copy className="h-3 w-3" /> Copy
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <ApproveButtons
-                  approved={asset.approved}
-                  onApprove={() =>
-                    onApprove({ assetKind: 'copy', assetId: asset.asset_type, approved: true })
-                  }
-                  onReject={() =>
-                    onApprove({ assetKind: 'copy', assetId: asset.asset_type, approved: false })
-                  }
-                  disabled={isPending}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 text-xs"
-                  onClick={() => onRegenerate({ assetKind: 'copy', assetId: asset.asset_type })}
-                  disabled={isPending}
-                >
-                  <RefreshCw className="h-3 w-3" /> Regenerate
-                </Button>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      ))}
-    </Accordion>
-  )
+// ── copy helper ────────────────────────────────────────────────────────────
+
+function copyText(asset: CopyAsset | undefined): string {
+  if (!asset) return ''
+  const v = asset.variants[0]
+  if (!v) return ''
+  const c = v.content
+  if (typeof c === 'string') return c
+  return (c as Record<string, unknown>)?.text as string ?? JSON.stringify(c)
 }
 
-function ScriptsTab({
-  assets,
-  onApprove,
-  onRegenerate,
-  isPending,
-}: {
-  assets: ScriptAsset[]
+function CopyBlock({ asset, onApprove, onRegenerate, isPending, assetKind }: {
+  asset: CopyAsset
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
   isPending?: boolean
+  assetKind: string
 }) {
   return (
-    <div className="space-y-4">
-      {assets.map((script) => (
-        <Card key={script.id}>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <Badge variant="outline">
-                  {script.format ? (MEDIA_FORMAT_LABELS[script.format as keyof typeof MEDIA_FORMAT_LABELS] ?? script.format) : '—'}
-                </Badge>
-                <Badge variant="secondary" className="text-xs">{script.duration_estimate ?? '—'}</Badge>
-              </div>
-              {script.approved === true && (
-                <Badge className="bg-green-600 text-white text-xs">Approved</Badge>
-              )}
-              {script.approved === false && (
-                <Badge variant="destructive" className="text-xs">Rejected</Badge>
-              )}
-            </div>
-            <pre className="text-sm whitespace-pre-wrap bg-muted/30 rounded p-3 max-h-48 overflow-y-auto font-sans leading-relaxed">
-              {script.content}
-            </pre>
-            <div className="flex items-center gap-2">
-              <ApproveButtons
-                approved={script.approved}
-                onApprove={() =>
-                  onApprove({ assetKind: 'scripts', assetId: script.id ?? '', approved: true })
-                }
-                onReject={() =>
-                  onApprove({ assetKind: 'scripts', assetId: script.id ?? '', approved: false })
-                }
-                disabled={isPending}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1 text-xs"
-                onClick={() => navigator.clipboard.writeText(script.content ?? '')}
-              >
-                <Copy className="h-3 w-3" /> Copy
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 text-xs"
-                onClick={() => onRegenerate({ assetKind: 'scripts', assetId: script.id ?? '' })}
-                disabled={isPending}
-              >
-                <RefreshCw className="h-3 w-3" /> Regenerate
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-2 bg-muted/30 rounded-lg p-4">
+      {asset.variants.map((v) => {
+        const text = typeof v.content === 'string'
+          ? v.content
+          : (v.content as Record<string, unknown>)?.text as string ?? JSON.stringify(v.content)
+        return (
+          <p key={v.variant_id ?? v.variant} className="text-sm whitespace-pre-wrap leading-relaxed">{text}</p>
+        )
+      })}
+      <div className="flex items-center gap-2 pt-2">
+        <ApproveButtons
+          approved={asset.approved}
+          onApprove={() => onApprove({ assetKind: assetKind as 'copy', assetId: asset.asset_type, approved: true })}
+          onReject={() => onApprove({ assetKind: assetKind as 'copy', assetId: asset.asset_type, approved: false })}
+          disabled={isPending}
+        />
+        <Button variant="ghost" size="sm" className="gap-1 text-xs px-2"
+          onClick={() => navigator.clipboard.writeText(copyText(asset))}>
+          <Copy className="h-3 w-3" /> Copy
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1 text-xs"
+          onClick={() => onRegenerate({ assetKind: 'copy', assetId: asset.asset_type })}
+          disabled={isPending}>
+          <RefreshCw className="h-3 w-3" /> Regenerate
+        </Button>
+      </div>
     </div>
   )
 }
 
-function ImagesTab({
-  assets,
-  onApprove,
-  onRegenerate,
-  isPending,
-}: {
-  assets: ImageAsset[]
+// ── image helper ───────────────────────────────────────────────────────────
+
+function ImageCard({ img, aspectStyle, label, onApprove, onRegenerate, isPending }: {
+  img: ImageAsset
+  aspectStyle: React.CSSProperties
+  label: string
   onApprove: (p: ApproveAssetPayload) => void
   onRegenerate: (p: RegeneratePayload) => void
   isPending?: boolean
 }) {
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {assets.map((img) => (
-        <Card key={img.id}>
-          <CardContent className="pt-4 space-y-2">
-            <img
-              src={img.url}
-              alt={img.format}
-              className="w-full rounded object-cover"
-              style={{
-                aspectRatio:
-                  img.format === 'portrait' ? '9/16'
-                  : img.format === 'landscape' ? '16/9'
-                  : img.format === 'ooh_billboard' ? '16/5'
-                  : '1/1',
-              }}
-            />
-            <div className="flex items-center justify-between">
-              <Badge variant="outline" className="text-xs">
-                {IMAGE_FORMAT_LABELS[img.format] ?? img.format}
-              </Badge>
-              {img.approved === true && (
-                <Badge className="bg-green-600 text-white text-xs">Approved</Badge>
-              )}
-              {img.approved === false && (
-                <Badge variant="destructive" className="text-xs">Rejected</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              <ApproveButtons
-                approved={img.approved}
-                onApprove={() =>
-                  onApprove({ assetKind: 'images', assetId: img.id, approved: true })
-                }
-                onReject={() =>
-                  onApprove({ assetKind: 'images', assetId: img.id, approved: false })
-                }
-                disabled={isPending}
-              />
-              <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
-                <a href={img.url} download>
-                  <Download className="h-3 w-3" /> Download
-                </a>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 text-xs"
-                onClick={() => onRegenerate({ assetKind: 'images', assetId: img.id })}
-                disabled={isPending}
-              >
-                <RefreshCw className="h-3 w-3" /> Regenerate
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <Card>
+      <CardContent className="pt-4 space-y-2">
+        <img src={img.url} alt={label} className="w-full rounded object-cover" style={aspectStyle} />
+        <div className="flex items-center justify-between">
+          <Badge variant="outline" className="text-xs">{label}</Badge>
+          {img.approved === true && <Badge className="bg-green-600 text-white text-xs">Approved</Badge>}
+          {img.approved === false && <Badge variant="destructive" className="text-xs">Rejected</Badge>}
+        </div>
+        <div className="flex items-center gap-1 flex-wrap">
+          <ApproveButtons
+            approved={img.approved}
+            onApprove={() => onApprove({ assetKind: 'images', assetId: img.id, approved: true })}
+            onReject={() => onApprove({ assetKind: 'images', assetId: img.id, approved: false })}
+            disabled={isPending}
+          />
+          <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
+            <a href={img.url} download><Download className="h-3 w-3" /> Download</a>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1 text-xs"
+            onClick={() => onRegenerate({ assetKind: 'images', assetId: img.id })}
+            disabled={isPending}>
+            <RefreshCw className="h-3 w-3" /> Regenerate
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
-function AudioTab({
-  assets,
-  onApprove,
-  onRegenerate,
-  isPending,
-}: {
-  assets: AudioAsset[]
-  onApprove: (p: ApproveAssetPayload) => void
-  onRegenerate: (p: RegeneratePayload) => void
-  isPending?: boolean
-}) {
-  return (
-    <div className="space-y-4">
-      {assets.map((audio) => (
-        <Card key={audio.id}>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <Badge variant="outline">
-                  {MEDIA_FORMAT_LABELS[audio.format] ?? audio.format}
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  {VOICE_LABELS[audio.voice_style] ?? audio.voice_style} voice
-                </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  {formatDuration(audio.duration_seconds)}
-                </Badge>
-              </div>
-              {audio.approved === true && (
-                <Badge className="bg-green-600 text-white text-xs">Approved</Badge>
-              )}
-              {audio.approved === false && (
-                <Badge variant="destructive" className="text-xs">Rejected</Badge>
-              )}
-            </div>
-            {audio.url ? (
-              /* eslint-disable-next-line jsx-a11y/media-has-caption */
-              <audio controls src={audio.url} className="w-full" />
-            ) : (
-              <p className="text-xs text-muted-foreground bg-muted rounded px-3 py-2">
-                Audio not yet generated — ElevenLabs key required.
-              </p>
-            )}
-            <div className="flex items-center gap-2">
-              <ApproveButtons
-                approved={audio.approved}
-                onApprove={() =>
-                  onApprove({ assetKind: 'audio', assetId: audio.id, approved: true })
-                }
-                onReject={() =>
-                  onApprove({ assetKind: 'audio', assetId: audio.id, approved: false })
-                }
-                disabled={isPending}
-              />
-              {audio.url && (
-              <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
-                <a href={audio.url} download>
-                  <Download className="h-3 w-3" /> Download
-                </a>
-              </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 text-xs"
-                onClick={() => onRegenerate({ assetKind: 'audio', assetId: audio.id })}
-                disabled={isPending}
-              >
-                <RefreshCw className="h-3 w-3" /> Regenerate
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-}
+// ── tab components ─────────────────────────────────────────────────────────
 
-function VideoTab({ assets }: { assets: VideoAsset[] }) {
+function VideoCreativesTab({ assets }: { assets: VideoAsset[] }) {
   if (assets.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        No videos generated yet. Video generation runs after creatives are created.
-      </p>
+      <div className="py-12 text-center space-y-2">
+        <Video className="h-10 w-10 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground">No video generated yet. Video runs after creatives are created.</p>
+      </div>
     )
   }
   return (
@@ -403,32 +156,22 @@ function VideoTab({ assets }: { assets: VideoAsset[] }) {
           <CardContent className="pt-4 space-y-2">
             {vid.url ? (
               /* eslint-disable-next-line jsx-a11y/media-has-caption */
-              <video
-                controls
-                src={vid.url}
-                className="w-full rounded"
-                style={{ aspectRatio: '16/9' }}
-              />
+              <video controls src={vid.url} className="w-full rounded" style={{ aspectRatio: '16/9' }} />
             ) : (
-              <div className="w-full rounded bg-muted flex items-center justify-center text-xs text-muted-foreground" style={{ aspectRatio: '16/9' }}>
-                {vid.status === 'pending' || vid.status === 'processing'
-                  ? 'Video generating…'
-                  : 'Video unavailable'}
+              <div className="w-full rounded bg-muted flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground" style={{ aspectRatio: '16/9' }}>
+                <Video className="h-6 w-6" />
+                {vid.status === 'manual_production_required' ? 'Manual production required' : 'Generating…'}
               </div>
             )}
             <div className="flex items-center justify-between">
-              <Badge variant="outline" className="text-xs capitalize">
-                {vid.format?.replace(/_/g, ' ') ?? 'social video'}
-              </Badge>
-              {vid.duration_seconds && (
+              <Badge variant="outline" className="text-xs">Reel / Short Ad</Badge>
+              {vid.duration_seconds != null && (
                 <span className="text-xs text-muted-foreground">{formatDuration(vid.duration_seconds)}</span>
               )}
             </div>
             {vid.url && (
               <Button asChild variant="ghost" size="sm" className="gap-1 text-xs px-2">
-                <a href={vid.url} download>
-                  <Download className="h-3 w-3" /> Download
-                </a>
+                <a href={vid.url} download><Download className="h-3 w-3" /> Download</a>
               </Button>
             )}
           </CardContent>
@@ -437,6 +180,155 @@ function VideoTab({ assets }: { assets: VideoAsset[] }) {
     </div>
   )
 }
+
+function OOHBillboardTab({
+  images, copy, onApprove, onRegenerate, isPending,
+}: {
+  images: ImageAsset[]
+  copy: CopyAsset | undefined
+  onApprove: (p: ApproveAssetPayload) => void
+  onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
+}) {
+  const billboard = images.find(i => i.format === 'ooh_billboard')
+  return (
+    <div className="space-y-6">
+      {billboard ? (
+        <ImageCard img={billboard} aspectStyle={{ aspectRatio: '16/5' }} label="OOH Billboard (1536×1024)"
+          onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} />
+      ) : (
+        <div className="rounded-lg bg-muted flex items-center justify-center text-sm text-muted-foreground" style={{ aspectRatio: '16/5' }}>
+          <Monitor className="h-6 w-6 mr-2" /> No billboard image generated
+        </div>
+      )}
+      {copy && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Billboard Copy</p>
+          <CopyBlock asset={copy} onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} assetKind="copy" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NewspaperInsertTab({
+  images, copy, onApprove, onRegenerate, isPending,
+}: {
+  images: ImageAsset[]
+  copy: CopyAsset | undefined
+  onApprove: (p: ApproveAssetPayload) => void
+  onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
+}) {
+  const insert = images.find(i => i.format === 'newspaper_insert')
+  return (
+    <div className="grid grid-cols-2 gap-6 items-start">
+      <div>
+        {insert ? (
+          <ImageCard img={insert} aspectStyle={{ aspectRatio: '3/4' }} label="Newspaper Insert (1024×1536)"
+            onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} />
+        ) : (
+          <div className="rounded-lg bg-muted flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground" style={{ aspectRatio: '3/4' }}>
+            <Newspaper className="h-8 w-8" /> No newspaper insert generated
+          </div>
+        )}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Print Ad Copy</p>
+        {copy ? (
+          <CopyBlock asset={copy} onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} assetKind="copy" />
+        ) : (
+          <p className="text-sm text-muted-foreground">No print copy generated.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LinkedInTab({
+  images, copy, audio, onApprove, onRegenerate, isPending,
+}: {
+  images: ImageAsset[]
+  copy: CopyAsset | undefined
+  audio: AudioAsset[]
+  onApprove: (p: ApproveAssetPayload) => void
+  onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
+}) {
+  const liImg = images.find(i => i.format === 'linkedin_post')
+  const voiceover = audio[0]
+  return (
+    <div className="grid grid-cols-2 gap-6 items-start">
+      <div>
+        {liImg ? (
+          <ImageCard img={liImg} aspectStyle={{ aspectRatio: '1/1' }} label="LinkedIn Post (1024×1024)"
+            onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} />
+        ) : (
+          <div className="rounded-lg bg-muted flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground" style={{ aspectRatio: '1/1' }}>
+            <Linkedin className="h-8 w-8" /> No LinkedIn image generated
+          </div>
+        )}
+      </div>
+      <div className="space-y-4">
+        {copy && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">LinkedIn Post Copy</p>
+            <CopyBlock asset={copy} onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} assetKind="copy" />
+          </div>
+        )}
+        {voiceover && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Voiceover</p>
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            {voiceover.url && <audio controls src={voiceover.url} className="w-full" />}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AdImagesTab({
+  images, copy, onApprove, onRegenerate, isPending,
+}: {
+  images: ImageAsset[]
+  copy: CopyAsset | undefined
+  onApprove: (p: ApproveAssetPayload) => void
+  onRegenerate: (p: RegeneratePayload) => void
+  isPending?: boolean
+}) {
+  const adFormats: Array<{ format: ImageAsset['format']; label: string; style: React.CSSProperties }> = [
+    { format: 'square',    label: 'Square · 1:1',    style: { aspectRatio: '1/1' } },
+    { format: 'landscape', label: 'Landscape · 16:9', style: { aspectRatio: '16/9' } },
+    { format: 'portrait',  label: 'Story · 9:16',    style: { aspectRatio: '9/16', maxHeight: '320px' } },
+  ]
+  const caption = copy
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        {adFormats.map(({ format, label, style }) => {
+          const img = images.find(i => i.format === format)
+          return img ? (
+            <ImageCard key={format} img={img} aspectStyle={style} label={label}
+              onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} />
+          ) : (
+            <div key={format} className="rounded-lg bg-muted flex flex-col items-center justify-center gap-2 text-xs text-muted-foreground" style={style}>
+              <Image className="h-6 w-6" /> {label}
+            </div>
+          )
+        })}
+      </div>
+      {caption && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Social Caption</p>
+          <CopyBlock asset={caption} onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} assetKind="copy" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── main page ──────────────────────────────────────────────────────────────
 
 export function CreativesPage() {
   const { id } = useParams<{ id: string }>()
@@ -458,7 +350,7 @@ export function CreativesPage() {
         <div>
           <h2 className="text-lg font-semibold">Creative Assets</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Generate copy, scripts, images, and audio assets for this campaign.
+            Generate video, billboard, newspaper insert, LinkedIn post, and ad images for this campaign.
           </p>
         </div>
         {generateCreatives.isError && (
@@ -477,62 +369,57 @@ export function CreativesPage() {
   }
 
   if (campaign?.status === 'creative_generating') {
-    return <p className="text-muted-foreground text-sm">Generating creatives… this may take a minute.</p>
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-sm py-8">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Generating all 5 creative types… this may take a few minutes.
+      </div>
+    )
   }
 
-  // Show assets for creative_ready AND any later stage (live, etc.)
   const CREATIVE_STAGES = ['creative_ready', 'live']
   if (!CREATIVE_STAGES.includes(status) || !creative_assets) {
     return <p className="text-muted-foreground text-sm">No assets available.</p>
   }
 
+  const { images = [], copy = [], audio = [], video = [] } = creative_assets
+
+  const getCopy = (type: string) => copy.find(c => c.asset_type === type)
+  const sharedProps = { onApprove: approveAsset.mutate, onRegenerate: regenerateAsset.mutate, isPending: approveAsset.isPending || regenerateAsset.isPending }
+
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">Creative Assets</h2>
-      <Tabs defaultValue="copy">
-        <TabsList>
-          <TabsTrigger value="copy">Copy</TabsTrigger>
-          <TabsTrigger value="scripts">Scripts</TabsTrigger>
-          <TabsTrigger value="images">Images</TabsTrigger>
-          <TabsTrigger value="video">Video</TabsTrigger>
-          <TabsTrigger value="audio">Audio</TabsTrigger>
+      <Tabs defaultValue="video">
+        <TabsList className="flex gap-1 flex-wrap h-auto">
+          <TabsTrigger value="video" className="gap-1.5"><Video className="h-3.5 w-3.5" /> Video</TabsTrigger>
+          <TabsTrigger value="ooh" className="gap-1.5"><Monitor className="h-3.5 w-3.5" /> OOH Billboard</TabsTrigger>
+          <TabsTrigger value="newspaper" className="gap-1.5"><Newspaper className="h-3.5 w-3.5" /> Newspaper Insert</TabsTrigger>
+          <TabsTrigger value="linkedin" className="gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn Post</TabsTrigger>
+          <TabsTrigger value="ads" className="gap-1.5"><Image className="h-3.5 w-3.5" /> Ad Images</TabsTrigger>
         </TabsList>
-        <TabsContent value="copy" className="mt-4">
-          <CopyTab
-            assets={creative_assets.copy}
-            onApprove={approveAsset.mutate}
-            onRegenerate={regenerateAsset.mutate}
-            isPending={approveAsset.isPending || regenerateAsset.isPending}
-          />
-        </TabsContent>
-        <TabsContent value="scripts" className="mt-4">
-          <ScriptsTab
-            assets={creative_assets.scripts}
-            onApprove={approveAsset.mutate}
-            onRegenerate={regenerateAsset.mutate}
-            isPending={approveAsset.isPending || regenerateAsset.isPending}
-          />
-        </TabsContent>
-        <TabsContent value="images" className="mt-4">
-          <ImagesTab
-            assets={creative_assets.images}
-            onApprove={approveAsset.mutate}
-            onRegenerate={regenerateAsset.mutate}
-            isPending={approveAsset.isPending || regenerateAsset.isPending}
-          />
-        </TabsContent>
+
         <TabsContent value="video" className="mt-4">
-          <VideoTab assets={creative_assets.video ?? []} />
+          <VideoCreativesTab assets={video} />
         </TabsContent>
-        <TabsContent value="audio" className="mt-4">
-          <AudioTab
-            assets={creative_assets.audio}
-            onApprove={approveAsset.mutate}
-            onRegenerate={regenerateAsset.mutate}
-            isPending={approveAsset.isPending || regenerateAsset.isPending}
-          />
+
+        <TabsContent value="ooh" className="mt-4">
+          <OOHBillboardTab images={images} copy={getCopy('ooh_billboard')} {...sharedProps} />
+        </TabsContent>
+
+        <TabsContent value="newspaper" className="mt-4">
+          <NewspaperInsertTab images={images} copy={getCopy('print_ad')} {...sharedProps} />
+        </TabsContent>
+
+        <TabsContent value="linkedin" className="mt-4">
+          <LinkedInTab images={images} copy={getCopy('linkedin_post')} audio={audio} {...sharedProps} />
+        </TabsContent>
+
+        <TabsContent value="ads" className="mt-4">
+          <AdImagesTab images={images} copy={getCopy('social_caption')} {...sharedProps} />
         </TabsContent>
       </Tabs>
+
       {status === 'creative_ready' && (
         <div className="mt-6">
           <Button onClick={() => navigate(`/campaigns/${id}/go-live`)}>

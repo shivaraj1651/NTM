@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 KLING_MODEL           = "kling-v1"
 MAX_RETRIES           = 2
-MAX_POLL_ATTEMPTS     = 20
+MAX_POLL_ATTEMPTS     = 36   # 36 × 10s = 6 minutes — Kling takes up to 5 min
 POLL_INTERVAL_SECONDS = 10
 STATUS_COMPLETED      = "completed"
 STATUS_MANUAL         = "manual_production_required"
@@ -111,8 +111,9 @@ class VideoGeneratorAgent:
 
         # Submit Kling job with retry
         job_id = ""
+        task_type = "text2video"
         try:
-            job_id = await self._submit_with_retry(brief, enriched_prompt)
+            job_id, task_type = await self._submit_with_retry(brief, enriched_prompt)
         except Exception as exc:
             logger.warning("Kling AI submit failed after retries: %s", exc)
             output = VideoGenerationOutput(
@@ -130,8 +131,8 @@ class VideoGeneratorAgent:
                 await self._persist(output, db_session)
             return output
 
-        # Poll for completion URL
-        completion_url = await self._poll_for_completion(job_id)
+        # Poll for completion URL using the correct endpoint for the task type
+        completion_url = await self._poll_for_completion(job_id, task_type)
         if completion_url is None:
             logger.warning("Kling AI poll timed out or failed for task %s", job_id)
             output = VideoGenerationOutput(
@@ -236,7 +237,8 @@ class VideoGeneratorAgent:
     # Kling API calls
     # ------------------------------------------------------------------
 
-    async def _submit_with_retry(self, brief: VideoGenerationBrief, prompt: str) -> str:
+    async def _submit_with_retry(self, brief: VideoGenerationBrief, prompt: str) -> tuple[str, str]:
+        """Returns (task_id, task_type)."""
         last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
@@ -257,10 +259,15 @@ class VideoGeneratorAgent:
                     await asyncio.sleep(wait)
         raise last_exc or RuntimeError("Kling AI submit failed after retries")
 
-    async def _poll_for_completion(self, task_id: str) -> str | None:
+    async def _poll_for_completion(self, task_id: str, task_type: str = "text2video") -> str | None:
         """Poll until SUCCEEDED (returns URL) or FAILED/timeout (returns None)."""
         for _ in range(MAX_POLL_ATTEMPTS):
-            result = await kling_ai.get_video_status(task_id)
+            try:
+                result = await kling_ai.get_video_status(task_id, task_type)
+            except Exception as exc:
+                logger.warning("Kling AI status check error: %s", exc)
+                await asyncio.sleep(POLL_INTERVAL_SECONDS)
+                continue
             status = result.get("status", "PENDING")
             if status == "SUCCEEDED":
                 return result.get("url")

@@ -84,6 +84,19 @@ ASSET_CONFIGS: dict[str, AssetConfig] = {
         content_fields=["key_message", "talking_points", "dos", "donts"],
         prompt_hint="Write a structured influencer brief with clear do/don't guidance.",
     ),
+    "linkedin_post": AssetConfig(
+        constraints=(
+            "Hook line ≤25 words (must stop the scroll). "
+            "Body: exactly 3 short paragraphs of 2-3 sentences each. "
+            "Hashtags: exactly 3 relevant professional hashtags. "
+            "CTA: one sentence call-to-action."
+        ),
+        content_fields=["hook", "body", "hashtags", "cta"],
+        prompt_hint=(
+            "Write a high-performing LinkedIn post for a B2B professional audience. "
+            "Lead with an insight or bold statement, build with value, close with action."
+        ),
+    ),
 }
 
 

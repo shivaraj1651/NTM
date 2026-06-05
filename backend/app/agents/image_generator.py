@@ -28,24 +28,27 @@ from backend.app.tools.serpapi import search_brand_info
 logger = logging.getLogger(__name__)
 
 HAIKU_MODEL  = "claude-haiku-4-5-20251001"
-DALLE_MODEL  = "dall-e-3"
+DALLE_MODEL  = "gpt-image-1"
 MAX_RETRIES  = 2
 
-# DALL-E 3 only supports these three sizes.
-# Map our format keys to the closest valid DALL-E 3 size.
+# gpt-image-1 supported sizes per format
 IMAGE_DIMENSIONS: dict[str, tuple[int, int]] = {
-    "square":        (1024, 1024),
-    "landscape":     (1792, 1024),
-    "portrait":      (1024, 1792),
-    "ooh_billboard": (1792, 1024),
+    "square":            (1024, 1024),
+    "landscape":         (1536, 1024),
+    "portrait":          (1024, 1536),
+    "ooh_billboard":     (1536, 1024),
+    "newspaper_insert":  (1024, 1536),
+    "linkedin_post":     (1024, 1024),
 }
 
-# DALL-E 3 size strings accepted by the API
+# gpt-image-1 size strings accepted by the API
 _DALLE_SIZE: dict[str, str] = {
-    "square":        "1024x1024",
-    "landscape":     "1792x1024",
-    "portrait":      "1024x1792",
-    "ooh_billboard": "1792x1024",
+    "square":            "1024x1024",
+    "landscape":         "1536x1024",
+    "portrait":          "1024x1536",
+    "ooh_billboard":     "1536x1024",
+    "newspaper_insert":  "1024x1536",
+    "linkedin_post":     "1024x1024",
 }
 
 
@@ -202,6 +205,26 @@ class ImageGeneratorAgent:
                 f"minimal copy, maximum visual impact, photorealistic billboard quality, "
                 f"city street perspective"
             )
+        elif brief.image_format == "newspaper_insert":
+            fmt_hint = (
+                f"full-page broadsheet newspaper print advertisement {brand_str}, "
+                f"portrait orientation, editorial newspaper layout, "
+                f"serif headline typography space at top: {effective_tagline or brief.master_message}, "
+                f"product hero image centre, CMYK-safe {palette_csv} color palette, "
+                f"white margins with thin border rule, subheadline and body copy zones, "
+                f"{brief.visual_direction}, premium print quality, "
+                f"ink-on-paper aesthetic, broadsheet editorial design"
+            )
+        elif brief.image_format == "linkedin_post":
+            fmt_hint = (
+                f"professional LinkedIn social post image {brand_str}, "
+                f"square format, corporate and aspirational, "
+                f"clean white or brand-color background, "
+                f"thought-leadership visual with bold typographic headline zone: {tagline_str}, "
+                f"{palette_csv} accent, minimal and polished, "
+                f"{brief.visual_direction}, "
+                f"B2B audience, premium professional aesthetic, LinkedIn feed optimised"
+            )
         elif brief.image_format == "landscape":
             fmt_hint = (
                 f"wide horizontal 16:9 digital display ad {brand_str}, "
@@ -298,8 +321,7 @@ class ImageGeneratorAgent:
                     model=DALLE_MODEL,
                     prompt=prompt,
                     size=size,
-                    quality="hd",
-                    response_format="b64_json",
+                    quality="medium",
                     n=1,
                 )
                 return base64.b64decode(response.data[0].b64_json)
@@ -307,9 +329,9 @@ class ImageGeneratorAgent:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(2 ** attempt)
-                    logger.warning("DALL-E 3 attempt %d failed: %s", attempt + 1, exc)
+                    logger.warning("gpt-image-1 attempt %d failed: %s", attempt + 1, exc)
 
-        raise RuntimeError(f"DALL-E 3 failed after {MAX_RETRIES} attempts: {last_exc}")
+        raise RuntimeError(f"gpt-image-1 failed after {MAX_RETRIES} attempts: {last_exc}")
 
     def _get_openai_client(self):
         if self._openai_client is not None:

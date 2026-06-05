@@ -19,9 +19,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 KLING_API_BASE = "https://api.klingai.com"
-KLING_TEXT2VIDEO_URL  = f"{KLING_API_BASE}/v1/videos/text2video"
-KLING_IMAGE2VIDEO_URL = f"{KLING_API_BASE}/v1/videos/image2video"
-KLING_TASK_URL        = f"{KLING_API_BASE}/v1/videos/text2video/{{task_id}}"
+KLING_TEXT2VIDEO_URL       = f"{KLING_API_BASE}/v1/videos/text2video"
+KLING_IMAGE2VIDEO_URL      = f"{KLING_API_BASE}/v1/videos/image2video"
+KLING_TEXT2VIDEO_TASK_URL  = f"{KLING_API_BASE}/v1/videos/text2video/{{task_id}}"
+KLING_IMAGE2VIDEO_TASK_URL = f"{KLING_API_BASE}/v1/videos/image2video/{{task_id}}"
 
 KLING_DEFAULT_MODEL   = "kling-v1"
 KLING_DEFAULT_MODE    = "std"   # "std" or "pro"
@@ -69,12 +70,17 @@ async def generate_video(
     model: str = KLING_DEFAULT_MODEL,
     negative_prompt: str = "",
     cfg_scale: float = 0.5,
-) -> str:
-    """Submit a Kling AI video generation task. Returns task_id."""
+) -> tuple[str, str]:
+    """Submit a Kling AI video generation task. Returns (task_id, task_type).
+
+    task_type is "image2video" when image_url is provided, else "text2video".
+    Pass task_type to get_video_status() to poll the correct endpoint.
+    """
     if not is_available():
         raise RuntimeError("KLING_AI_ACCESS_KEY / KLING_AI_SECRET_KEY not set")
 
     if image_url:
+        task_type = "image2video"
         url = KLING_IMAGE2VIDEO_URL
         payload: dict = {
             "model_name": model,
@@ -85,6 +91,7 @@ async def generate_video(
             "duration": str(duration),
         }
     else:
+        task_type = "text2video"
         url = KLING_TEXT2VIDEO_URL
         payload = {
             "model_name": model,
@@ -109,16 +116,20 @@ async def generate_video(
     if not task_id:
         raise RuntimeError(f"Kling AI response missing task_id: {data}")
 
-    return task_id
+    return task_id, task_type
 
 
-async def get_video_status(task_id: str) -> dict:
+async def get_video_status(task_id: str, task_type: str = "text2video") -> dict:
     """Poll Kling AI for task status. Returns {"status": ..., "url": ...}.
 
     Status values: submitted | processing | succeed | failed
     Normalized to SUCCEEDED / FAILED / PENDING for compatibility with agent.
+    task_type must match the submission type ("text2video" or "image2video").
     """
-    url = KLING_TASK_URL.format(task_id=task_id)
+    if task_type == "image2video":
+        url = KLING_IMAGE2VIDEO_TASK_URL.format(task_id=task_id)
+    else:
+        url = KLING_TEXT2VIDEO_TASK_URL.format(task_id=task_id)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(url, headers=_auth_headers())

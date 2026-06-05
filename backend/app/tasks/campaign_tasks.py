@@ -222,6 +222,9 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
                      mandate_doc.get("countries") or
                      mandate_doc.get("geography", {}).get("country_list") or
                      mandate_doc.get("geography", {}).get("markets") or [])
+        # Default to Global so the activation loop always has at least one market
+        if not countries:
+            countries = ["Global"]
         mandate_geography = {
             "regions":      mandate_doc.get("geography", {}).get("regions") or
                             ([mandate_doc["region"]] if mandate_doc.get("region") else []),
@@ -253,6 +256,10 @@ async def _run_media_planning(campaign_id: str, tenant_id: str) -> None:
             else (a.dict() if hasattr(a, "dict") else dict(a))
             for a in raw_activations
         ]
+        if not activations_serialized:
+            logger.warning("[run_media_planning] agent returned 0 activations for %s — retrying", campaign_id)
+            raise RuntimeError("media_planner_agent returned 0 activations")
+
         await db["campaigns"].update_one(
             {"_id": campaign_id, "tenant_id": tenant_id},
             {"$set": {
@@ -302,7 +309,13 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
         images = creative_assets.get("images") or []
 
         script_text = scripts[0].get("content", "") if scripts else ""
-        reference_image_url = images[0].get("url") if images else None
+        # Only pass a public image URL — Kling's servers can't reach localhost/private URLs
+        _raw_img_url = images[0].get("url") if images else None
+        reference_image_url = (
+            _raw_img_url
+            if _raw_img_url and not any(h in _raw_img_url for h in ("localhost", "127.0.0.1", "ntm-minio"))
+            else None
+        )
 
         # Resolve approved concept for full context
         concepts = campaign_doc.get("concepts", [])
@@ -350,7 +363,7 @@ async def _run_video_generation(campaign_id: str, tenant_id: str) -> None:
                 "marked manual_production_required"
             )
 
-        output = await agent.generate(brief, storage_client=None, db_session=None)
+        output = await agent.generate(brief, storage_client=_MinioStorageClient(), db_session=None)
 
         video_entry = {
             "id": output.generation_id,
@@ -740,7 +753,7 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str, concept_ove
                 # OOH billboard headline: concept tagline is the pre-defined catchy line
                 ooh_headline = tagline or master_message
 
-                img_formats = ("square", "landscape", "portrait", "ooh_billboard")
+                img_formats = ("square", "landscape", "portrait", "ooh_billboard", "newspaper_insert", "linkedin_post")
                 # Use real brand tagline from SerpAPI if concept doesn't specify one
                 effective_tagline = tagline or (brand_info.get("taglines") or [""])[0]
                 concept_tone_str = (
@@ -798,6 +811,8 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str, concept_ove
                                 "landscape": "Landscape Banner (16:9)",
                                 "portrait": "Portrait Story (9:16)",
                                 "ooh_billboard": "OOH Billboard",
+                                "newspaper_insert": "Newspaper Insert",
+                                "linkedin_post": "LinkedIn Post",
                             }
                             for img in image_assets:
                                 row = GeneratedCreative(
@@ -916,6 +931,57 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str, concept_ove
                     "[run_creative_generation] copy/script GeneratedCreative persist failed: %s", _cp_persist_exc
                 )
 
+            # Step 3.5: Generate audio voiceovers via ElevenLabs (one per script)
+            audio_assets: list[dict] = []
+            try:
+                from backend.app.agents.audio_generator import AudioGenerationBrief, AudioGeneratorAgent
+
+                # Derive voice_style from tone adjectives
+                _authoritative = {"bold", "authoritative", "professional", "serious", "powerful"}
+                _youthful = {"youthful", "energetic", "fun", "playful", "vibrant", "dynamic"}
+                tone_lower = {t.lower() for t in tone_adjectives}
+                if tone_lower & _authoritative:
+                    voice_style = "authoritative"
+                elif tone_lower & _youthful:
+                    voice_style = "youthful"
+                else:
+                    voice_style = "warm"
+
+                audio_agent = AudioGeneratorAgent()
+                audio_briefs = [
+                    AudioGenerationBrief(
+                        campaign_id=campaign_id,
+                        tenant_id=tenant_id,
+                        script_text=s.get("content", "")[:1500],
+                        voice_style=voice_style,
+                        script_format=s.get("format", "tvc_vo"),
+                        campaign_theme=campaign_theme,
+                    )
+                    for s in script_assets
+                    if s.get("content")
+                ]
+                if audio_briefs:
+                    audio_results = await asyncio.gather(
+                        *[audio_agent.generate(b, storage_client=_MinioStorageClient()) for b in audio_briefs],
+                        return_exceptions=True,
+                    )
+                    for brief_item, res in zip(audio_briefs, audio_results, strict=False):
+                        if isinstance(res, Exception):
+                            logger.error("[run_creative_generation] audio failed: %s", res)
+                        else:
+                            audio_assets.append({
+                                "id": res.generation_id,
+                                "format": brief_item.script_format,
+                                "url": res.asset_url,
+                                "voice_style": voice_style,
+                                "duration_seconds": res.duration_seconds,
+                                "approved": None,
+                                "revision_count": 0,
+                            })
+                    logger.info("[run_creative_generation] audio generated: %d", len(audio_assets))
+            except Exception as _aud_exc:
+                logger.error("[run_creative_generation] audio generation block failed: %s", _aud_exc)
+
             await db["campaigns"].update_one(
                 {"_id": campaign_id, "tenant_id": tenant_id},
                 {"$set": {
@@ -926,14 +992,14 @@ async def _run_creative_generation(campaign_id: str, tenant_id: str, concept_ove
                         "copy": copy_assets,
                         "scripts": script_assets,
                         "images": image_assets,
-                        "audio": [],
+                        "audio": audio_assets,
                     },
                     "updated_at": datetime.now(UTC).isoformat(),
                 }},
             )
             logger.info(
-                "[run_creative_generation] complete for %s copy=%d scripts=%d images=%d",
-                campaign_id, len(copy_assets), len(script_assets), len(image_assets),
+                "[run_creative_generation] complete for %s copy=%d scripts=%d images=%d audio=%d",
+                campaign_id, len(copy_assets), len(script_assets), len(image_assets), len(audio_assets),
             )
             # Step 4: Chain Runway video generation using first image as reference
             try:

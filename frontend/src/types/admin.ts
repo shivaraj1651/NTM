@@ -327,6 +327,7 @@ export type CopyAssetType =
   | 'email'
   | 'ooh_billboard'
   | 'influencer_brief'
+  | 'linkedin_post'
 
 export interface CopyVariant {
   // Real backend (AGT-07) shape
@@ -366,7 +367,7 @@ export interface ScriptAsset {
 
 export interface ImageAsset {
   id: string
-  format: 'square' | 'landscape' | 'portrait' | 'ooh_billboard'
+  format: 'square' | 'landscape' | 'portrait' | 'ooh_billboard' | 'newspaper_insert' | 'linkedin_post'
   url: string
   approved: boolean | null
   revision_count: number
