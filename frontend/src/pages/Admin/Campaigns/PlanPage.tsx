@@ -18,22 +18,18 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { useCampaign, useActivationPlan, useApproveBudget } from '@/hooks/useCampaigns'
+import { useCampaign, useApproveBudget } from '@/hooks/useCampaigns'
 import type { Activation } from '@/types/admin'
 
 export function PlanPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: campaign } = useCampaign(id!)
-  const { data: planResult } = useActivationPlan(
-    id!,
-    campaign?.status === 'confirmed'
-  )
   const approveBudget = useApproveBudget(id!)
   const [expanded, setExpanded] = useState<ExpandedState>({})
 
   const isGenerating = campaign?.status === 'confirmed'
-  const activations = (planResult ?? campaign)?.activation_plan ?? []
+  const activations = campaign?.activation_plan ?? []
 
   const handleApprove = async () => {
     await approveBudget.mutateAsync()

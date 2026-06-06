@@ -5,16 +5,12 @@ Uses LLM-driven intelligence for context-aware planning, then applies a top-down
 budget allocation framework: phases → channels → geographies.
 """
 
-import json
 import logging
 from datetime import date, timedelta
 from typing import Any
 
-from anthropic import AsyncAnthropic
 from pydantic import ValidationError
 
-from backend.app.agents.json_parsing import extract_json
-from backend.app.external.stubs import stub_enabled
 from backend.app.schemas.media_plan import Activation, AudienceSegmentEnum, ChannelEnum, PhaseEnum
 
 logger = logging.getLogger(__name__)
@@ -22,128 +18,68 @@ logger = logging.getLogger(__name__)
 
 # ── LLM Intelligence Layer ────────────────────────────────────────────────────
 
-async def _generate_plan_intelligence(
+def _generate_plan_intelligence(
     campaign_concept: dict[str, Any],
     budget_envelope: dict[str, Any],
     mandate_geography: dict[str, Any],
     mandate_context: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Call Claude to produce context-aware planning parameters based on the mandate.
+    Return objective-aware planning parameters using deterministic logic.
 
-    Returns phase split ratios, per-market audience sizes, and channel-specific
-    format/placement/segment guidance derived from the actual mandate data.
-    Falls back to sensible defaults if the LLM call fails.
+    Uses pre-calibrated phase splits, CPM-based audience estimates, and
+    channel-specific format/placement defaults. No LLM call — plan generation
+    is instant and fully deterministic.
     """
-    client = AsyncAnthropic()
+    objective = mandate_context.get("objective", "awareness").lower()
+    markets   = (mandate_geography.get("markets") or
+                 mandate_geography.get("country_list") or
+                 mandate_geography.get("countries") or [])
+    channels  = [c.get("channel", "") for c in campaign_concept.get("channel_mix", [])]
 
-    objective    = mandate_context.get("objective", "awareness")
-    description  = mandate_context.get("description", "")
-    audience     = mandate_context.get("target_audience", "general consumers")
-    total_budget = budget_envelope.get("total_budget", 100000)
-    currency     = budget_envelope.get("currency", "USD")
-    # geography: real mandate uses country_list / countries; legacy uses markets
-    markets      = (mandate_geography.get("markets") or
-                    mandate_geography.get("country_list") or
-                    mandate_geography.get("countries") or [])
-    channels     = [c.get("channel", "") for c in campaign_concept.get("channel_mix", [])]
-    # tone_board: real shape is {adjectives:[...], visual_direction:"..."}; legacy has {tone:"..."}
-    _tone_board  = campaign_concept.get("tone_board", {})
-    tone         = (_tone_board.get("tone") or
-                    ", ".join(_tone_board.get("adjectives", [])) or
-                    "professional")
-    message_arch = campaign_concept.get("message_architecture", {})
+    phase_splits = {
+        "awareness":     {"Awareness": 0.55, "Engagement": 0.35, "Conversion": 0.10},
+        "consideration": {"Awareness": 0.35, "Engagement": 0.45, "Conversion": 0.20},
+        "conversion":    {"Awareness": 0.20, "Engagement": 0.35, "Conversion": 0.45},
+        "loyalty":       {"Awareness": 0.20, "Engagement": 0.50, "Conversion": 0.30},
+        "engagement":    {"Awareness": 0.30, "Engagement": 0.55, "Conversion": 0.15},
+    }
 
-    prompt = f"""You are a senior media strategist. Analyse the following campaign brief and return
-a JSON planning guide. Be specific — your output drives the actual media plan.
+    channel_formats: dict[str, dict[str, str]] = {
+        "TikTok":     {"format": "15-second vertical video", "placement": "For You feed"},
+        "Instagram":  {"format": "Story + Reel carousel", "placement": "Stories & Explore"},
+        "Facebook":   {"format": "Single-image or video ad", "placement": "News Feed"},
+        "YouTube":    {"format": "15-second skippable in-stream", "placement": "Pre-roll"},
+        "Google Ads": {"format": "Responsive search ad", "placement": "Search & Display"},
+        "LinkedIn":   {"format": "Sponsored content post", "placement": "LinkedIn Feed"},
+        "Twitter":    {"format": "Promoted tweet with image", "placement": "Timeline"},
+        "Snapchat":   {"format": "Full-screen Snap ad", "placement": "Between Stories"},
+        "Email":      {"format": "HTML newsletter", "placement": "Inbox"},
+        "TV":         {"format": "30-second TVC", "placement": "Prime time"},
+        "Radio":      {"format": "30-second audio spot", "placement": "Drive time"},
+        "Print":      {"format": "Full-page display ad", "placement": "Magazine/newspaper"},
+        "OOH":        {"format": "Static billboard", "placement": "High-traffic outdoor"},
+        "WhatsApp":   {"format": "Click-to-chat ad", "placement": "Status"},
+        "Influencer": {"format": "Sponsored post/story", "placement": "Creator profile"},
+    }
 
-CAMPAIGN BRIEF
-  Objective : {objective}
-  Description: {description}
-  Target audience: {audience}
-  Budget: {currency} {total_budget:,.0f}
-  Markets: {', '.join(markets) if markets else 'global'}
-  Channels: {', '.join(channels) if channels else 'TBD'}
-  Tone: {tone}
-  Message architecture: {json.dumps(message_arch)}
-
-Return ONLY valid JSON (no markdown, no code fences) with this exact shape:
-{{
-  "phase_split": {{
-    "Awareness": <0-1 float>,
-    "Engagement": <0-1 float>,
-    "Conversion": <0-1 float>
-  }},
-  "audience_size_per_market": {{
-    "<market_name>": <integer>
-  }},
-  "channel_context": {{
-    "<channel_name>": {{
-      "format": "<specific creative format for this channel & objective>",
-      "placement": "<specific placement/inventory type>",
-      "audience_segment": "Primary" | "Secondary" | "Tertiary",
-      "rationale": "<1-sentence strategic rationale>"
-    }}
-  }},
-  "strategic_rationale": "<2-3 sentence explanation of the plan philosophy>"
-}}
-
-Rules:
-- phase_split values must sum to 1.0
-- Tune phase_split to the objective: conversion campaigns lean Conversion-heavy;
-  awareness campaigns lean Awareness-heavy
-- audience_size_per_market must include an entry for every market listed
-- channel_context must include an entry for every channel listed
-- Be precise: e.g., format "15-second skippable in-stream" not "Standard format"
-"""
-
-    # NTM_STUB_EXTERNAL: stubbed external call
-    if stub_enabled():
-        logger.info("Media planner LLM stubbed (NTM_STUB_EXTERNAL)")
-        return {
-            "phase_split": {"Awareness": 0.40, "Engagement": 0.40, "Conversion": 0.20},
-            "audience_size_per_market": {m: 2_000_000 for m in markets},
-            "channel_context": {
-                ch: {
-                    "format": f"{ch} stub format",
-                    "placement": f"{ch} stub placement",
-                    "audience_segment": "Primary",
-                    "rationale": "Stub allocation (NTM_STUB_EXTERNAL).",
-                }
-                for ch in channels
-            },
-            "strategic_rationale": "Stub plan intelligence (NTM_STUB_EXTERNAL).",
-        }
-
-    try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.content[0].text.strip()
-        intelligence = extract_json(raw)
-        logger.info("Media planner LLM intelligence generated successfully")
-        return intelligence
-    except Exception as e:
-        logger.warning(f"LLM intelligence generation failed ({e}), using defaults")
-        # Objective-aware fallback
-        phase_splits = {
-            "awareness":     {"Awareness": 0.55, "Engagement": 0.35, "Conversion": 0.10},
-            "consideration": {"Awareness": 0.35, "Engagement": 0.45, "Conversion": 0.20},
-            "conversion":    {"Awareness": 0.20, "Engagement": 0.35, "Conversion": 0.45},
-            "loyalty":       {"Awareness": 0.20, "Engagement": 0.50, "Conversion": 0.30},
-            "engagement":    {"Awareness": 0.30, "Engagement": 0.55, "Conversion": 0.15},
-        }
-        return {
-            "phase_split": phase_splits.get(objective, {"Awareness": 0.40, "Engagement": 0.40, "Conversion": 0.20}),
-            "audience_size_per_market": {m: 2_000_000 for m in markets},
-            "channel_context": {
-                ch: {"format": f"{ch} campaign", "placement": f"{ch} feed", "audience_segment": "Primary", "rationale": "Default allocation"}
-                for ch in channels
-            },
-            "strategic_rationale": f"Standard {objective} campaign plan.",
-        }
+    return {
+        "phase_split": phase_splits.get(objective, {"Awareness": 0.40, "Engagement": 0.40, "Conversion": 0.20}),
+        "audience_size_per_market": {m: 2_000_000 for m in markets},
+        "channel_context": {
+            ch: {
+                "format":           channel_formats.get(ch, {}).get("format", f"{ch} ad"),
+                "placement":        channel_formats.get(ch, {}).get("placement", f"{ch} feed"),
+                "audience_segment": "Primary",
+                "rationale":        f"Standard {objective} placement on {ch}.",
+            }
+            for ch in channels
+        },
+        "strategic_rationale": (
+            f"Objective-calibrated {objective} plan across {len(channels)} channel(s) "
+            f"in {len(markets)} market(s)."
+        ),
+    }
 
 
 # ── Budget Allocator ──────────────────────────────────────────────────────────
@@ -333,9 +269,9 @@ async def media_planner_agent(
     constraint_handler = OfflineConstraintHandler()
     validator        = ActivationValidator()
 
-    # ── Step 0: LLM intelligence ──────────────────────────────────────────────
+    # ── Step 0: planning intelligence (deterministic, instant) ───────────────
     ctx = mandate_context or {}
-    intelligence = await _generate_plan_intelligence(
+    intelligence = _generate_plan_intelligence(
         campaign_concept, budget_envelope, mandate_geography, ctx
     )
 
