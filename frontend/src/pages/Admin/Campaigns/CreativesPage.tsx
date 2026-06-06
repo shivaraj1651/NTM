@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Check, X, Copy, Download, RefreshCw, Loader2, Newspaper, Linkedin, Image, Video, Monitor } from 'lucide-react'
+import { Check, X, Copy, Download, RefreshCw, Loader2, Newspaper, Link2, Image, Video, Monitor } from 'lucide-react'
 import {
   useCampaign,
   useGenerateCreatives,
@@ -265,7 +265,7 @@ function LinkedInTab({
             onApprove={onApprove} onRegenerate={onRegenerate} isPending={isPending} />
         ) : (
           <div className="rounded-lg bg-muted flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground" style={{ aspectRatio: '1/1' }}>
-            <Linkedin className="h-8 w-8" /> No LinkedIn image generated
+            <Link2 className="h-8 w-8" /> No LinkedIn image generated
           </div>
         )}
       </div>
@@ -395,7 +395,7 @@ export function CreativesPage() {
           <TabsTrigger value="video" className="gap-1.5"><Video className="h-3.5 w-3.5" /> Video</TabsTrigger>
           <TabsTrigger value="ooh" className="gap-1.5"><Monitor className="h-3.5 w-3.5" /> OOH Billboard</TabsTrigger>
           <TabsTrigger value="newspaper" className="gap-1.5"><Newspaper className="h-3.5 w-3.5" /> Newspaper Insert</TabsTrigger>
-          <TabsTrigger value="linkedin" className="gap-1.5"><Linkedin className="h-3.5 w-3.5" /> LinkedIn Post</TabsTrigger>
+          <TabsTrigger value="linkedin" className="gap-1.5"><Link2 className="h-3.5 w-3.5" /> LinkedIn Post</TabsTrigger>
           <TabsTrigger value="ads" className="gap-1.5"><Image className="h-3.5 w-3.5" /> Ad Images</TabsTrigger>
         </TabsList>
 

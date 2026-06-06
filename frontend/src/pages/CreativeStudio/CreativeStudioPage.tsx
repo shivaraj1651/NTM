@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { useCreatives, useRegenerateCreative, useDownloadCreative, type Creative } from '@/hooks/useCreatives'
-import { Image, Video, FileText, AlignLeft, ExternalLink, Tag, Newspaper, Linkedin, Monitor, RefreshCw, Download } from 'lucide-react'
+import { Image, Video, FileText, AlignLeft, ExternalLink, Tag, Newspaper, Link2, Monitor, RefreshCw, Download } from 'lucide-react'
 
 // ── constants ──────────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ const COPY_ICON: Record<string, React.ElementType> = {
   print_ad:         Newspaper,
   email:            FileText,
   influencer_brief: FileText,
-  linkedin_post:    Linkedin,
+  linkedin_post:    Link2,
 }
 
 // Maps copy asset_type → which creative tab it belongs to
@@ -334,7 +334,7 @@ export function CreativeStudioPage() {
       </Section>
 
       {/* 4 — LinkedIn Post */}
-      <Section icon={Linkedin} title="LinkedIn Post / Content" count={linkedinImages.length + linkedinCopy.length}>
+      <Section icon={Link2} title="LinkedIn Post / Content" count={linkedinImages.length + linkedinCopy.length}>
         {linkedinImages.length > 0 && (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {linkedinImages.map(a => <ImageCard key={a.id} asset={a} />)}
