@@ -45,11 +45,13 @@ function aggregateChannels(summaries: AnalyticsSummary[]) {
 
 export function AnalyticsPage() {
   const { user } = useAuthStore()
-  const isAdmin = !!user
+  const isPlatformAdmin = user?.role === 'platform_admin'
   const navigate = useNavigate()
 
   const { data: tenants = [] } = useTenants()
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
+    isPlatformAdmin ? null : (user?.tenant_id ?? null)
+  )
   const [dateRange, setDateRange] = useState<7 | 30>(7)
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
   const [replanStates, setReplanStates] = useState<Record<string, ReplanState>>({})
@@ -148,10 +150,10 @@ export function AnalyticsPage() {
     <div>
       <PageHeader title="Analytics" description="Campaign performance and KPI tracking." />
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        {isAdmin && (
+      <div className="flex gap-4 mb-6 flex-wrap items-center">
+        {isPlatformAdmin && (
           <div className="w-56">
-            <Select onValueChange={setSelectedTenantId}>
+            <Select value={selectedTenantId ?? ''} onValueChange={setSelectedTenantId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select tenant…" />
               </SelectTrigger>
@@ -183,7 +185,7 @@ export function AnalyticsPage() {
         </div>
       </div>
 
-      {!selectedTenantId ? (
+      {isPlatformAdmin && !selectedTenantId ? (
         <p className="text-muted-foreground text-sm">Select a tenant to view analytics.</p>
       ) : summaryLoading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>

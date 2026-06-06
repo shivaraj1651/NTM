@@ -60,7 +60,7 @@ function KpiGauge({ kpi }: { kpi: KpiResult }) {
 
 export function KPIDashboardPage() {
   const { user } = useAuthStore()
-  const isAdmin = !!user
+  const isPlatformAdmin = user?.role === 'platform_admin'
 
   const { data: tenants = [] } = useTenants()
   const [tenantId, setTenantId] = useState<string | null>(user?.tenant_id ?? null)
@@ -100,9 +100,9 @@ export function KPIDashboardPage() {
       <PageHeader title="KPI / KRA Dashboard" description="Campaign performance against targets." />
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        {isAdmin && (
-          <Select onValueChange={(v) => { setTenantId(v); setMandateId(null) }}>
+      <div className="flex gap-3 flex-wrap items-center">
+        {isPlatformAdmin ? (
+          <Select value={tenantId ?? ''} onValueChange={(v) => { setTenantId(v); setMandateId(null) }}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select tenant…" />
             </SelectTrigger>
@@ -112,6 +112,8 @@ export function KPIDashboardPage() {
               ))}
             </SelectContent>
           </Select>
+        ) : (
+          <span className="text-sm text-muted-foreground px-1">Your tenant</span>
         )}
         {tenantId && (
           <Select onValueChange={(v) => setMandateId(v === '__all__' ? null : v)}>
