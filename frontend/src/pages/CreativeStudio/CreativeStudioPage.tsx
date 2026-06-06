@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { useCreatives, type Creative } from '@/hooks/useCreatives'
-import { Image, Video, FileText, AlignLeft, ExternalLink, Tag, Newspaper, Linkedin, Monitor } from 'lucide-react'
+import { useCreatives, useRegenerateCreative, useDownloadCreative, type Creative } from '@/hooks/useCreatives'
+import { Image, Video, FileText, AlignLeft, ExternalLink, Tag, Newspaper, Linkedin, Monitor, RefreshCw, Download } from 'lucide-react'
 
 // ── constants ──────────────────────────────────────────────────────────────
 
@@ -75,6 +76,20 @@ function ImageCard({ asset }: { asset: Creative }) {
   const tagline = content?.['tagline'] as string | undefined
   const theme = content?.['campaign_theme'] as string | undefined
 
+  const regenerate = useRegenerateCreative()
+  const download = useDownloadCreative()
+
+  function handleRegenerate(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    regenerate.mutate({ campaignId: asset.campaign_id, assetKind: asset.creative_type ?? 'image', assetId: asset.id })
+  }
+
+  function handleDownload(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    if (url) { window.open(url, '_blank') }
+    else { download.mutate(asset.id, { onSuccess: (d) => window.open(d.asset_url, '_blank') }) }
+  }
+
   return (
     <Link to={`/creative-studio/${asset.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border border-border">
@@ -96,10 +111,22 @@ function ImageCard({ asset }: { asset: Creative }) {
             <ExternalLink className="h-4 w-4 text-white ml-auto" />
           </div>
         </div>
-        <CardFooter className="py-2 px-3 flex flex-col items-start gap-0.5">
-          {tagline && <p className="text-sm font-semibold text-foreground italic truncate w-full">&ldquo;{tagline}&rdquo;</p>}
-          {theme && <p className="text-xs text-muted-foreground truncate w-full">{theme}</p>}
-          {!tagline && !theme && <p className="text-sm font-medium truncate w-full">{label}</p>}
+        <CardFooter className="py-2 px-3 flex items-center justify-between gap-1">
+          <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1">
+            {tagline && <p className="text-sm font-semibold text-foreground italic truncate w-full">&ldquo;{tagline}&rdquo;</p>}
+            {theme && <p className="text-xs text-muted-foreground truncate w-full">{theme}</p>}
+            {!tagline && !theme && <p className="text-sm font-medium truncate w-full">{label}</p>}
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate"
+              disabled={regenerate.isPending} onClick={handleRegenerate}>
+              <RefreshCw className={`h-3.5 w-3.5 ${regenerate.isPending ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" title="Download"
+              disabled={download.isPending} onClick={handleDownload}>
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </Link>
@@ -114,6 +141,13 @@ function CopyCard({ asset }: { asset: Creative }) {
   const preview = content?.['preview'] as string | undefined
   const Icon = COPY_ICON[atype] ?? AlignLeft
 
+  const regenerate = useRegenerateCreative()
+
+  function handleRegenerate(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    regenerate.mutate({ campaignId: asset.campaign_id, assetKind: asset.creative_type ?? 'copy', assetId: asset.id })
+  }
+
   return (
     <Link to={`/creative-studio/${asset.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -125,7 +159,13 @@ function CopyCard({ asset }: { asset: Creative }) {
               </div>
               <p className="text-sm font-semibold truncate">{label}</p>
             </div>
-            <BadgeStatus asset={asset} />
+            <div className="flex items-center gap-1 shrink-0">
+              <BadgeStatus asset={asset} />
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate"
+                disabled={regenerate.isPending} onClick={handleRegenerate}>
+                <RefreshCw className={`h-3.5 w-3.5 ${regenerate.isPending ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
           {tagline && <p className="text-xs font-medium text-primary italic line-clamp-1">&ldquo;{tagline}&rdquo;</p>}
           {preview && <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{preview}</p>}
@@ -139,6 +179,20 @@ function VideoCard({ asset }: { asset: Creative }) {
   const content = asset.content as Record<string, unknown> | undefined
   const url = asset.asset_url ?? content?.['url'] as string | undefined
   const status = (content?.['status'] as string | undefined) ?? asset.status
+
+  const regenerate = useRegenerateCreative()
+  const download = useDownloadCreative()
+
+  function handleRegenerate(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    regenerate.mutate({ campaignId: asset.campaign_id, assetKind: asset.creative_type ?? 'video', assetId: asset.id })
+  }
+
+  function handleDownload(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    if (url) { window.open(url, '_blank') }
+    else { download.mutate(asset.id, { onSuccess: (d) => window.open(d.asset_url, '_blank') }) }
+  }
 
   return (
     <Link to={`/creative-studio/${asset.id}`}>
@@ -160,8 +214,18 @@ function VideoCard({ asset }: { asset: Creative }) {
           </div>
           <div className="absolute top-2 right-2"><BadgeStatus asset={asset} /></div>
         </div>
-        <CardFooter className="py-2 px-3">
+        <CardFooter className="py-2 px-3 flex items-center justify-between">
           <p className="text-sm font-medium">Video Ad</p>
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" className="h-7 w-7" title="Regenerate"
+              disabled={regenerate.isPending} onClick={handleRegenerate}>
+              <RefreshCw className={`h-3.5 w-3.5 ${regenerate.isPending ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" title="Download"
+              disabled={download.isPending} onClick={handleDownload}>
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </Link>

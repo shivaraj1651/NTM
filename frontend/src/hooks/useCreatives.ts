@@ -83,3 +83,35 @@ export function useUpdateCreativeStatus() {
     },
   })
 }
+
+export function useRegenerateCreative() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      assetKind,
+      assetId,
+    }: {
+      campaignId: string
+      assetKind: string
+      assetId: string
+    }) => {
+      const { data } = await apiClient.post(
+        `/campaigns/${campaignId}/creatives/${assetKind}/${assetId}/regenerate`
+      )
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['creatives'] })
+    },
+  })
+}
+
+export function useDownloadCreative() {
+  return useMutation({
+    mutationFn: async (creativeId: string) => {
+      const { data } = await apiClient.get(`/creatives/${creativeId}/download`)
+      return data as { id: string; asset_url: string; creative_type: string; platform: string }
+    },
+  })
+}
