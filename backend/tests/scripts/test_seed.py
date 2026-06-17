@@ -1,7 +1,12 @@
 import pytest
 import pytest_asyncio
 from sqlalchemy import func, select
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Some models use PostgreSQL JSONB; treat it as TEXT when running against SQLite.
+if not hasattr(SQLiteTypeCompiler, "visit_JSONB"):
+    SQLiteTypeCompiler.visit_JSONB = lambda self, type_, **kw: "TEXT"
 
 import backend.app.core.models  # noqa: F401  (registers User/Role/Tenant on Base.metadata)
 from backend.app.core.models import Role, Tenant, User
