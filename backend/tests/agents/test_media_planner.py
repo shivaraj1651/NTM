@@ -335,7 +335,10 @@ async def test_media_planner_uses_real_concept_and_geography_shapes():
 
     import os
     os.environ["NTM_STUB_EXTERNAL"] = "1"  # stub the LLM so the test is offline
-    result = await media_planner_agent(real_concept, budget, real_geography, mandate_ctx)
+    try:
+        result = await media_planner_agent(real_concept, budget, real_geography, mandate_ctx)
+    finally:
+        os.environ.pop("NTM_STUB_EXTERNAL", None)
 
     assert isinstance(result, dict), "should return a dict"
     activations = result.get("activations", [])
