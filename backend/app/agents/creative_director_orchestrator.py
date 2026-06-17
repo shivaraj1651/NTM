@@ -27,6 +27,7 @@ from backend.app.agents.creative_director.models import (
 )
 from backend.app.agents.creative_director.refiner import Refiner
 from backend.app.agents.creative_director.validator import Validator
+from backend.app.external.stubs import stub_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,29 @@ class CreativeDirectorAgent:
         Raises:
             ValueError: If input validation fails
         """
+        if stub_enabled():
+            logger.info(
+                "CreativeDirectorAgent stubbed (NTM_STUB_EXTERNAL) campaign_id=%s",
+                campaign_input.campaign_id,
+            )
+            return CreativeDirectorOutput(
+                campaign_id=campaign_input.campaign_id,
+                tenant_id=campaign_input.tenant_id,
+                platforms={},
+                metadata=GenerationMetadata(
+                    core_concept=CoreConcept(
+                        message="Stub message",
+                        visual_direction="Stub visual direction",
+                        tone="stub",
+                    ),
+                    validation_status="passed",
+                    validation_summary="Stubbed — NTM_STUB_EXTERNAL=1",
+                    generation_time_ms=0.0,
+                    model_used="stub",
+                ),
+                error=None,
+            )
+
         start_time = time.time()
         errors = []
         platforms_dict: dict[str, PlatformCreatives] = {}
@@ -159,7 +183,7 @@ class CreativeDirectorAgent:
                     model_used=self.generator.model,
                     errors=errors
                 ),
-                error={"errors": errors} if errors else None
+                error={"errors": "; ".join(errors)} if errors else None
             )
 
             logger.info(f"Generation complete in {elapsed_ms:.0f}ms")
@@ -185,7 +209,7 @@ class CreativeDirectorAgent:
                     model_used=self.generator.model,
                     errors=[str(e)] + errors
                 ),
-                error={"error": str(e), "errors": errors}
+                error={"error": str(e), "errors": "; ".join(errors)}
             )
 
     async def _generate_platform_creatives(

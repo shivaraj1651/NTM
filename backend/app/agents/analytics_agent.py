@@ -19,6 +19,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.external.stubs import stub_enabled
 from backend.app.models.activation_platform_mapping import ActivationPlatformMapping
 from backend.app.services.analytics_summary_service import AnalyticsSummaryService
 from backend.app.services.kpi_service import KPIService
@@ -60,6 +61,20 @@ class AnalyticsAgent:
         Returns:
             Summary dict with 'activations', 'red_alerts', 'summary_by_channel'.
         """
+        if stub_enabled():
+            logger.info(
+                "AnalyticsAgent stubbed (NTM_STUB_EXTERNAL) mandate_id=%s", mandate_id
+            )
+            return {
+                "mandate_id": str(mandate_id),
+                "date": str(date.today()),
+                "summary_generated_at": date.today().isoformat() + "T00:00:00Z",
+                "activations": [],
+                "red_alerts": [],
+                "summary_by_channel": {},
+                "stub": True,
+            }
+
         activations = await self._get_live_activations(mandate_id)
         today = date.today()
         summary_entries: list[dict[str, Any]] = []

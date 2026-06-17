@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from backend.app.external.stubs import stub_enabled
 from backend.app.tools import elevenlabs
 
 logger = logging.getLogger(__name__)
@@ -66,6 +67,22 @@ class AudioGeneratorAgent:
         storage_client=None,
         db_session=None,
     ) -> AudioGenerationOutput:
+        if stub_enabled():
+            logger.info(
+                "AudioGeneratorAgent stubbed (NTM_STUB_EXTERNAL) campaign_id=%s",
+                brief.campaign_id,
+            )
+            return AudioGenerationOutput(
+                campaign_id=brief.campaign_id,
+                generation_id=str(uuid.uuid4()),
+                tenant_id=brief.tenant_id,
+                asset_url="https://stub.example.com/audio/stub.mp3",
+                voice_id=VOICE_MAP.get(brief.voice_style, next(iter(VOICE_MAP.values()))),
+                duration_seconds=len(brief.script_text) / 150.0,
+                model_used="stub",
+                script_format=brief.script_format,
+            )
+
         if brief.voice_style not in VOICE_MAP:
             raise ValueError(f"Unknown voice_style: {brief.voice_style!r}")
 
