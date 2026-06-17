@@ -281,7 +281,7 @@ async def test_generate_creatives_dispatches_task_sets_creative_generating(monke
 
     class FakeTask:
         @staticmethod
-        def delay(cid, tid):
+        def delay(cid, tid, concept=None):
             called["cid"] = cid
 
     ct.run_creative_generation = FakeTask()
