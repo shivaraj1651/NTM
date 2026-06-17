@@ -66,7 +66,7 @@ Target coverage: ≥ 90%
 | `test_no_persist_without_db_session` | No error when `db_session=None` |
 
 ## Acceptance Criteria
-- [ ] All tests pass
-- [ ] Coverage ≥ 90%
-- [ ] `tenant_id` on every DB write
-- [ ] `ELEVENLABS_API_KEY` never hard-coded
+- [x] All tests pass
+- [x] Coverage ≥ 90%
+- [x] `tenant_id` on every DB write
+- [x] `ELEVENLABS_API_KEY` never hard-coded

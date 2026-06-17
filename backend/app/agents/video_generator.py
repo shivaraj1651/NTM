@@ -24,15 +24,15 @@ import httpx
 from pydantic import BaseModel, Field
 
 from backend.app.external.stubs import stub_enabled
-from backend.app.tools import kling_ai
+from backend.app.tools import runway
 from backend.app.tools.serpapi import search_brand_info
 
 logger = logging.getLogger(__name__)
 
-KLING_MODEL           = "kling-v1"
+RUNWAY_MODEL          = "gen3a_turbo"
 MAX_RETRIES           = 2
-MAX_POLL_ATTEMPTS     = 36   # 36 × 10s = 6 minutes — Kling takes up to 5 min
-POLL_INTERVAL_SECONDS = 10
+MAX_POLL_ATTEMPTS     = 10
+POLL_INTERVAL_SECONDS = 6
 STATUS_COMPLETED      = "completed"
 STATUS_MANUAL         = "manual_production_required"
 
@@ -98,7 +98,7 @@ class VideoGeneratorAgent:
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id="stub",
-                model_used=KLING_MODEL,
+                model_used=RUNWAY_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
                 script_format=brief.script_format,
@@ -110,20 +110,19 @@ class VideoGeneratorAgent:
         # Enrich prompt with brand research + concept context
         enriched_prompt = await self._build_prompt(brief)
 
-        # Submit Kling job with retry
+        # Submit Runway job with retry
         job_id = ""
-        task_type = "text2video"
         try:
-            job_id, task_type = await self._submit_with_retry(brief, enriched_prompt)
+            job_id = await self._submit_with_retry(brief, enriched_prompt)
         except Exception as exc:
-            logger.warning("Kling AI submit failed after retries: %s", exc)
+            logger.warning("Runway submit failed after retries: %s", exc)
             output = VideoGenerationOutput(
                 campaign_id=brief.campaign_id,
                 generation_id=generation_id,
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id="",
-                model_used=KLING_MODEL,
+                model_used=RUNWAY_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
                 script_format=brief.script_format,
@@ -132,18 +131,17 @@ class VideoGeneratorAgent:
                 await self._persist(output, db_session)
             return output
 
-        # Poll for completion URL using the correct endpoint for the task type
-        completion_url = await self._poll_for_completion(job_id, task_type)
+        # Poll for completion URL
+        completion_url = await self._poll_for_completion(job_id)
         if completion_url is None:
-            logger.warning("Kling AI poll timed out or failed for task %s", job_id)
+            logger.warning("Runway poll timed out or failed for job %s", job_id)
             output = VideoGenerationOutput(
                 campaign_id=brief.campaign_id,
                 generation_id=generation_id,
                 tenant_id=brief.tenant_id,
                 asset_url="",
                 job_id=job_id,
-                task_type=task_type,
-                model_used=KLING_MODEL,
+                model_used=RUNWAY_MODEL,
                 duration_seconds=brief.duration_seconds,
                 status=STATUS_MANUAL,
                 script_format=brief.script_format,
@@ -152,7 +150,7 @@ class VideoGeneratorAgent:
                 await self._persist(output, db_session)
             return output
 
-        # Download MP4 bytes from Kling CDN
+        # Download MP4 bytes
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.get(completion_url)
         video_bytes = resp.content
@@ -169,8 +167,7 @@ class VideoGeneratorAgent:
             tenant_id=brief.tenant_id,
             asset_url=asset_url,
             job_id=job_id,
-            task_type=task_type,
-            model_used=KLING_MODEL,
+            model_used=RUNWAY_MODEL,
             duration_seconds=brief.duration_seconds,
             status=STATUS_COMPLETED,
             script_format=brief.script_format,
@@ -240,35 +237,34 @@ class VideoGeneratorAgent:
     # Kling API calls
     # ------------------------------------------------------------------
 
-    async def _submit_with_retry(self, brief: VideoGenerationBrief, prompt: str) -> tuple[str, str]:
-        """Returns (task_id, task_type)."""
+    async def _submit_with_retry(self, brief: VideoGenerationBrief, prompt: str) -> str:
+        """Submit to Runway ML. Returns job_id."""
         last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
-                return await kling_ai.generate_video(
-                    prompt=prompt,
-                    image_url=brief.reference_image_url,
-                    duration=brief.duration_seconds,
-                    model=KLING_MODEL,
+                return await runway.generate_video(
+                    prompt,
+                    brief.reference_image_url,
+                    brief.duration_seconds,
                 )
             except Exception as exc:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:
                     wait = 2 ** attempt
                     logger.warning(
-                        "Kling AI submit attempt %d/%d failed (%s), retrying in %ds",
+                        "Runway submit attempt %d/%d failed (%s), retrying in %ds",
                         attempt + 1, MAX_RETRIES, exc, wait,
                     )
                     await asyncio.sleep(wait)
-        raise last_exc or RuntimeError("Kling AI submit failed after retries")
+        raise last_exc or RuntimeError("Runway submit failed after retries")
 
-    async def _poll_for_completion(self, task_id: str, task_type: str = "text2video") -> str | None:
-        """Poll until SUCCEEDED (returns URL) or FAILED/timeout (returns None)."""
+    async def _poll_for_completion(self, job_id: str) -> str | None:
+        """Poll Runway until SUCCEEDED (returns URL) or FAILED/timeout (returns None)."""
         for _ in range(MAX_POLL_ATTEMPTS):
             try:
-                result = await kling_ai.get_video_status(task_id, task_type)
+                result = await runway.get_video_status(job_id)
             except Exception as exc:
-                logger.warning("Kling AI status check error: %s", exc)
+                logger.warning("Runway status check error: %s", exc)
                 await asyncio.sleep(POLL_INTERVAL_SECONDS)
                 continue
             status = result.get("status", "PENDING")

@@ -69,8 +69,8 @@ Target coverage: ≥ 90%
 | `test_persist_stores_job_id` | `job_id` written to DB |
 
 ## Acceptance Criteria
-- [ ] All tests pass
-- [ ] Coverage ≥ 90%
-- [ ] `tenant_id` on every DB write
-- [ ] `RUNWAY_API_KEY` never hard-coded
-- [ ] Runway failure → `manual_production_required` status, never a crash
+- [x] All tests pass
+- [x] Coverage ≥ 90%
+- [x] `tenant_id` on every DB write
+- [x] `RUNWAY_API_KEY` never hard-coded
+- [x] Runway failure → `manual_production_required` status, never a crash

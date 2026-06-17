@@ -5,13 +5,15 @@ Takes an ImageGenerationBrief, builds a context-rich prompt using:
   - SerpAPI brand research (real taglines, product info, visual identity hints)
   - Claude Haiku for final prompt enrichment
 
-Calls OpenAI DALL-E 3 as the primary model. No Stability AI.
+Primary: Stability AI SDXL. Fallback: OpenAI DALL-E 3.
 
 Env vars:
-  OPENAI_API_KEY    — required for DALL-E 3
-  SERPAPI_API_KEY   — optional; enriches prompts with live brand data
+  STABILITY_AI_API_KEY — required for primary image generation
+  OPENAI_API_KEY       — used as fallback when Stability AI is unavailable
+  SERPAPI_API_KEY      — optional; enriches prompts with live brand data
 """
 
+import asyncio
 import base64
 import logging
 import os
@@ -23,31 +25,32 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
 
 from backend.app.external.stubs import stub_enabled
+from backend.app.tools import stability_ai
 from backend.app.tools.serpapi import search_brand_info
 
 logger = logging.getLogger(__name__)
 
-HAIKU_MODEL  = "claude-haiku-4-5-20251001"
-DALLE_MODEL  = "gpt-image-1"
-MAX_RETRIES  = 2
+HAIKU_MODEL      = "claude-haiku-4-5-20251001"
+STABILITY_MODEL  = "stability-sdxl"
+DALLE_MODEL      = "dall-e-3"
+MAX_RETRIES      = 2
 
-# gpt-image-1 supported sizes per format
 IMAGE_DIMENSIONS: dict[str, tuple[int, int]] = {
     "square":            (1024, 1024),
-    "landscape":         (1536, 1024),
-    "portrait":          (1024, 1536),
-    "ooh_billboard":     (1536, 1024),
-    "newspaper_insert":  (1024, 1536),
+    "landscape":         (1344, 768),
+    "portrait":          (768, 1344),
+    "ooh_billboard":     (1344, 768),
+    "newspaper_insert":  (768, 1344),
     "linkedin_post":     (1024, 1024),
 }
 
-# gpt-image-1 size strings accepted by the API
+# DALL-E 3 size strings (closest valid size for each format)
 _DALLE_SIZE: dict[str, str] = {
     "square":            "1024x1024",
-    "landscape":         "1536x1024",
-    "portrait":          "1024x1536",
-    "ooh_billboard":     "1536x1024",
-    "newspaper_insert":  "1024x1536",
+    "landscape":         "1792x1024",
+    "portrait":          "1024x1792",
+    "ooh_billboard":     "1792x1024",
+    "newspaper_insert":  "1024x1792",
     "linkedin_post":     "1024x1024",
 }
 
@@ -115,7 +118,7 @@ class ImageGeneratorAgent:
         prompt = await self._build_prompt(brief)
         generation_id = str(uuid.uuid4())
 
-        img_bytes = await self._generate_image(prompt, brief.image_format)
+        img_bytes, model_used = await self._generate_image(prompt, brief.image_format)
 
         asset_url = ""
         if storage_client is not None:
@@ -128,7 +131,7 @@ class ImageGeneratorAgent:
             tenant_id=brief.tenant_id,
             asset_url=asset_url,
             prompt_used=prompt,
-            model_used=DALLE_MODEL,
+            model_used=model_used,
             generation_params={
                 "width": width,
                 "height": height,
@@ -302,36 +305,47 @@ class ImageGeneratorAgent:
     # DALL-E 3 generation
     # ------------------------------------------------------------------
 
-    async def _generate_image(self, prompt: str, image_format: str) -> bytes:
+    async def _generate_image(self, prompt: str, image_format: str) -> tuple[bytes, str]:
+        """Try Stability AI first, fall back to DALL-E 3. Returns (bytes, model_used)."""
         if stub_enabled():
             logger.info("Image generator _generate_image stubbed (NTM_STUB_EXTERNAL)")
             stub_png = base64.b64decode(
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
             )
-            return stub_png
+            return stub_png, STABILITY_MODEL
 
-        size = _DALLE_SIZE[image_format]
-        client = self._get_openai_client()
+        width, height = IMAGE_DIMENSIONS[image_format]
 
-        import asyncio
+        # Primary: Stability AI SDXL
         last_exc: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
-                response = await client.images.generate(
-                    model=DALLE_MODEL,
-                    prompt=prompt,
-                    size=size,
-                    quality="medium",
-                    n=1,
+                img_bytes = await stability_ai.generate_image(
+                    prompt=prompt, width=width, height=height
                 )
-                return base64.b64decode(response.data[0].b64_json)
+                return img_bytes, STABILITY_MODEL
             except Exception as exc:
                 last_exc = exc
                 if attempt < MAX_RETRIES - 1:
                     await asyncio.sleep(2 ** attempt)
-                    logger.warning("gpt-image-1 attempt %d failed: %s", attempt + 1, exc)
+                    logger.warning("Stability AI attempt %d/%d failed: %s", attempt + 1, MAX_RETRIES, exc)
 
-        raise RuntimeError(f"gpt-image-1 failed after {MAX_RETRIES} attempts: {last_exc}")
+        logger.warning("Stability AI failed after %d attempts, falling back to DALL-E 3", MAX_RETRIES)
+
+        # Fallback: DALL-E 3
+        try:
+            size = _DALLE_SIZE[image_format]
+            client = self._get_openai_client()
+            response = await client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size=size,
+                quality="hd",
+                n=1,
+            )
+            return base64.b64decode(response.data[0].b64_json), DALLE_MODEL
+        except Exception as dalle_exc:
+            raise RuntimeError("All image generation providers failed") from dalle_exc
 
     def _get_openai_client(self):
         if self._openai_client is not None:

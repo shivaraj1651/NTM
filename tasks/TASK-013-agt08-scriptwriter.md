@@ -62,7 +62,7 @@ Target coverage: ≥90%
 | `test_invalid_format_raises` | `ValueError` for unknown `script_format` |
 
 ## Acceptance Criteria
-- [ ] All tests pass (`pytest backend/tests/agents/test_scriptwriter.py`)
-- [ ] Coverage ≥ 90%
-- [ ] `ScriptOutput` round-trips through Pydantic `.model_dump()` cleanly
-- [ ] `tenant_id` present on every DB write
+- [x] All tests pass (`pytest backend/tests/agents/test_scriptwriter.py`)
+- [x] Coverage ≥ 90%
+- [x] `ScriptOutput` round-trips through Pydantic `.model_dump()` cleanly
+- [x] `tenant_id` present on every DB write

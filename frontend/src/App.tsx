@@ -37,6 +37,12 @@ import { AnalyticsPage } from '@/pages/Admin/Analytics/AnalyticsPage'
 // KPI Dashboard
 import { KPIDashboardPage } from '@/pages/KPIDashboard/KPIDashboardPage'
 
+// Reports
+import { ReportsPage } from '@/pages/Reports/ReportsPage'
+
+// Settings
+import { SettingsPage } from '@/pages/Settings/SettingsPage'
+
 // Admin
 import { TenantsPage } from '@/pages/Admin/Tenants/TenantsPage'
 import { UsersPage } from '@/pages/Admin/Users/UsersPage'
@@ -44,6 +50,7 @@ import { RolesPage } from '@/pages/Admin/Roles/RolesPage'
 import { AuditLogPage } from '@/pages/Admin/AuditLog/AuditLogPage'
 import { HealthPage } from '@/pages/Admin/Health/HealthPage'
 
+const REPORT_ROLES = ['cmo', 'tenant_admin', 'platform_admin']
 const MANDATE_ROLES = ['brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
 const CAMPAIGN_ROLES = ['campaign_manager', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
 const CREATIVE_ROLES = ['creative_lead', 'brand_manager', 'cmo', 'tenant_admin', 'platform_admin']
@@ -152,6 +159,34 @@ export const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { index: true, element: <KPIDashboardPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Reports
+  {
+    path: '/reports',
+    element: <RoleGuard allowedRoles={REPORT_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <ReportsPage /> },
+        ],
+      },
+    ],
+  },
+
+  // Settings — all authenticated users
+  {
+    path: '/settings',
+    element: <RoleGuard allowedRoles={ALL_ROLES} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <SettingsPage /> },
         ],
       },
     ],

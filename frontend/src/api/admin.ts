@@ -280,3 +280,9 @@ export const confirmMandate = (id: string) =>
 export const updateMandate = (id: string, payload: Partial<MandateCreate>) =>
   // backend uses PUT, not PATCH
   apiClient.put<MandateSummaryCard>(`/mandates/${id}`, payload).then((r) => r.data)
+
+export const getCampaignReport = (campaignId: string) =>
+  apiClient.get(`/campaigns/${campaignId}/report`).then((r) => r.data)
+
+export const generateCampaignReport = (campaignId: string) =>
+  apiClient.post(`/campaigns/${campaignId}/report/generate`).then((r) => r.data)

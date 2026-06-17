@@ -69,7 +69,7 @@ Mock: `stability_ai.generate_image`, `boto3`/aiobotocore upload, DALL-E client
 | `test_both_providers_fail_raises` | `RuntimeError` when Stability + DALL-E both fail |
 
 ## Acceptance Criteria
-- [ ] All tests pass
-- [ ] Coverage ≥ 90%
-- [ ] `tenant_id` on every DB write
-- [ ] `STABILITY_AI_API_KEY` never hard-coded — always from env
+- [x] All tests pass
+- [x] Coverage ≥ 90%
+- [x] `tenant_id` on every DB write
+- [x] `STABILITY_AI_API_KEY` never hard-coded — always from env

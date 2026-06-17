@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Building2, Users, Shield, ClipboardList, Activity,
   BarChart2, Megaphone, FileText, LogOut, Target, Palette,
+  BarChart3, Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -52,6 +53,12 @@ const NAV_ITEMS: NavItem[] = [
     allowedRoles: ['cmo', 'campaign_manager', 'tenant_admin', 'platform_admin'],
   },
   {
+    label: 'Reports',
+    to: '/reports',
+    icon: BarChart3,
+    allowedRoles: ['cmo', 'tenant_admin', 'platform_admin'],
+  },
+  {
     label: 'Tenants',
     to: '/admin/tenants',
     icon: Building2,
@@ -80,6 +87,12 @@ const NAV_ITEMS: NavItem[] = [
     to: '/admin/health',
     icon: Activity,
     allowedRoles: ['platform_admin'],
+  },
+  {
+    label: 'Settings',
+    to: '/settings',
+    icon: Settings,
+    allowedRoles: ALL_ROLES,
   },
 ]
 

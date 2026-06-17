@@ -7,7 +7,6 @@ Fallback: OpenAI TTS (when OPENAI_API_KEY is set, no ElevenLabs key needed).
 
 import asyncio
 import logging
-import os
 import uuid
 from datetime import UTC, datetime
 
@@ -18,21 +17,12 @@ from backend.app.tools import elevenlabs
 logger = logging.getLogger(__name__)
 
 ELEVENLABS_MODEL = "eleven_multilingual_v2"
-OPENAI_TTS_MODEL = "tts-1"
 MAX_RETRIES = 3
 
-# ElevenLabs voice IDs
 VOICE_MAP: dict[str, str] = {
     "warm":          "21m00Tcm4TlvDq8ikWAM",  # Rachel
     "authoritative": "ErXwobaYiN019PkySvjV",  # Antoni
     "youthful":      "AZnzlk1XvdvUeBnXmlld",  # Domi
-}
-
-# OpenAI TTS voices (fallback when ElevenLabs key absent)
-OPENAI_VOICE_MAP: dict[str, str] = {
-    "warm":          "nova",       # warm, natural female
-    "authoritative": "onyx",       # deep, authoritative male
-    "youthful":      "shimmer",    # bright, energetic
 }
 
 
@@ -81,23 +71,17 @@ class AudioGeneratorAgent:
 
         generation_id = str(uuid.uuid4())
 
-        if elevenlabs.is_available():
-            voice_id = VOICE_MAP[brief.voice_style]
-            model_used = ELEVENLABS_MODEL
-            audio_bytes = await self._elevenlabs_with_retry(brief.script_text, voice_id)
-            logger.info("Audio generated via ElevenLabs voice_id=%s", voice_id)
-        else:
-            voice_id = OPENAI_VOICE_MAP[brief.voice_style]
-            model_used = OPENAI_TTS_MODEL
-            audio_bytes = await self._openai_tts_with_retry(brief.script_text, voice_id)
-            logger.info("Audio generated via OpenAI TTS voice=%s", voice_id)
+        voice_id = VOICE_MAP[brief.voice_style]
+        model_used = ELEVENLABS_MODEL
+        audio_bytes = await self._elevenlabs_with_retry(brief.script_text, voice_id)
+        logger.info("Audio generated via ElevenLabs voice_id=%s", voice_id)
 
         duration_seconds = len(brief.script_text) / 150.0
 
         asset_url = ""
         if storage_client is not None:
             key = f"{brief.campaign_id}/{generation_id}.mp3"
-            asset_url = await storage_client.upload(audio_bytes, key, content_type="audio/mpeg")
+            asset_url = await storage_client.upload(audio_bytes, key)
 
         output = AudioGenerationOutput(
             campaign_id=brief.campaign_id,
@@ -130,30 +114,6 @@ class AudioGeneratorAgent:
                     )
                     await asyncio.sleep(wait)
         raise last_exc or RuntimeError("ElevenLabs failed after retries")
-
-    async def _openai_tts_with_retry(self, script: str, voice: str) -> bytes:
-        import openai
-        client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=60.0)
-        last_exc: Exception | None = None
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await client.audio.speech.create(
-                    model=OPENAI_TTS_MODEL,
-                    voice=voice,
-                    input=script[:4096],  # OpenAI TTS limit
-                    response_format="mp3",
-                )
-                return response.content
-            except Exception as exc:
-                last_exc = exc
-                if attempt < MAX_RETRIES - 1:
-                    wait = 2 ** attempt
-                    logger.warning(
-                        "OpenAI TTS attempt %d/%d failed (%s), retrying in %ds",
-                        attempt + 1, MAX_RETRIES, exc, wait,
-                    )
-                    await asyncio.sleep(wait)
-        raise last_exc or RuntimeError("OpenAI TTS failed after retries")
 
     async def _persist(self, output: AudioGenerationOutput, session) -> None:
         from backend.app.models.audio import GeneratedAudio
