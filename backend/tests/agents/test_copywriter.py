@@ -74,9 +74,9 @@ def agent():
 
 class TestOutputStructure:
 
-    async def test_generate_returns_7_assets(self, agent, sample_brief):
+    async def test_generate_returns_8_assets(self, agent, sample_brief):
         output = await agent.generate(sample_brief)
-        assert len(output.assets) == 7
+        assert len(output.assets) == 8
 
     async def test_generate_returns_all_asset_types(self, agent, sample_brief):
         output = await agent.generate(sample_brief)
@@ -278,7 +278,7 @@ class TestPersistence:
             assert row.tenant_id == "tenant-001"
             assert row.campaign_id == "camp-001"
 
-    async def test_db_persist_creates_14_rows(self, agent, sample_brief):
+    async def test_db_persist_creates_16_rows(self, agent, sample_brief):
         persisted = []
 
         class FakeSession:
@@ -289,7 +289,7 @@ class TestPersistence:
                 pass
 
         await agent.generate(sample_brief, db_session=FakeSession())
-        assert len(persisted) == 14  # 7 asset types × 2 variants
+        assert len(persisted) == 16  # 8 asset types × 2 variants
 
 
 # ---------------------------------------------------------------------------
@@ -298,7 +298,7 @@ class TestPersistence:
 
 class TestConcurrency:
 
-    async def test_all_7_asset_types_generated(self, agent, sample_brief):
+    async def test_all_8_asset_types_generated(self, agent, sample_brief):
         generated_types = []
         orig = agent._generate_asset
 
@@ -310,4 +310,4 @@ class TestConcurrency:
         await agent.generate(sample_brief)
 
         assert set(generated_types) == set(ASSET_CONFIGS.keys())
-        assert len(generated_types) == 7
+        assert len(generated_types) == 8
