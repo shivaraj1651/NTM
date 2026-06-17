@@ -126,7 +126,7 @@ class TestRiskFilter:
         """Risk filter should detect legal risk in campaign."""
         risk_filter = RiskFilter()
         campaign = get_valid_campaign()
-        campaign["risk_flags"]["legal"] = "Unsubstantiated benefit claim"
+        campaign["risk_flags"]["legal"] = "illegal comparative advertising claim"
 
         should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
 
@@ -136,7 +136,7 @@ class TestRiskFilter:
         """Risk filter should detect regulatory risk."""
         risk_filter = RiskFilter()
         campaign = get_valid_campaign()
-        campaign["risk_flags"]["regulatory"] = "Geographic compliance issue in EMEA"
+        campaign["risk_flags"]["regulatory"] = "prohibited in certain regions"
 
         should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
 
@@ -146,7 +146,7 @@ class TestRiskFilter:
         """Risk filter should detect sensitivity risk."""
         risk_filter = RiskFilter()
         campaign = get_valid_campaign()
-        campaign["risk_flags"]["sensitivity"] = "Tone misaligned with brand guidelines"
+        campaign["risk_flags"]["sensitivity"] = "discriminatory audience targeting approach"
 
         should_regen = risk_filter.should_regenerate(campaign["risk_flags"])
 
@@ -284,12 +284,12 @@ def test_risk_filter_no_risk_returns_false():
 
 def test_risk_filter_legal_risk_returns_true():
     rf = RiskFilter()
-    assert rf.should_regenerate({"legal": "unsubstantiated claim", "regulatory": None, "sensitivity": None}) is True
+    assert rf.should_regenerate({"legal": "illegal comparative claim", "regulatory": None, "sensitivity": None}) is True
 
 
 def test_risk_filter_sensitivity_returns_true():
     rf = RiskFilter()
-    assert rf.should_regenerate({"legal": None, "regulatory": None, "sensitivity": "offensive targeting"}) is True
+    assert rf.should_regenerate({"legal": None, "regulatory": None, "sensitivity": "hate speech risk in positioning"}) is True
 
 
 def test_risk_filter_regeneration_prompt_legal():
