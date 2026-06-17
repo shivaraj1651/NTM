@@ -45,8 +45,11 @@ async def test_digital_activator_agent_happy_path(db_session: AsyncSession):
     campaign.manager_phone = "+1234567890"
 
     with patch.object(DigitalActivatorAgent, '_get_campaign', return_value=campaign) as mock_get_campaign, \
-         patch.object(DigitalActivatorAgent, '_queue_platform_activation') as mock_queue:
+         patch("backend.app.agents.digital_activator.chord") as mock_chord, \
+         patch("backend.app.agents.digital_activator.group"), \
+         patch("backend.app.agents.digital_activator.platform_activate_google") as mock_task:
 
+        mock_task.s = MagicMock(return_value="sig-google")
         agent = DigitalActivatorAgent(db_session)
         result = await agent.activate(activation, creative_url="https://example.com/ad.jpg")
 
@@ -58,8 +61,8 @@ async def test_digital_activator_agent_happy_path(db_session: AsyncSession):
         # Verify campaign lookup was called
         mock_get_campaign.assert_called_once()
 
-        # Verify platform activation was queued
-        mock_queue.assert_called()
+        # Verify chord was dispatched (replaces _queue_platform_activation)
+        mock_chord.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -167,8 +170,11 @@ async def test_digital_activator_returns_correct_platforms(db_session: AsyncSess
     campaign.manager_phone = "+1234567890"
 
     with patch.object(DigitalActivatorAgent, '_get_campaign', return_value=campaign), \
-         patch.object(DigitalActivatorAgent, '_queue_platform_activation') as mock_queue:  # noqa: F841
+         patch("backend.app.agents.digital_activator.chord"), \
+         patch("backend.app.agents.digital_activator.group"), \
+         patch("backend.app.agents.digital_activator.platform_activate_google") as mock_task:
 
+        mock_task.s = MagicMock(return_value="sig-google")
         agent = DigitalActivatorAgent(db_session)
         result = await agent.activate(activation, creative_url="https://example.com/ad.jpg")
 
@@ -229,9 +235,12 @@ async def test_digital_activator_full_workflow(db_session: AsyncSession):
     }
 
     with patch.object(DigitalActivatorAgent, '_get_campaign', return_value=campaign), \
-         patch.object(DigitalActivatorAgent, '_queue_platform_activation', return_value=MagicMock(id="task_123")), \
+         patch("backend.app.agents.digital_activator.chord"), \
+         patch("backend.app.agents.digital_activator.group"), \
+         patch("backend.app.agents.digital_activator.platform_activate_google") as mock_task, \
          patch('backend.app.tools.google_ads.activate_google', return_value=platform_result):
 
+        mock_task.s = MagicMock(return_value="sig-google")
         agent = DigitalActivatorAgent(db_session)
         result = await agent.activate(activation, creative_url="https://example.com/ad.jpg")
 
