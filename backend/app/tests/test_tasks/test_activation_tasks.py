@@ -383,7 +383,7 @@ class TestTaskIntegration:
 
     def test_tasks_can_be_imported(self):
         """Verify all tasks can be imported."""
-        from backend.app.tasks import (
+        from backend.app.tasks.activation_tasks import (
             activation_completion_callback,
             platform_activate_google,
             platform_activate_linkedin,
