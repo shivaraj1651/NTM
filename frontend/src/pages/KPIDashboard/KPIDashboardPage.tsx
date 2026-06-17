@@ -144,8 +144,6 @@ export function KPIDashboardPage() {
 
       {!tenantId ? (
         <p className="text-muted-foreground text-sm">Select a tenant to view KPI data.</p>
-      ) : !mandateId ? (
-        <p className="text-muted-foreground text-sm">Select a mandate to load campaign KPI data.</p>
       ) : sumLoading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : (

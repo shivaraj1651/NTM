@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { server } from './setup'
@@ -261,18 +262,21 @@ describe('CreativesPage', () => {
     await waitFor(() => expect(screen.getByText('Creative Assets')).toBeInTheDocument())
   })
 
-  it('renders all 4 asset tabs', async () => {
+  it('renders all 5 asset tabs', async () => {
     renderCampaignPage(<CreativesPage />, 'c-003')
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Copy' })).toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: 'Scripts' })).toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: 'Images' })).toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: 'Audio' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /video/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /ooh billboard/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /newspaper insert/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /linkedin post/i })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /ad images/i })).toBeInTheDocument()
     })
   })
 
-  it('shows copy asset accordion items', async () => {
+  it('shows Social Caption label after clicking Ad Images tab', async () => {
     renderCampaignPage(<CreativesPage />, 'c-003')
+    const adsTab = await screen.findByRole('tab', { name: /ad images/i })
+    await userEvent.click(adsTab)
     await waitFor(() => expect(screen.getByText('Social Caption')).toBeInTheDocument())
   })
 
@@ -283,7 +287,7 @@ describe('CreativesPage', () => {
         activation_plan: null, budget_proposal: null, creative_assets: null,
         kpi_configs: [], created_at: '2026-05-31T00:00:00Z', updated_at: '2026-05-31T00:00:00Z' })))
     renderCampaignPage(<CreativesPage />, 'c-cgen')
-    expect(await screen.findByText(/generating creatives/i)).toBeInTheDocument()
+    expect(await screen.findByText(/generating all 5 creative types/i)).toBeInTheDocument()
   })
 
   it('shows Proceed to Go Live button when creatives are ready', async () => {
