@@ -574,9 +574,7 @@ def _update_activation_status(activation_id: str, status: str) -> None:
         status: New status (live, activation_partial_failure, activation_failed)
 
     Note:
-        This is a placeholder implementation. The actual Activation model
-        needs to be created in backend/app/models/activation.py.
-        Once created, this function will update the model directly.
+        Runs asyncio.run() because Celery tasks are synchronous.
     """
     # Import here to avoid circular imports
     from backend.app.db import get_session_local
@@ -591,16 +589,18 @@ def _update_activation_status(activation_id: str, status: str) -> None:
 
     db = session_local()
     try:
-        # TODO: Import Activation model once it exists
-        # from backend.app.models.activation import Activation
-        # from sqlalchemy import update
-        #
-        # stmt = update(Activation).where(Activation.id == activation_id).values(status=status)
-        # db.execute(stmt)
-        # db.commit()
+        from backend.app.models.activation import Activation
+        from sqlalchemy import update
 
+        async def _update():
+            async with db as session:
+                stmt = update(Activation).where(Activation.id == activation_id).values(status=status)
+                await session.execute(stmt)
+                await session.commit()
+
+        asyncio.run(_update())
         logger.info(
-            "Would update activation status (Activation model not yet created)",
+            "Updated activation status",
             extra={"activation_id": activation_id, "status": status},
         )
     except Exception as e:
