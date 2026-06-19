@@ -4,7 +4,7 @@
 Python 3.12, FastAPI, PostgreSQL 16 (pgvector), MongoDB 7, Redis 7, React 18, TypeScript, Tailwind CSS, LangGraph, CrewAI, Celery, Docker, AWS ECS
 
 ## Current Phase
-0
+1
 
 ## Module Boundaries
 Session -> core : backend/app/core ONLY

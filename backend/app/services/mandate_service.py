@@ -39,6 +39,7 @@ class MandateService:
             objective=data.objective,
             region=data.region,
             countries=data.countries,
+            cities=data.cities,
             competitors=data.competitors,
             total_budget=data.total_budget,
             currency=data.currency,

@@ -8,7 +8,7 @@ export interface Tenant {
 export interface User {
   id: string
   email: string
-  role: string
+  role: string | null
   is_active: boolean
   tenant_id: string
   created_at: string
