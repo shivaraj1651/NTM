@@ -19,6 +19,7 @@ class Mandate(Base):
     objective = Column(String, nullable=False)
     region = Column(String, nullable=False)
     countries = Column(JSON, nullable=False, default=lambda: [])
+    cities = Column(JSON, nullable=True, default=lambda: [])
     competitors = Column(JSON, nullable=False, default=lambda: [])
     total_budget = Column(Float, nullable=False)
     currency = Column(String, nullable=False, default="USD")
@@ -53,6 +54,7 @@ class Mandate(Base):
             "objective": self.objective,
             "region": self.region,
             "countries": self.countries,
+            "cities": self.cities or [],
             "competitors": self.competitors,
             "total_budget": self.total_budget,
             "currency": self.currency,
