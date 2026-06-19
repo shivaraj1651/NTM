@@ -63,27 +63,27 @@ class TestRiskFilter:
         assert risk_filter.should_regenerate(risk_flags) is False
 
     def test_should_regenerate_with_legal_risk(self):
-        """Risk filter should return True when legal risk detected."""
+        """Risk filter should return True when legal risk contains disqualifying keyword."""
         risk_filter = RiskFilter()
-        risk_flags = {"legal": "Unsubstantiated claims", "regulatory": None, "sensitivity": None}
+        risk_flags = {"legal": "Content uses trademarked imagery without license", "regulatory": None, "sensitivity": None}
         assert risk_filter.should_regenerate(risk_flags) is True
 
     def test_should_regenerate_with_regulatory_risk(self):
-        """Risk filter should return True when regulatory risk detected."""
+        """Risk filter should return True when regulatory risk contains disqualifying keyword."""
         risk_filter = RiskFilter()
-        risk_flags = {"legal": None, "regulatory": "GDPR violation", "sensitivity": None}
+        risk_flags = {"legal": None, "regulatory": "Activity is prohibited in target markets", "sensitivity": None}
         assert risk_filter.should_regenerate(risk_flags) is True
 
     def test_should_regenerate_with_sensitivity_risk(self):
-        """Risk filter should return True when sensitivity risk detected."""
+        """Risk filter should return True when sensitivity risk contains disqualifying keyword."""
         risk_filter = RiskFilter()
-        risk_flags = {"legal": None, "regulatory": None, "sensitivity": "Offensive targeting"}
+        risk_flags = {"legal": None, "regulatory": None, "sensitivity": "Content is potentially discriminatory"}
         assert risk_filter.should_regenerate(risk_flags) is True
 
     def test_should_regenerate_with_multiple_risks(self):
-        """Risk filter should return True when multiple risks detected."""
+        """Risk filter should return True when any risk flag contains a disqualifying keyword."""
         risk_filter = RiskFilter()
-        risk_flags = {"legal": "Issue", "regulatory": "Issue", "sensitivity": "Issue"}
+        risk_flags = {"legal": "illegal claim", "regulatory": "prohibited region", "sensitivity": "hate speech"}
         assert risk_filter.should_regenerate(risk_flags) is True
 
     def test_get_regeneration_prompt_legal(self):

@@ -70,7 +70,7 @@ async def create_campaign(
 ) -> CampaignResponse:
     svc = CampaignService(db)
     result = await svc.create(body.mandate_id, tenant_id)
-    await get_audit_service().emit("campaign", result.id, "create")
+    await get_audit_service().emit("campaign", result["id"], "create")
     return result
 
 

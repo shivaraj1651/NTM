@@ -186,6 +186,8 @@ def test_audit_log():
     mock_log.entity_id = "mand-001"
     mock_log.action = "approved"
     mock_log.actor_id = "admin-user-id"
+    mock_log.actor_role = None
+    mock_log.status = "success"
     mock_log.notes = None
     mock_log.status_before = None
     mock_log.status_after = None
