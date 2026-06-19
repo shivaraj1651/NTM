@@ -38,7 +38,7 @@ export function UsersPage() {
     {
       accessorKey: 'role',
       header: 'Role',
-      cell: ({ row }) => <RoleBadge role={row.original.role} />,
+      cell: ({ row }) => <RoleBadge role={row.original.role ?? undefined} />,
     },
     {
       accessorKey: 'is_active',

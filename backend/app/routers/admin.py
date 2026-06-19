@@ -11,6 +11,7 @@ from backend.app.core.dependencies import require_role
 from backend.app.core.models import Role, Tenant, User, UserRole
 from backend.app.db import get_db
 from backend.app.models.approval_log import ApprovalLog
+from backend.app.models.audit_trail import AuditTrail
 from backend.app.schemas.admin import (  # noqa: F401 — re-exported for router use
     AuditLogResponse,
     RoleResponse,
@@ -134,14 +135,20 @@ async def update_user_role(
 @router.get("/audit-log", response_model=list[AuditLogResponse])
 async def get_audit_log(
     tenant_id: str | None = Query(None),
+    entity_type: str | None = Query(None),
+    action: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     _: User = Depends(require_role([UserRole.PLATFORM_ADMIN])),
     db: AsyncSession = Depends(get_db),
 ) -> list[AuditLogResponse]:
-    stmt = select(ApprovalLog).order_by(ApprovalLog.created_at.desc()).limit(limit).offset(offset)
+    stmt = select(AuditTrail).order_by(AuditTrail.created_at.desc()).limit(limit).offset(offset)
     if tenant_id:
-        stmt = stmt.where(ApprovalLog.tenant_id == tenant_id)
+        stmt = stmt.where(AuditTrail.tenant_id == tenant_id)
+    if entity_type:
+        stmt = stmt.where(AuditTrail.entity_type == entity_type)
+    if action:
+        stmt = stmt.where(AuditTrail.action == action)
     result = await db.execute(stmt)
     logs = result.scalars().all()
     return [
@@ -152,9 +159,10 @@ async def get_audit_log(
             entity_id=log.entity_id,
             action=log.action,
             actor_id=log.actor_id,
-            notes=log.notes,
-            status_before=log.status_before,
-            status_after=log.status_after,
+            actor_role=log.actor_role,
+            notes=log.actor_role,   # surface role as notes for the UI column
+            status_before=None,
+            status_after=log.status,
             created_at=log.created_at.isoformat(),
         )
         for log in logs

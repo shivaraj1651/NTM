@@ -61,9 +61,10 @@ class AuditLogResponse(BaseModel):
     entity_id: str
     action: str
     actor_id: str
-    notes: str | None
-    status_before: str | None
-    status_after: str | None
+    actor_role: str | None = None
+    notes: str | None = None        # mapped from actor_role for UI display
+    status_before: str | None = None
+    status_after: str | None = None  # mapped from AuditTrail.status
     created_at: str
 
     model_config = {"from_attributes": True}

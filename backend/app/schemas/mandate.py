@@ -16,6 +16,7 @@ class CreateMandateRequest(BaseModel):
     end_date: date
     description: str | None = None
     countries: list[str] = []
+    cities: list[str] = []
     competitors: list[str] = []
 
 
@@ -30,6 +31,7 @@ class UpdateMandateRequest(BaseModel):
     end_date: date | None = None
     description: str | None = None
     countries: list[str] | None = None
+    cities: list[str] | None = None
     competitors: list[str] | None = None
 
 
@@ -47,6 +49,7 @@ class MandateResponse(BaseModel):
     end_date: date | None
     description: str | None
     countries: list[str]
+    cities: list[str] = []
     competitors: list[str]
     created_at: datetime | None
     updated_at: datetime | None

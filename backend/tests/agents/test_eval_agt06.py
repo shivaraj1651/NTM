@@ -1,9 +1,15 @@
 """Eval tests for AGT-06 Creative Director."""
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backend.app.agents.creative_director.models import (
+    BrandGuidelines,
+    CampaignInput,
+    TargetAudience,
+)
+from backend.app.agents.creative_director_orchestrator import creative_director_agent
 from backend.tests.agents.conftest_evals import (
     PASS_THRESHOLD,
     ScoreCard,
@@ -12,40 +18,54 @@ from backend.tests.agents.conftest_evals import (
     score_format,
 )
 
-REQUIRED_OUTPUT_FIELDS = ["brief", "asset_type", "tone", "message"]
+REQUIRED_OUTPUT_FIELDS = ["campaign_id", "tenant_id", "platforms", "metadata"]
 REQUIRED_TYPES = {
-    "brief": str,
-    "asset_type": str,
-    "tone": str,
-    "message": str,
+    "campaign_id": str,
+    "tenant_id": str,
+    "platforms": dict,
+    "metadata": dict,
 }
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]
 
-MOCK_RESPONSE = {
-    "brief": "Create a premium print ad for brand awareness",
-    "asset_type": "print",
-    "tone": "confident",
-    "message": "Lead the market. Own tomorrow.",
-}
+
+def _build_campaign_input(golden: dict) -> CampaignInput:
+    mandate = golden["input_mandate"]
+    concept = mandate.get("campaign_concept", {})
+    return CampaignInput(
+        campaign_id="eval-camp-agt06",
+        tenant_id="eval-tenant-001",
+        objectives=[concept.get("objective", "Increase brand awareness")],
+        target_audience=TargetAudience(
+            segments=[concept.get("target_audience", "General audience")]
+        ),
+        brand_guidelines=BrandGuidelines(
+            tone="professional",
+            colors=["#000000", "#FFFFFF"],
+            messaging_rules=["Stay on-brand", "Be clear and concise"],
+            mandatory_ctas=["Learn More"],
+        ),
+        platforms=["instagram"],
+        product_details="Marketing Technology Platform",
+        campaign_theme=concept.get("description", "Innovation drives growth"),
+        primary_cta="Learn More",
+    )
 
 
 @pytest.mark.parametrize("mandate_id", MANDATE_IDS)
 @pytest.mark.asyncio
 async def test_agt06_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-06 scores completeness + format >= 80 on each golden mandate."""
-    _golden = load_golden(mandate_id)
+    golden = load_golden(mandate_id)
+    campaign_input = _build_campaign_input(golden)
 
     with patch(
-        "backend.app.agents.creative_director_orchestrator.AsyncAnthropic",
-        create=True,
-    ) as mock_cls:
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(MOCK_RESPONSE))]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
-        mock_cls.return_value = mock_client
+        "backend.app.agents.creative_director.generator.AsyncAnthropic",
+        return_value=MagicMock(),
+    ):
+        with patch.dict(os.environ, {"NTM_STUB_EXTERNAL": "1"}):
+            result = await creative_director_agent(campaign_input)
 
-        output = MOCK_RESPONSE.copy()
+    output = result.model_dump(mode="json")
 
     completeness = score_completeness(output, REQUIRED_OUTPUT_FIELDS)
     fmt = score_format(output, REQUIRED_TYPES)

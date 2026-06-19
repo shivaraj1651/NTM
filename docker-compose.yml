@@ -1,31 +1,29 @@
-version: "3.9"
-
 services:
+
+  # ── PostgreSQL 16 + pgvector ─────────────────────────────────────────────────
   ntm-postgres:
     image: pgvector/pgvector:pg16
     container_name: ntm-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ntm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ntm_dev}
-      POSTGRES_DB: ${POSTGRES_DB:-ntm}
+      POSTGRES_USER: ntm_user
+      POSTGRES_PASSWORD: ntm_pass
+      POSTGRES_DB: ntm_db
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ntm}"]
+      test: ["CMD-SHELL", "pg_isready -U ntm_user -d ntm_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ── MongoDB 7 ────────────────────────────────────────────────────────────────
   ntm-mongo:
     image: mongo:7
     container_name: ntm-mongo
     restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-ntm}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-ntm_dev}
     ports:
       - "27017:27017"
     volumes:
@@ -36,6 +34,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis 7 ──────────────────────────────────────────────────────────────────
   ntm-redis:
     image: redis:7-alpine
     container_name: ntm-redis
@@ -50,14 +49,15 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── MinIO (local S3 for images / audio / video) ──────────────────────────────
   ntm-minio:
     image: minio/minio:latest
     container_name: ntm-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ntm_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ntm_minio_dev}
+      MINIO_ROOT_USER: ntm_minio
+      MINIO_ROOT_PASSWORD: ntm_minio_dev
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -65,28 +65,45 @@ services:
       - minio-data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
+  # ── MinIO bucket init (runs once, creates buckets then exits) ─────────────────
+  ntm-minio-init:
+    image: minio/mc:latest
+    container_name: ntm-minio-init
+    depends_on:
+      ntm-minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://ntm-minio:9000 ntm_minio ntm_minio_dev &&
+      mc mb --ignore-existing local/ntm-images &&
+      mc mb --ignore-existing local/ntm-audio &&
+      mc mb --ignore-existing local/ntm-video &&
+      mc anonymous set public local/ntm-images &&
+      echo 'Buckets ready'
+      "
+    restart: "no"
+
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
   ntm-api:
     build:
       context: .
       dockerfile: backend/Dockerfile
     container_name: ntm-api
     restart: unless-stopped
-    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
-      MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      DATABASE_URL: postgresql+asyncpg://ntm_user:ntm_pass@ntm-postgres:5432/ntm_db
+      MONGODB_URL: mongodb://ntm-mongo:27017
       MONGODB_DB: ntm
       REDIS_URL: redis://ntm-redis:6379/0
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
       S3_ENDPOINT_URL: http://ntm-minio:9000
       S3_PUBLIC_URL: http://localhost:9000
-      NTM_STUB_EXTERNAL: "1"
     volumes:
       - ./backend:/app/backend
       - ./alembic:/app/alembic
@@ -106,69 +123,66 @@ services:
       timeout: 5s
       retries: 5
 
-  ntm-agent-worker:
+  # ── Celery Worker ────────────────────────────────────────────────────────────
+  ntm-worker:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: ntm-agent-worker
+    container_name: ntm-worker
     restart: unless-stopped
-    command: celery -A backend.app.tasks worker --loglevel=info --concurrency=2
+    command: celery -A backend.app.celery_app:celery_app worker --loglevel=info --concurrency=2
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
-      MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      DATABASE_URL: postgresql+asyncpg://ntm_user:ntm_pass@ntm-postgres:5432/ntm_db
+      MONGODB_URL: mongodb://ntm-mongo:27017
       MONGODB_DB: ntm
       REDIS_URL: redis://ntm-redis:6379/0
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
       S3_ENDPOINT_URL: http://ntm-minio:9000
-      S3_PUBLIC_URL: http://localhost:9000
-      NTM_STUB_EXTERNAL: "1"
     volumes:
       - ./backend:/app/backend
       - ./alembic:/app/alembic
-      - ./alembic.ini:/app/alembic.ini
     depends_on:
       ntm-redis:
         condition: service_healthy
       ntm-postgres:
         condition: service_healthy
 
+  # ── Celery Beat (periodic tasks scheduler) ───────────────────────────────────
   ntm-beat:
     build:
       context: .
       dockerfile: backend/Dockerfile
     container_name: ntm-beat
     restart: unless-stopped
-    command: celery -A backend.app.tasks beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    command: celery -A backend.app.celery_app:celery_app beat --loglevel=info
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
-      MONGODB_URL: mongodb://${MONGO_USER:-ntm}:${MONGO_PASSWORD:-ntm_dev}@ntm-mongo:27017
+      DATABASE_URL: postgresql+asyncpg://ntm_user:ntm_pass@ntm-postgres:5432/ntm_db
+      MONGODB_URL: mongodb://ntm-mongo:27017
       REDIS_URL: redis://ntm-redis:6379/0
       CELERY_BROKER_URL: redis://ntm-redis:6379/0
       CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
-      NTM_STUB_EXTERNAL: "1"
     depends_on:
       ntm-redis:
         condition: service_healthy
       ntm-postgres:
         condition: service_healthy
 
+  # ── Celery Flower (task monitoring UI) ───────────────────────────────────────
   ntm-flower:
     image: mher/flower:2.0
     container_name: ntm-flower
     restart: unless-stopped
-    command: celery flower --broker=redis://ntm-redis:6379/0 --result-backend=redis://ntm-redis:6379/1 --port=5555
-    environment:
-      CELERY_BROKER_URL: redis://ntm-redis:6379/0
-      CELERY_RESULT_BACKEND: redis://ntm-redis:6379/1
+    command: celery flower --broker=redis://ntm-redis:6379/0 --port=5555
     ports:
       - "5555:5555"
     depends_on:
       - ntm-redis
-      - ntm-agent-worker
+      - ntm-worker
 
+  # ── React Frontend (Nginx) ───────────────────────────────────────────────────
   ntm-frontend:
     build:
       context: frontend
@@ -178,7 +192,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - ntm-api
+      ntm-api:
+        condition: service_healthy
 
 volumes:
   postgres-data:
