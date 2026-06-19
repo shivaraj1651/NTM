@@ -112,7 +112,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ntm-agent-worker
     restart: unless-stopped
-    command: celery -A backend.app.tasks worker --loglevel=info --concurrency=2
+    command: celery -A backend.app.celery_app:celery_app worker --loglevel=info --concurrency=2
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
@@ -140,7 +140,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ntm-beat
     restart: unless-stopped
-    command: celery -A backend.app.tasks beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    command: celery -A backend.app.celery_app:celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-ntm}:${POSTGRES_PASSWORD:-ntm_dev}@ntm-postgres:5432/${POSTGRES_DB:-ntm}
