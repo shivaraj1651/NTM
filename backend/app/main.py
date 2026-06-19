@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.core.audit_middleware import AuditMiddleware
 from backend.app.core.auth import auth_backend, fastapi_users
 from backend.app.core.middleware import TenantValidationMiddleware
 from backend.app.routers import register_routers
@@ -21,6 +22,7 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Tenant-ID"],
 )
 
+app.add_middleware(AuditMiddleware)
 app.add_middleware(TenantValidationMiddleware)
 
 # JWT auth routes: POST /api/v1/auth/jwt/login, POST /api/v1/auth/jwt/logout

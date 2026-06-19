@@ -21,6 +21,7 @@ from backend.app.core.models import User, UserRole
 from backend.app.db import get_db as _get_sql_db
 from backend.app.schemas.competitive_intel import CIReport, CIReportInitial
 from backend.app.schemas.mandate import CreateMandateRequest, UpdateMandateRequest
+from backend.app.services.audit_service import get_audit_service
 from backend.app.services.mandate_service import MandateService
 from backend.app.tasks.campaign_tasks import run_campaign_strategy
 from backend.app.tasks.competitive_intel_tasks import fetch_competitor_metrics
@@ -303,6 +304,7 @@ async def create_mandate(
     except Exception as exc:
         logger.warning("Mandate Mongo mirror write failed for %s: %s", result["id"], exc)
     run_mandate_analysis.delay(result["id"], tenant_id)
+    await get_audit_service().emit("mandate", result["id"], "create", payload_after=result)
     return result
 
 
@@ -326,7 +328,9 @@ async def update_mandate(
     db: AsyncSession = Depends(get_sql_db),
 ) -> dict:
     svc = MandateService(db)
-    return await svc.update(mandate_id, body, tenant_id)
+    result = await svc.update(mandate_id, body, tenant_id)
+    await get_audit_service().emit("mandate", mandate_id, "update", payload_after=result)
+    return result
 
 
 @router.post("/mandates/{mandate_id}/confirm", status_code=200)
@@ -339,6 +343,7 @@ async def confirm_mandate(
     svc = MandateService(db)
     result = await svc.confirm(mandate_id, tenant_id)
     run_campaign_strategy.delay(mandate_id, tenant_id)
+    await get_audit_service().emit("mandate", mandate_id, "confirm")
     return result
 
 

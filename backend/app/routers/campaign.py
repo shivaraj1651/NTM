@@ -16,6 +16,7 @@ from backend.app.schemas.campaign import (
     CampaignResponse,
     CampaignUpdateRequest,
 )
+from backend.app.services.audit_service import get_audit_service
 from backend.app.services.campaign_service import CampaignService
 from backend.app.tasks.campaign_tasks import (
     run_budget_optimization,
@@ -68,7 +69,9 @@ async def create_campaign(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
     svc = CampaignService(db)
-    return await svc.create(body.mandate_id, tenant_id)
+    result = await svc.create(body.mandate_id, tenant_id)
+    await get_audit_service().emit("campaign", result.id, "create")
+    return result
 
 
 @router.get("/campaigns", response_model=list[CampaignResponse], status_code=200)
@@ -113,8 +116,8 @@ async def confirm_campaign(
 ) -> CampaignResponse:
     svc = CampaignService(db)
     result = await svc.confirm(campaign_id, body.selected_concept_id, tenant_id)
-    # Trigger AGT-04 media planner asynchronously after concept confirmation
     _dispatch_task(run_media_planning, campaign_id, tenant_id)
+    await get_audit_service().emit("campaign", campaign_id, "confirm_concept")
     return result
 
 
@@ -138,8 +141,8 @@ async def propose_budget(
 ) -> CampaignResponse:
     svc = CampaignService(db)
     result = await svc.propose_budget(campaign_id, tenant_id)
-    # Dispatch AGT-05 budget optimizer as async Celery task
     _dispatch_task(run_budget_optimization, campaign_id, tenant_id)
+    await get_audit_service().emit("campaign", campaign_id, "approve_budget")
     return result
 
 
@@ -151,7 +154,9 @@ async def confirm_budget(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CampaignResponse:
     svc = CampaignService(db)
-    return await svc.confirm_budget(campaign_id, tenant_id)
+    result = await svc.confirm_budget(campaign_id, tenant_id)
+    await get_audit_service().emit("campaign", campaign_id, "confirm_budget")
+    return result
 
 
 # ---------------------------------------------------------------------------
