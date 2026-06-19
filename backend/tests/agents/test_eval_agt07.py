@@ -1,9 +1,10 @@
 """Eval tests for AGT-07 Copywriter."""
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backend.app.agents.copywriter import CopywriterAgent, CreativeBrief
 from backend.tests.agents.conftest_evals import (
     PASS_THRESHOLD,
     ScoreCard,
@@ -12,39 +13,49 @@ from backend.tests.agents.conftest_evals import (
     score_format,
 )
 
-REQUIRED_OUTPUT_FIELDS = ["headline", "body_copy", "cta"]
+REQUIRED_OUTPUT_FIELDS = ["campaign_id", "generation_id", "tenant_id", "assets"]
 REQUIRED_TYPES = {
-    "headline": str,
-    "body_copy": str,
-    "cta": str,
+    "campaign_id": str,
+    "generation_id": str,
+    "tenant_id": str,
+    "assets": list,
 }
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]
 
-MOCK_LLM_RESPONSE = {
-    "headline": "Where Vision Meets Velocity",
-    "body_copy": "We don't follow trends. We create them. Join the movement.",
-    "cta": "Get Started Today",
-    "variants": [
-        {"channel": "google_ads", "text": "Drive results with NTM — Start free"},
-        {"channel": "linkedin", "text": "Elevate your brand. Measurable impact, every campaign."},
-    ],
-}
+
+def _build_brief(golden: dict) -> CreativeBrief:
+    mandate = golden["input_mandate"]
+    concept = mandate.get("campaign_concept", {})
+    return CreativeBrief(
+        campaign_id="eval-camp-agt07",
+        tenant_id="eval-tenant-001",
+        core_concept=concept.get("name", "Brand Innovation"),
+        tone_adjectives=["bold", "authentic", "engaging"],
+        visual_direction="Clean, modern, aspirational",
+        brand_voice="Professional and benefit-led",
+        campaign_theme=concept.get("description", "Technology leadership"),
+        primary_cta="Learn More",
+        target_audience=concept.get("target_audience", "Urban professionals 18-45"),
+        product_details="Marketing Technology Platform",
+        messaging_rules=["Stay on-brand", "Lead with benefits", "Use active voice"],
+    )
 
 
 @pytest.mark.parametrize("mandate_id", MANDATE_IDS)
 @pytest.mark.asyncio
 async def test_agt07_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-07 scores completeness + format >= 80 on each golden mandate."""
-    load_golden(mandate_id)
+    golden = load_golden(mandate_id)
+    brief = _build_brief(golden)
 
-    with patch("backend.app.agents.copywriter.AsyncAnthropic") as mock_cls:
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(MOCK_LLM_RESPONSE))]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
-        mock_cls.return_value = mock_client
+    with patch(
+        "backend.app.agents.copywriter.AsyncAnthropic",
+        return_value=MagicMock(),
+    ):
+        with patch.dict(os.environ, {"NTM_STUB_EXTERNAL": "1"}):
+            result = await CopywriterAgent().generate(brief)
 
-        output = MOCK_LLM_RESPONSE.copy()
+    output = result.model_dump(mode="json")
 
     completeness = score_completeness(output, REQUIRED_OUTPUT_FIELDS)
     fmt = score_format(output, REQUIRED_TYPES)

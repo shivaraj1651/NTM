@@ -1,9 +1,10 @@
 """Eval tests for AGT-08 Scriptwriter."""
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backend.app.agents.scriptwriter import ScriptwriterAgent, ScriptwriterBrief
 from backend.tests.agents.conftest_evals import (
     PASS_THRESHOLD,
     ScoreCard,
@@ -12,41 +13,50 @@ from backend.tests.agents.conftest_evals import (
     score_format,
 )
 
-REQUIRED_OUTPUT_FIELDS = ["script", "scenes", "duration", "production_notes"]
+REQUIRED_OUTPUT_FIELDS = ["campaign_id", "tenant_id", "script_format", "generation_id"]
 REQUIRED_TYPES = {
-    "script": str,
-    "scenes": list,
-    "duration": (int, float),
-    "production_notes": str,
+    "campaign_id": str,
+    "tenant_id": str,
+    "script_format": str,
+    "generation_id": str,
 }
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]
 
-MOCK_LLM_RESPONSE = {
-    "script": "OPEN ON: A busy city skyline at dawn. NARRATOR: In a world...",
-    "scenes": [
-        {"scene": 1, "description": "Wide shot of city skyline", "duration_sec": 5},
-        {"scene": 2, "description": "Close-up of product", "duration_sec": 8},
-        {"scene": 3, "description": "Call to action overlay", "duration_sec": 3},
-    ],
-    "duration": 30,
-    "production_notes": "Shoot at golden hour. Use ARRI Alexa. Music: upbeat orchestral.",
-}
+
+def _build_brief(golden: dict) -> ScriptwriterBrief:
+    mandate = golden["input_mandate"]
+    concept = mandate.get("campaign_concept", {})
+    return ScriptwriterBrief(
+        campaign_id="eval-camp-agt08",
+        tenant_id="eval-tenant-001",
+        script_format="tvc",
+        core_concept=concept.get("name", "Brand Innovation"),
+        campaign_theme=concept.get("description", "Technology leadership"),
+        tone_adjectives=["bold", "cinematic", "inspiring"],
+        visual_direction="Wide cinematic shots, golden hour lighting",
+        brand_voice="Professional and aspirational",
+        target_audience=concept.get("target_audience", "Urban professionals 18-45"),
+        product_details="Marketing Technology Platform",
+        primary_cta="Learn More",
+        messaging_rules=["Show impact not features", "End on an emotional high"],
+    )
 
 
 @pytest.mark.parametrize("mandate_id", MANDATE_IDS)
 @pytest.mark.asyncio
 async def test_agt08_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-08 scores completeness + format >= 80 on each golden mandate."""
-    load_golden(mandate_id)
+    golden = load_golden(mandate_id)
+    brief = _build_brief(golden)
 
-    with patch("backend.app.agents.scriptwriter.AsyncAnthropic") as mock_cls:
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(MOCK_LLM_RESPONSE))]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
-        mock_cls.return_value = mock_client
+    with patch(
+        "backend.app.agents.scriptwriter.AsyncAnthropic",
+        return_value=MagicMock(),
+    ):
+        with patch.dict(os.environ, {"NTM_STUB_EXTERNAL": "1"}):
+            result = await ScriptwriterAgent().generate(brief)
 
-        output = MOCK_LLM_RESPONSE.copy()
+    output = result.model_dump(mode="json")
 
     completeness = score_completeness(output, REQUIRED_OUTPUT_FIELDS)
     fmt = score_format(output, REQUIRED_TYPES)

@@ -1,8 +1,10 @@
 """Eval tests for AGT-11 Video Generator."""
-from unittest.mock import AsyncMock, patch
+import os
+from unittest.mock import patch
 
 import pytest
 
+from backend.app.agents.video_generator import VideoGenerationBrief, VideoGeneratorAgent
 from backend.tests.agents.conftest_evals import (
     PASS_THRESHOLD,
     ScoreCard,
@@ -11,36 +13,55 @@ from backend.tests.agents.conftest_evals import (
     score_format,
 )
 
-REQUIRED_OUTPUT_FIELDS = ["script", "scenes", "runway_prompt"]
+REQUIRED_OUTPUT_FIELDS = [
+    "campaign_id", "generation_id", "tenant_id", "job_id",
+    "model_used", "status", "script_format",
+]
 REQUIRED_TYPES = {
-    "script": str,
-    "scenes": list,
-    "runway_prompt": str,
+    "campaign_id": str,
+    "generation_id": str,
+    "tenant_id": str,
+    "job_id": str,
+    "model_used": str,
+    "status": str,
+    "script_format": str,
 }
 MANDATE_IDS = ["mandate_1", "mandate_2", "mandate_3"]
 
-MOCK_OUTPUT = {
-    "script": "EXT. CITY SKYLINE — DAWN. A new era begins.",
-    "scenes": [
-        {"scene": 1, "description": "Aerial drone shot over city", "duration_sec": 6},
-        {"scene": 2, "description": "Product reveal in slow-motion", "duration_sec": 8},
-    ],
-    "runway_prompt": "Cinematic aerial city skyline dawn, product reveal, golden hour, 4K",
-    "job_id": "runway-job-001",
-    "status": "pending",
-}
+
+def _build_brief(golden: dict) -> VideoGenerationBrief:
+    mandate = golden["input_mandate"]
+    concept = mandate.get("campaign_concept", {})
+    return VideoGenerationBrief(
+        campaign_id="eval-camp-agt11",
+        tenant_id="eval-tenant-001",
+        prompt=(
+            f"Cinematic brand campaign, {concept.get('target_audience', 'urban professionals')}, "
+            "golden hour, 4K, premium lifestyle, aspirational"
+        ),
+        script_text=(
+            f"OPEN ON: City skyline at dawn. "
+            f"NARRATOR: {concept.get('name', 'Our brand')} — redefining what's possible. "
+            f"CUT TO: Product reveal. SUPER: Learn More."
+        ),
+        duration_seconds=15,
+        script_format="social_video",
+        campaign_theme=concept.get("description", "Brand innovation"),
+        concept_name=concept.get("name", "Campaign"),
+    )
 
 
 @pytest.mark.parametrize("mandate_id", MANDATE_IDS)
 @pytest.mark.asyncio
 async def test_agt11_eval(mandate_id, eval_results, mock_agent_llm):
     """AGT-11 scores completeness + format >= 80 on each golden mandate."""
-    load_golden(mandate_id)
+    golden = load_golden(mandate_id)
+    brief = _build_brief(golden)
 
-    with patch("backend.app.agents.video_generator.AsyncAnthropic", create=True):
-        with patch("backend.app.agents.video_generator.RunwayTool", create=True) as mock_rw:
-            mock_rw.return_value.generate_video = AsyncMock(return_value="runway-job-001")
-            output = MOCK_OUTPUT.copy()
+    with patch.dict(os.environ, {"NTM_STUB_EXTERNAL": "1"}):
+        result = await VideoGeneratorAgent().generate(brief)
+
+    output = result.model_dump(mode="json")
 
     completeness = score_completeness(output, REQUIRED_OUTPUT_FIELDS)
     fmt = score_format(output, REQUIRED_TYPES)
